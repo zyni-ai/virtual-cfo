@@ -5,6 +5,7 @@ use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\HeadMatcher\HeadMatcherService;
+use App\Services\HeadMatcher\RuleBasedMatcher;
 
 describe('HeadMatcherService::matchForFile()', function () {
     it('returns zeros when no unmapped transactions', function () {
@@ -57,5 +58,45 @@ describe('HeadMatcherService::matchForFile()', function () {
         $result = $service->setConfidenceThreshold(0.5);
 
         expect($result)->toBeInstanceOf(HeadMatcherService::class);
+    });
+});
+
+describe('HeadMatcherService::resolveAccountHead()', function () {
+    it('resolves account head by ID', function () {
+        $head = AccountHead::factory()->create();
+        $service = new HeadMatcherService(new RuleBasedMatcher);
+
+        $method = new ReflectionMethod($service, 'resolveAccountHead');
+        $result = $method->invoke($service, [
+            'suggested_head_id' => $head->id,
+            'suggested_head_name' => 'Wrong Name',
+        ]);
+
+        expect($result->id)->toBe($head->id);
+    });
+
+    it('falls back to name when ID not found', function () {
+        $head = AccountHead::factory()->create(['name' => 'Salary']);
+        $service = new HeadMatcherService(new RuleBasedMatcher);
+
+        $method = new ReflectionMethod($service, 'resolveAccountHead');
+        $result = $method->invoke($service, [
+            'suggested_head_id' => 99999,
+            'suggested_head_name' => 'Salary',
+        ]);
+
+        expect($result->id)->toBe($head->id);
+    });
+
+    it('returns null when neither ID nor name matches', function () {
+        $service = new HeadMatcherService(new RuleBasedMatcher);
+
+        $method = new ReflectionMethod($service, 'resolveAccountHead');
+        $result = $method->invoke($service, [
+            'suggested_head_id' => 99999,
+            'suggested_head_name' => 'Nonexistent Head',
+        ]);
+
+        expect($result)->toBeNull();
     });
 });
