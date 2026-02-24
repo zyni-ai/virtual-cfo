@@ -2,6 +2,9 @@
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Foundation\Testing\TestCase;
+
+pest()->extend(TestCase::class);
 
 pest()->extend(Tests\TestCase::class)
     ->use(LazilyRefreshDatabase::class)
