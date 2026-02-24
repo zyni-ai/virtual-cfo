@@ -21,13 +21,23 @@ class ProcessImportedFile implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 2;
+    public int $tries = 3;
 
-    public int $timeout = 300;
+    public int $timeout = 600;
 
     public function __construct(
         public ImportedFile $importedFile,
     ) {}
+
+    /**
+     * Exponential backoff intervals in seconds.
+     *
+     * @return array<int, int>
+     */
+    public function backoff(): array
+    {
+        return [30, 120, 300];
+    }
 
     public function handle(): void
     {
@@ -41,9 +51,20 @@ class ProcessImportedFile implements ShouldQueue
                 ]
             );
 
+            if (! isset($response['transactions']) || ! is_array($response['transactions'])) {
+                Log::warning('StatementParser returned invalid response', [
+                    'file_id' => $this->importedFile->id,
+                    'response' => $response,
+                ]);
+
+                throw new \RuntimeException(
+                    'StatementParser response missing valid transactions array.'
+                );
+            }
+
             $bankName = $response['bank_name'] ?? null;
             $accountNumber = $response['account_number'] ?? null;
-            $transactions = $response['transactions'] ?? [];
+            $transactions = $response['transactions'];
 
             if (empty($transactions)) {
                 $this->importedFile->update([
@@ -97,8 +118,26 @@ class ProcessImportedFile implements ShouldQueue
 
             $this->importedFile->update([
                 'status' => ImportStatus::Failed,
-                'error_message' => 'Statement processing failed. Check application logs for details.',
+                'error_message' => 'Statement processing failed: '.mb_substr($e->getMessage(), 0, 500),
             ]);
+
+            throw $e;
         }
+    }
+
+    /**
+     * Handle a job's permanent failure after all retries are exhausted.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        $this->importedFile->update([
+            'status' => ImportStatus::Failed,
+            'error_message' => 'Processing permanently failed: '.mb_substr($exception->getMessage(), 0, 500),
+        ]);
+
+        Log::error('ProcessImportedFile permanently failed', [
+            'file_id' => $this->importedFile->id,
+            'exception' => $exception->getMessage(),
+        ]);
     }
 }

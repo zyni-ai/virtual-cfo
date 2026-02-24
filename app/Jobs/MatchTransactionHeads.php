@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\ImportStatus;
 use App\Models\ImportedFile;
 use App\Services\HeadMatcher\HeadMatcherService;
 use Illuminate\Bus\Queueable;
@@ -15,13 +16,23 @@ class MatchTransactionHeads implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 2;
+    public int $tries = 3;
 
-    public int $timeout = 300;
+    public int $timeout = 600;
 
     public function __construct(
         public ImportedFile $importedFile,
     ) {}
+
+    /**
+     * Exponential backoff intervals in seconds.
+     *
+     * @return array<int, int>
+     */
+    public function backoff(): array
+    {
+        return [30, 120, 300];
+    }
 
     public function handle(HeadMatcherService $headMatcherService): void
     {
@@ -39,6 +50,24 @@ class MatchTransactionHeads implements ShouldQueue
                 'file_id' => $this->importedFile->id,
                 'error' => $e->getMessage(),
             ]);
+
+            throw $e;
         }
+    }
+
+    /**
+     * Handle a job's permanent failure after all retries are exhausted.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        $this->importedFile->update([
+            'status' => ImportStatus::Failed,
+            'error_message' => 'Head matching permanently failed: '.mb_substr($exception->getMessage(), 0, 500),
+        ]);
+
+        Log::error('MatchTransactionHeads permanently failed', [
+            'file_id' => $this->importedFile->id,
+            'exception' => $exception->getMessage(),
+        ]);
     }
 }
