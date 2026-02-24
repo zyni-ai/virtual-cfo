@@ -1,0 +1,60 @@
+<?php
+
+namespace App\Filament\Resources\ImportedFileResource\Pages;
+
+use App\Filament\Resources\ImportedFileResource;
+use App\Models\Transaction;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
+use Filament\Resources\Pages\ViewRecord;
+use Filament\Tables;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Table;
+
+class ViewImportedFile extends ViewRecord
+{
+    protected static string $resource = ImportedFileResource::class;
+
+    public function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Infolists\Components\Section::make('File Details')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('original_filename')
+                            ->label('Filename'),
+                        Infolists\Components\TextEntry::make('bank_name')
+                            ->label('Bank')
+                            ->placeholder('Not detected'),
+                        Infolists\Components\TextEntry::make('statement_type')
+                            ->label('Type')
+                            ->badge(),
+                        Infolists\Components\TextEntry::make('status')
+                            ->badge(),
+                        Infolists\Components\TextEntry::make('total_rows')
+                            ->label('Total Transactions'),
+                        Infolists\Components\TextEntry::make('mapped_rows')
+                            ->label('Mapped Transactions'),
+                        Infolists\Components\TextEntry::make('mapped_percentage')
+                            ->label('Mapped %')
+                            ->suffix('%'),
+                        Infolists\Components\TextEntry::make('uploader.name')
+                            ->label('Uploaded By'),
+                        Infolists\Components\TextEntry::make('created_at')
+                            ->label('Uploaded At')
+                            ->dateTime(),
+                        Infolists\Components\TextEntry::make('processed_at')
+                            ->label('Processed At')
+                            ->dateTime()
+                            ->placeholder('Not processed'),
+                        Infolists\Components\TextEntry::make('error_message')
+                            ->label('Error')
+                            ->visible(fn ($record) => $record->error_message !== null)
+                            ->color('danger')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(3),
+            ]);
+    }
+}
