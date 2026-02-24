@@ -21,8 +21,8 @@ return new class extends Migration
             $table->unsignedInteger('mapped_rows')->default(0);
             $table->text('error_message')->nullable();
             $table->foreignId('uploaded_by')->constrained('users');
-            $table->timestamp('processed_at')->nullable();
-            $table->timestamps();
+            $table->timestampTz('processed_at')->nullable();
+            $table->timestampsTz();
 
             $table->index('status');
             $table->index('bank_name');

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('bank_name')->nullable();
             $table->foreignId('created_by')->constrained('users');
             $table->unsignedInteger('usage_count')->default(0);
-            $table->timestamps();
+            $table->timestampsTz();
 
             $table->index('account_head_id');
             $table->index('bank_name');
