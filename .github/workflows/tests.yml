@@ -75,6 +75,9 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
+      - name: Prepare Laravel directories
+        run: mkdir -p bootstrap/cache storage/framework/{cache/data,sessions,testing,views} storage/logs
+
       - name: Copy environment file
         run: cp .env.example .env
 
@@ -109,6 +112,9 @@ jobs:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
+
+      - name: Prepare Laravel directories
+        run: mkdir -p bootstrap/cache storage/framework/{cache/data,sessions,testing,views} storage/logs
 
       - name: Copy environment file
         run: cp .env.example .env
@@ -162,6 +168,9 @@ jobs:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
+
+      - name: Prepare Laravel directories
+        run: mkdir -p bootstrap/cache storage/framework/{cache/data,sessions,testing,views} storage/logs
 
       - name: Copy environment file
         run: cp .env.example .env
@@ -226,6 +235,9 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
+      - name: Prepare Laravel directories
+        run: mkdir -p bootstrap/cache storage/framework/{cache/data,sessions,testing,views} storage/logs
+
       - name: Copy environment file
         run: cp .env.example .env
 
@@ -280,6 +292,9 @@ jobs:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
+
+      - name: Prepare Laravel directories
+        run: mkdir -p bootstrap/cache storage/framework/{cache/data,sessions,testing,views} storage/logs
 
       - name: Copy environment file
         run: cp .env.example .env

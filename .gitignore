@@ -21,9 +21,14 @@
 .DS_Store
 Thumbs.db
 /storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitkeep
 /storage/framework/sessions/*
+!/storage/framework/sessions/.gitkeep
 /storage/framework/testing/*
+!/storage/framework/testing/.gitkeep
 /storage/framework/views/*
+!/storage/framework/views/.gitkeep
 /storage/logs/*
+!/storage/logs/.gitkeep
 npm-debug.log
 yarn-error.log
