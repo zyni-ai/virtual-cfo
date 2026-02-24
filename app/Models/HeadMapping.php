@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Enums\MatchType;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HeadMapping extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'pattern',
         'match_type',
