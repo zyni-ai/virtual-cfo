@@ -5,7 +5,6 @@ namespace App\Filament\Resources\ImportedFileResource\Pages;
 use App\Enums\ImportStatus;
 use App\Filament\Resources\ImportedFileResource;
 use App\Jobs\ProcessImportedFile;
-use App\Models\ImportedFile;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;

@@ -3,15 +3,10 @@
 namespace App\Filament\Resources\ImportedFileResource\Pages;
 
 use App\Filament\Resources\ImportedFileResource;
-use App\Models\Transaction;
 use Filament\Infolists;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Tables;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Table;
 
 class ViewImportedFile extends ViewRecord
 {

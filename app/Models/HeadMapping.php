@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class HeadMapping extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'pattern',
         'match_type',

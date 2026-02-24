@@ -26,7 +26,7 @@ class TransactionResource extends Resource
 {
     protected static ?string $model = Transaction::class;
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-banknotes';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
 
     protected static ?string $navigationLabel = 'Transactions';
 
@@ -280,7 +280,7 @@ class TransactionResource extends Resource
                         $xml = $service->exportTransactions($transactions);
 
                         return response()->streamDownload(
-                            fn () => print($xml),
+                            fn () => print ($xml),
                             'tally-export-'.now()->format('Y-m-d-His').'.xml',
                             ['Content-Type' => 'application/xml']
                         );

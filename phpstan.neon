@@ -1,5 +1,6 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
 
 parameters:
     paths:
@@ -9,9 +10,5 @@ parameters:
     reportUnmatchedIgnoredErrors: true
 
     ignoreErrors:
-        # Pivot properties (larastan/larastan#883) - genuinely unfixable
-        -
-            message: '#Access to an undefined property Illuminate\\Database\\Eloquent\\Relations\\Pivot::\$[a-zA-Z_]+#'
-
         # Timestamp nullsafe (nunomaduro/larastan#1580) - genuinely unfixable
         - identifier: nullsafe.neverNull

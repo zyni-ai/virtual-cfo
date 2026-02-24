@@ -21,7 +21,7 @@ class HeadMappingResource extends Resource
 {
     protected static ?string $model = HeadMapping::class;
 
-    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-arrow-path-rounded-square';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrow-path-rounded-square';
 
     protected static ?string $navigationLabel = 'Mapping Rules';
 

@@ -1,0 +1,433 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method App\\Ai\\Agents\\HeadMatcher\:\:schema\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Ai/Agents/HeadMatcher.php
+
+		-
+			message: '#^Parameter \#1 \$type of method Illuminate\\JsonSchema\\Types\\ArrayType\:\:items\(\) expects Illuminate\\JsonSchema\\Types\\Type, array\<string, Illuminate\\JsonSchema\\Types\\IntegerType\|Illuminate\\JsonSchema\\Types\\NumberType\|Illuminate\\JsonSchema\\Types\\StringType\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Ai/Agents/HeadMatcher.php
+
+		-
+			message: '#^Parameter \#1 \$value of attribute class Laravel\\Ai\\Attributes\\Provider constructor expects array\|string, Laravel\\Ai\\Enums\\Lab\:\:Mistral given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Ai/Agents/HeadMatcher.php
+
+		-
+			message: '#^Method App\\Ai\\Agents\\StatementParser\:\:schema\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Ai/Agents/StatementParser.php
+
+		-
+			message: '#^Parameter \#1 \$type of method Illuminate\\JsonSchema\\Types\\ArrayType\:\:items\(\) expects Illuminate\\JsonSchema\\Types\\Type, array\<string, Illuminate\\JsonSchema\\Types\\NumberType\|Illuminate\\JsonSchema\\Types\\StringType\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Ai/Agents/StatementParser.php
+
+		-
+			message: '#^Parameter \#1 \$value of attribute class Laravel\\Ai\\Attributes\\Provider constructor expects array\|string, Laravel\\Ai\\Enums\\Lab\:\:Mistral given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Ai/Agents/StatementParser.php
+
+		-
+			message: '#^Method App\\Enums\\ImportStatus\:\:getColor\(\) never returns array\<string\> so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/ImportStatus.php
+
+		-
+			message: '#^Method App\\Enums\\ImportStatus\:\:getColor\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/ImportStatus.php
+
+		-
+			message: '#^Method App\\Enums\\ImportStatus\:\:getIcon\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/ImportStatus.php
+
+		-
+			message: '#^Method App\\Enums\\MappingType\:\:getColor\(\) never returns array\<string\> so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/MappingType.php
+
+		-
+			message: '#^Method App\\Enums\\MappingType\:\:getColor\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/MappingType.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\Action\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/AccountHeadResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkActionGroup\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/AccountHeadResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/AccountHeadResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteBulkAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/AccountHeadResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\EditAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/AccountHeadResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\Action\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/HeadMappingResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkActionGroup\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/HeadMappingResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/HeadMappingResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteBulkAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/HeadMappingResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\EditAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/HeadMappingResource.php
+
+		-
+			message: '#^Cannot call method getLabel\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Filament/Resources/HeadMappingResource.php
+
+		-
+			message: '#^Call to function in_array\(\) with string and array\{App\\Enums\\ImportStatus\:\:Completed, App\\Enums\\ImportStatus\:\:Failed\} will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: app/Filament/Resources/ImportedFileResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\Action\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/ImportedFileResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkActionGroup\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/ImportedFileResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/ImportedFileResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteBulkAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/ImportedFileResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\ViewAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/ImportedFileResource.php
+
+		-
+			message: '#^Parameter \#1 \$importedFile of job class App\\Jobs\\ProcessImportedFile constructor expects App\\Models\\ImportedFile in App\\Jobs\\ProcessImportedFile\:\:dispatch\(\), Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Filament/Resources/ImportedFileResource/Pages/CreateImportedFile.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$bank_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Filament/Resources/TransactionResource.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:transactions\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Filament/Resources/TransactionResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\Action\.$#'
+			identifier: class.notFound
+			count: 4
+			path: app/Filament/Resources/TransactionResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/TransactionResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkActionGroup\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/TransactionResource.php
+
+		-
+			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteBulkAction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Filament/Resources/TransactionResource.php
+
+		-
+			message: '#^Class App\\Models\\AccountHead uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AccountHead.php
+
+		-
+			message: '#^Method App\\Models\\AccountHead\:\:children\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AccountHead.php
+
+		-
+			message: '#^Method App\\Models\\AccountHead\:\:headMappings\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AccountHead.php
+
+		-
+			message: '#^Method App\\Models\\AccountHead\:\:parent\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AccountHead.php
+
+		-
+			message: '#^Method App\\Models\\AccountHead\:\:transactions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AccountHead.php
+
+		-
+			message: '#^Class App\\Models\\HeadMapping uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/HeadMapping.php
+
+		-
+			message: '#^Match arm comparison between string and App\\Enums\\MatchType\:\:Contains is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: app/Models/HeadMapping.php
+
+		-
+			message: '#^Match arm comparison between string and App\\Enums\\MatchType\:\:Exact is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: app/Models/HeadMapping.php
+
+		-
+			message: '#^Match arm comparison between string and App\\Enums\\MatchType\:\:Regex is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: app/Models/HeadMapping.php
+
+		-
+			message: '#^Match expression does not handle remaining value\: string$#'
+			identifier: match.unhandled
+			count: 1
+			path: app/Models/HeadMapping.php
+
+		-
+			message: '#^Method App\\Models\\HeadMapping\:\:accountHead\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/HeadMapping.php
+
+		-
+			message: '#^Method App\\Models\\HeadMapping\:\:creator\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/HeadMapping.php
+
+		-
+			message: '#^Class App\\Models\\ImportedFile uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/ImportedFile.php
+
+		-
+			message: '#^Method App\\Models\\ImportedFile\:\:transactions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/ImportedFile.php
+
+		-
+			message: '#^Method App\\Models\\ImportedFile\:\:uploader\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/ImportedFile.php
+
+		-
+			message: '#^Class App\\Models\\Transaction uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:accountHead\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:importedFile\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeMapped\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeMapped\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeNeedsReview\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeNeedsReview\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeUnmapped\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeUnmapped\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Class App\\Models\\User uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:headMappings\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:importedFiles\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Services\\HeadMatcher\\HeadMatcherService\:\:matchForFile\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/HeadMatcher/HeadMatcherService.php
+
+		-
+			message: '#^Method App\\Services\\HeadMatcher\\HeadMatcherService\:\:runAiMatching\(\) has parameter \$transactions with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Services/HeadMatcher/HeadMatcherService.php
+
+		-
+			message: '#^Parameter \#1 \$transactions of method App\\Services\\HeadMatcher\\RuleBasedMatcher\:\:match\(\) expects Illuminate\\Support\\Collection\<int, App\\Models\\Transaction\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/HeadMatcher/HeadMatcherService.php
+
+		-
+			message: '#^Method App\\Services\\HeadMatcher\\RuleBasedMatcher\:\:applyMatches\(\) has parameter \$matches with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/HeadMatcher/RuleBasedMatcher.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and App\\Enums\\MappingType\:\:Unmapped will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Services/HeadMatcher/RuleBasedMatcher.php
+
+		-
+			message: '#^Unreachable statement \- code above always terminates\.$#'
+			identifier: deadCode.unreachable
+			count: 1
+			path: app/Services/HeadMatcher/RuleBasedMatcher.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TallyExport/TallyExportService.php
+
+		-
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/TallyExport/TallyExportService.php
+
+		-
+			message: '#^Method App\\Services\\TallyExport\\TallyExportService\:\:generateXml\(\) has parameter \$transactions with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/TallyExport/TallyExportService.php
+
+		-
+			message: '#^Parameter \#2 \$importedFile of method App\\Services\\TallyExport\\TallyExportService\:\:generateXml\(\) expects App\\Models\\ImportedFile\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/TallyExport/TallyExportService.php

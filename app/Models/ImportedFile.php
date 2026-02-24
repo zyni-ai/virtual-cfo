@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 class ImportedFile extends Model
 {
     use HasFactory;
+
     protected static function booted(): void
     {
         static::deleting(function (ImportedFile $file) {

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class AccountHead extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'name',
         'parent_id',
