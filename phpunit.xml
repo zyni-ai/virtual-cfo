@@ -26,7 +26,7 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
-        <env name="APP_KEY" value="base64:dGVzdGluZ2tleXRoYXRpczMyYnl0ZXNsb25n"/>
+        <env name="APP_KEY" value="base64:URbB5ndJAald9L6S//Lbe1kwgn0QLfDt4LJSWrRrjkQ="/>
         <env name="DB_CONNECTION" value="pgsql"/>
         <env name="DB_DATABASE" value="virtual_cfo_test"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

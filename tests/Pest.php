@@ -3,7 +3,9 @@
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 
-uses(LazilyRefreshDatabase::class)->in('Feature');
+pest()->extend(Tests\TestCase::class)
+    ->use(LazilyRefreshDatabase::class)
+    ->in('Feature');
 
 /**
  * Authenticate as a user for Filament tests.
