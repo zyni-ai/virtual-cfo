@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('tally_guid')->nullable();
             $table->string('group_name')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->timestamps();
+            $table->timestampsTz();
 
             $table->index('name');
             $table->index('group_name');

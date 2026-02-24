@@ -22,7 +22,7 @@ return new class extends Migration
             $table->float('ai_confidence')->nullable();
             $table->text('raw_data')->nullable(); // encrypted JSONB
             $table->string('bank_format')->nullable();
-            $table->timestamps();
+            $table->timestampsTz();
 
             $table->index('imported_file_id');
             $table->index('account_head_id');
