@@ -5,8 +5,9 @@ namespace App\Filament\Resources\ImportedFileResource\Pages;
 use App\Filament\Resources\ImportedFileResource;
 use App\Models\Transaction;
 use Filament\Infolists;
-use Filament\Infolists\Infolist;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -16,11 +17,11 @@ class ViewImportedFile extends ViewRecord
 {
     protected static string $resource = ImportedFileResource::class;
 
-    public function infolist(Infolist $infolist): Infolist
+    public function infolist(Schema $schema): Schema
     {
-        return $infolist
+        return $schema
             ->schema([
-                Infolists\Components\Section::make('File Details')
+                Section::make('File Details')
                     ->schema([
                         Infolists\Components\TextEntry::make('original_filename')
                             ->label('Filename'),

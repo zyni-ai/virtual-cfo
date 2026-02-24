@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell.exe *)",
+      "Bash(powershell -Command:*)",
+      "Bash(powershell -ExecutionPolicy Bypass *)",
+      "Bash(pwsh:*)",
+      "Bash(cmd /c *)",
+      "Bash(cmd.exe /c:*)",
+      "Bash(/c/Users/VarunU/.config/herd/bin/php84/php.exe *)",
+      "Bash(bash:*)",
+      "Bash(./scripts/*)",
+      "Bash(composer *)",
+      "Bash(jq:*)",
+      "Bash(sort:*)",
+      "Skill(ralph-loop:ralph-loop)",
+      "mcp__filesystem__read_multiple_files",
+      "mcp__filesystem__search_files",
+      "mcp__filesystem__list_directory",
+      "mcp__filesystem__read_text_file",
+      "mcp__filesystem__directory_tree",
+      "mcp__memory__search_nodes",
+      "mcp__memory__read_graph",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:filamentphp.com)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ]
+}

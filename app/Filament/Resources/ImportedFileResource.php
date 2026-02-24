@@ -7,9 +7,11 @@ use App\Enums\StatementType;
 use App\Filament\Resources\ImportedFileResource\Pages;
 use App\Jobs\ProcessImportedFile;
 use App\Models\ImportedFile;
+use BackedEnum;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
@@ -18,17 +20,17 @@ class ImportedFileResource extends Resource
 {
     protected static ?string $model = ImportedFile::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-arrow-up';
+    protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-document-arrow-up';
 
     protected static ?string $navigationLabel = 'Imported Files';
 
     protected static ?int $navigationSort = 1;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Forms\Components\Section::make('Upload Statement')
+                Section::make('Upload Statement')
                     ->schema([
                         Forms\Components\FileUpload::make('file_path')
                             ->label('Statement PDF')
