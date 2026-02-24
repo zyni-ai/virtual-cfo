@@ -1,0 +1,140 @@
+name: Bug Report
+description: Report a bug that needs fixing
+labels: ["type:bug", "status:backlog"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Bug Report
+
+        Describe the bug clearly. Include a failing test case if possible (TDD approach).
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "Critical - System unusable"
+        - "High - Major feature broken"
+        - "Medium - Feature partially broken"
+        - "Low - Minor issue"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected Module
+      options:
+        - "Imports (PDF upload & parsing)"
+        - "Mapping (account head assignment)"
+        - "Export (Tally XML generation)"
+        - "AI (LLM parsing & matching)"
+        - "Filament (admin panel & UI)"
+        - "Infrastructure (auth, config, jobs)"
+        - "Cross-cutting"
+        - "Unknown"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Clear description of what's wrong
+      placeholder: |
+        The PDF parser fails to extract transactions from HDFC bank statements with more than 50 pages.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Upload an HDFC bank statement with 60+ pages
+        2. Wait for processing to complete
+        3. View the imported file — shows 0 transactions
+        4. Check error_message — "LLM response exceeded token limit"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      placeholder: |
+        All transactions from the PDF should be extracted and stored, regardless of page count.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      placeholder: |
+        Processing fails with status "failed" and error_message indicates token limit exceeded.
+    validations:
+      required: true
+
+  - type: textarea
+    id: failing-test
+    attributes:
+      label: Failing Test Case (TDD)
+      description: Write a test that demonstrates the bug (will be used to verify the fix)
+      placeholder: |
+        ```php
+        it('parses large PDFs by chunking pages', function () {
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'test-fixtures/hdfc-60-pages.pdf',
+            ]);
+
+            ProcessImportedFile::dispatchSync($file);
+
+            expect($file->fresh()->status)->toBe(ImportStatus::Completed)
+                ->and($file->fresh()->total_rows)->toBeGreaterThan(0);
+        });
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        - PHP Version: 8.4
+        - Laravel Version: 12.x
+        - Filament Version: 5.x
+        - Database: PostgreSQL 17
+        - OS: Windows 11
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs/Stack Trace
+      description: Include error messages or stack traces
+      placeholder: |
+        ```
+        [2026-02-24 10:30:00] local.ERROR: LLM response exceeded token limit
+        {"exception":"[object] (RuntimeException: ...
+        #0 app/Services/StatementParser.php(85): ...
+        ```
+
+  - type: textarea
+    id: related-code
+    attributes:
+      label: Related Code
+      description: Links to potentially affected files
+      placeholder: |
+        - app/Agents/StatementParser.php:45
+        - app/Jobs/ProcessImportedFile.php:30
+
+  - type: textarea
+    id: proposed-fix
+    attributes:
+      label: Proposed Fix (Optional)
+      description: If you have an idea for the fix
+      placeholder: |
+        Chunk the PDF into batches of 10 pages and process each batch separately,
+        then merge the extracted transactions.

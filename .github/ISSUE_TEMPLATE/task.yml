@@ -1,0 +1,222 @@
+name: Task
+description: A single implementation task executable in one session
+labels: ["type:task", "status:backlog"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Implementation Task
+
+        This task should be completable in a single Claude Code session.
+        The description below will be used directly as the implementation prompt.
+
+        **TDD Approach:** Tests are written first, then implementation follows.
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      options:
+        - "Imports (PDF upload & parsing)"
+        - "Mapping (account head assignment)"
+        - "Export (Tally XML generation)"
+        - "AI (LLM parsing & matching)"
+        - "Filament (admin panel & UI)"
+        - "Infrastructure (auth, config, jobs)"
+        - "Cross-cutting"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Estimated Complexity
+      options:
+        - "Trivial (< 10 min)"
+        - "Small (10-30 min)"
+        - "Medium (30-60 min)"
+        - "Large (60+ min - consider splitting)"
+    validations:
+      required: true
+
+  - type: input
+    id: parent-feature
+    attributes:
+      label: Parent Feature
+      description: Link to parent feature issue (if applicable)
+      placeholder: "#123"
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: One clear sentence describing what needs to be built
+      placeholder: |
+        Add encryption to sensitive transaction fields (account_number, description, debit, credit, balance, raw_data).
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context & References
+      description: Links to docs, related code, and references
+      placeholder: |
+        **Guide:** docs/guides/ai-assisted-development-workflow.md
+        **Related Model:** app/Models/Transaction.php
+        **Related Migration:** database/migrations/xxxx_create_transactions_table.php
+        **CLAUDE.md:** See "Encryption" section in Architecture Decisions
+    validations:
+      required: true
+
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements
+      description: Detailed technical requirements for implementation
+      placeholder: |
+        ## Model Changes
+
+        Add Laravel encrypted casting to Transaction model:
+        - account_number → encrypted
+        - description → encrypted
+        - debit → encrypted:float
+        - credit → encrypted:float
+        - balance → encrypted:float
+        - raw_data → encrypted:array
+
+        ## Migration
+
+        - Change column types from specific types to TEXT (encrypted data is stored as text)
+        - Ensure existing data is migrated (encrypt in-place)
+
+        ## Search Considerations
+
+        - Encrypted fields cannot be searched directly
+        - Add a `description_hash` column for exact-match lookups
+        - Rule-based matching must decrypt before comparing
+    validations:
+      required: true
+
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test Requirements (TDD)
+      description: All tests that must pass. Write these FIRST before implementation.
+      placeholder: |
+        ## Unit Tests
+
+        File: `tests/Unit/Models/TransactionTest.php`
+
+        - [ ] it encrypts account_number when saving
+        - [ ] it decrypts account_number when reading
+        - [ ] it encrypts debit/credit/balance as floats
+        - [ ] it encrypts raw_data as array
+        - [ ] encrypted fields are not readable in raw DB query
+
+        ## Feature Tests
+
+        File: `tests/Feature/Jobs/ProcessImportedFileTest.php`
+
+        - [ ] it stores transactions with encrypted fields
+        - [ ] it can read back encrypted transaction data correctly
+        - [ ] rule-based matching works with encrypted descriptions
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification Commands
+      description: Commands to verify the task is complete
+      value: |
+        ```bash
+        # Run related tests
+        php artisan test --filter=Transaction
+
+        # Check code style
+        vendor/bin/pint --dirty
+
+        # Run static analysis
+        vendor/bin/phpstan analyse
+
+        # Verify in tinker
+        php artisan tinker --execute="App\Models\Transaction::first()?->description"
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: mcp-tools
+    attributes:
+      label: MCP Tools (Laravel Boost)
+      description: Laravel Boost MCP tools to use during implementation
+      value: |
+        **Use these MCP tools before and during implementation:**
+
+        ## Before Writing Code
+
+        1. **search-docs** - Search Laravel/Filament/Pest documentation
+        2. **database-schema** - Review existing schema for patterns
+        3. **application-info** - Confirm package versions
+
+        ## During Implementation
+
+        4. **tinker** - Test code snippets interactively
+        5. **database-query** - Verify migrations and data
+        6. **read-log-entries** - Check for errors
+
+  - type: textarea
+    id: implementation-approach
+    attributes:
+      label: Implementation Approach
+      description: Step-by-step TDD approach
+      value: |
+        ## Phase 0: Research (MCP Tools)
+
+        1. Use `search-docs` to find correct patterns
+        2. Use `database-schema` to review existing tables
+        3. Read related code for conventions
+
+        ## Phase 1: Write Failing Tests (RED)
+
+        1. Create test files with all test cases
+        2. Run tests to confirm they fail (expected)
+        3. Commit: `test: add failing tests for <feature>`
+
+        ## Phase 2: Implement to Pass Tests (GREEN)
+
+        1. Implement the changes
+        2. Use `tinker` to verify interactively
+        3. Run tests after each change
+        4. Commit: `feat: implement <feature>`
+
+        ## Phase 3: Refactor (REFACTOR)
+
+        1. Review code for improvements
+        2. Ensure tests still pass
+        3. Run Pint for code style
+        4. Commit: `refactor: clean up <feature>`
+
+  - type: textarea
+    id: completion-criteria
+    attributes:
+      label: Completion Criteria
+      description: Explicit success criteria
+      value: |
+        **Task is complete when ALL of the following are true:**
+
+        1. [ ] All specified tests are written and passing
+        2. [ ] Implementation meets all requirements
+        3. [ ] Code passes `vendor/bin/pint --dirty`
+        4. [ ] Code passes `vendor/bin/phpstan analyse`
+        5. [ ] No regressions in existing tests
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Notes
+      placeholder: |
+        Edge cases, gotchas, or implementation hints

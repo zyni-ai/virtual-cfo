@@ -1,0 +1,101 @@
+name: Feature
+description: A user-facing feature or capability that breaks into multiple tasks
+labels: ["type:feature", "status:backlog"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Feature Request
+        Describe a user-facing capability for Virtual CFO. Features should be broken into smaller executable tasks.
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Which module does this feature primarily belong to?
+      options:
+        - "Imports (PDF upload & parsing)"
+        - "Mapping (account head assignment)"
+        - "Export (Tally XML generation)"
+        - "AI (LLM parsing & matching)"
+        - "Filament (admin panel & UI)"
+        - "Infrastructure (auth, config, jobs)"
+        - "Cross-cutting"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - "Critical"
+        - "High"
+        - "Medium"
+        - "Low"
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User Story
+      description: Describe who wants this and why
+      placeholder: |
+        As an accountant,
+        I want to bulk-import multiple bank statements at once,
+        So that I can process an entire month's statements in one go.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What must be true for this feature to be complete?
+      placeholder: |
+        - [ ] Users can select multiple PDF files for upload
+        - [ ] Each file is processed independently as a background job
+        - [ ] Progress is shown per file on the imported files list
+        - [ ] Failed files don't block processing of other files
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical-tasks
+    attributes:
+      label: Technical Tasks
+      description: Break this feature into executable tasks. Each task should be a separate issue.
+      placeholder: |
+        1. [ ] Update FileUpload component to accept multiple files
+        2. [ ] Create batch import job that dispatches per-file jobs
+        3. [ ] Add progress tracking to ImportedFile model
+        4. [ ] Update Filament UI with batch upload progress
+        5. [ ] Add tests for batch import workflow
+    validations:
+      required: true
+
+  - type: textarea
+    id: filament-ui
+    attributes:
+      label: Filament UI Changes
+      description: Describe any admin panel UI changes needed
+      placeholder: |
+        - Add multi-file upload support to CreateImportedFile page
+        - Show batch progress indicator on ListImportedFiles
+        - Add "Upload Batch" header action
+
+  - type: textarea
+    id: related-docs
+    attributes:
+      label: Related Documentation
+      description: Link to relevant docs, guides, and references
+      placeholder: |
+        - Guide: docs/guides/ai-assisted-development-workflow.md
+        - Testing: docs/guides/testing-best-practices.md
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Notes
+      placeholder: Any other context, dependencies, or considerations
