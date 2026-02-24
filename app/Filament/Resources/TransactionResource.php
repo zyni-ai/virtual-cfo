@@ -19,6 +19,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -217,8 +219,8 @@ class TransactionResource extends Resource
                                 ->searchable()
                                 ->required(),
                         ])
-                        ->action(function (\Illuminate\Database\Eloquent\Collection $records, array $data) {
-                            $records->each(function (\Illuminate\Database\Eloquent\Model $record) use ($data) {
+                        ->action(function (Collection $records, array $data) {
+                            $records->each(function (Model $record) use ($data) {
                                 $record->update([
                                     'account_head_id' => $data['account_head_id'],
                                     'mapping_type' => MappingType::Manual,

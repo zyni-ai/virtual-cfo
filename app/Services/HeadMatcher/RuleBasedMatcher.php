@@ -5,6 +5,7 @@ namespace App\Services\HeadMatcher;
 use App\Enums\MappingType;
 use App\Models\HeadMapping;
 use App\Models\Transaction;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class RuleBasedMatcher
@@ -18,10 +19,10 @@ class RuleBasedMatcher
     public function match(Collection $transactions, ?string $bankName = null): array
     {
         $query = HeadMapping::with('accountHead')
-            ->whereHas('accountHead', fn ($q) => $q->where('is_active', true));
+            ->whereHas('accountHead', fn (Builder $q) => $q->where('is_active', true));
 
         if ($bankName) {
-            $query->where(function ($q) use ($bankName) {
+            $query->where(function (Builder $q) use ($bankName) {
                 $q->whereNull('bank_name')
                     ->orWhere('bank_name', $bankName);
             });

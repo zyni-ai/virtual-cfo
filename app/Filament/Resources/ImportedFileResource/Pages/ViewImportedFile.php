@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ImportedFileResource\Pages;
 
 use App\Filament\Resources\ImportedFileResource;
+use App\Models\ImportedFile;
 use Filament\Infolists;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
@@ -46,7 +47,7 @@ class ViewImportedFile extends ViewRecord
                             ->placeholder('Not processed'),
                         Infolists\Components\TextEntry::make('error_message')
                             ->label('Error')
-                            ->visible(fn (\App\Models\ImportedFile $record) => $record->error_message !== null)
+                            ->visible(fn (ImportedFile $record) => $record->error_message !== null)
                             ->color('danger')
                             ->columnSpanFull(),
                     ])

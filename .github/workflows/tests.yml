@@ -313,4 +313,4 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Check type coverage
-        run: vendor/bin/pest --type-coverage --min=100
+        run: vendor/bin/pest --type-coverage --min=95

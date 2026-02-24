@@ -7,6 +7,7 @@ use App\Enums\MappingType;
 use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use Illuminate\Database\Eloquent\Collection;
 
 class HeadMatcherService
 {
@@ -71,14 +72,14 @@ class HeadMatcherService
     /**
      * Run AI matching on a collection of unmapped transactions.
      */
-    protected function runAiMatching($transactions): int
+    protected function runAiMatching(Collection $transactions): int
     {
         $chartOfAccounts = AccountHead::where('is_active', true)
             ->get()
-            ->map(fn ($head) => "{$head->id}: {$head->name} ({$head->group_name})")
+            ->map(fn (AccountHead $head) => "{$head->id}: {$head->name} ({$head->group_name})")
             ->implode("\n");
 
-        $descriptions = $transactions->map(fn ($t) => [
+        $descriptions = $transactions->map(fn (Transaction $t) => [
             'id' => $t->id,
             'description' => $t->description,
             'debit' => $t->debit,

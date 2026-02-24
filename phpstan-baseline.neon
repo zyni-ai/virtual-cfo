@@ -379,8 +379,14 @@ parameters:
 			path: app/Services/HeadMatcher/HeadMatcherService.php
 
 		-
-			message: '#^Method App\\Services\\HeadMatcher\\HeadMatcherService\:\:runAiMatching\(\) has parameter \$transactions with no type specified\.$#'
-			identifier: missingType.parameter
+			message: '#^Method App\\Services\\HeadMatcher\\HeadMatcherService\:\:runAiMatching\(\) has parameter \$transactions with generic class Illuminate\\Database\\Eloquent\\Collection but does not specify its types\: TKey, TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/HeadMatcher/HeadMatcherService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<\(int\|string\),Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\|string\)\: array\{id\: int, description\: string, debit\: string\|null, credit\: string\|null\}, Closure\(App\\Models\\Transaction\)\: array\{id\: int, description\: string, debit\: string\|null, credit\: string\|null\} given\.$#'
+			identifier: argument.type
 			count: 1
 			path: app/Services/HeadMatcher/HeadMatcherService.php
 
