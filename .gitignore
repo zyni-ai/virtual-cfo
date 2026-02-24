@@ -1,0 +1,17 @@
+/vendor/
+/node_modules/
+/.env
+/.env.backup
+/.env.production
+/storage/*.key
+/storage/app/private/
+/public/hot
+/public/storage
+/bootstrap/cache/
+/.phpunit.cache
+/.idea/
+/.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
