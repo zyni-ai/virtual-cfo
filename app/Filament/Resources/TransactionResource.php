@@ -12,6 +12,7 @@ use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\TallyExport\TallyExportService;
 use BackedEnum;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -139,7 +140,7 @@ class TransactionResource extends Resource
                     ),
             ])
             ->actions([
-                Tables\Actions\Action::make('assign_head')
+                Actions\Action::make('assign_head')
                     ->label('Assign Head')
                     ->icon('heroicon-o-tag')
                     ->form([
@@ -165,7 +166,7 @@ class TransactionResource extends Resource
                         ]);
                     }),
 
-                Tables\Actions\Action::make('create_rule')
+                Actions\Action::make('create_rule')
                     ->label('Create Rule')
                     ->icon('heroicon-o-plus-circle')
                     ->color('info')
@@ -208,8 +209,8 @@ class TransactionResource extends Resource
                     ->visible(fn (Transaction $record) => $record->account_head_id !== null),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('bulk_assign_head')
+                Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('bulk_assign_head')
                         ->label('Assign Account Head')
                         ->icon('heroicon-o-tag')
                         ->form([
@@ -243,11 +244,11 @@ class TransactionResource extends Resource
                         })
                         ->deselectRecordsAfterCompletion(),
 
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Actions\DeleteBulkAction::make(),
                 ]),
             ])
             ->headerActions([
-                Tables\Actions\Action::make('run_ai_matching')
+                Actions\Action::make('run_ai_matching')
                     ->label('Run AI Matching')
                     ->icon('heroicon-o-cpu-chip')
                     ->color('warning')
@@ -268,7 +269,7 @@ class TransactionResource extends Resource
                             ->send();
                     }),
 
-                Tables\Actions\Action::make('export_tally')
+                Actions\Action::make('export_tally')
                     ->label('Export to Tally XML')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('success')

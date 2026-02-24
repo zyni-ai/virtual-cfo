@@ -8,6 +8,7 @@ use App\Filament\Resources\ImportedFileResource\Pages;
 use App\Jobs\ProcessImportedFile;
 use App\Models\ImportedFile;
 use BackedEnum;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -110,9 +111,9 @@ class ImportedFileResource extends Resource
                     ->options(StatementType::class),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                Actions\ViewAction::make(),
 
-                Tables\Actions\Action::make('reprocess')
+                Actions\Action::make('reprocess')
                     ->label('Re-process')
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
@@ -132,11 +133,11 @@ class ImportedFileResource extends Resource
                         ImportStatus::Failed,
                     ])),
 
-                Tables\Actions\DeleteAction::make(),
+                Actions\DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                Actions\BulkActionGroup::make([
+                    Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }

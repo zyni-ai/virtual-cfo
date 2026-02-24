@@ -7,6 +7,7 @@ use App\Filament\Resources\HeadMappingResource\Pages;
 use App\Models\HeadMapping;
 use App\Models\Transaction;
 use BackedEnum;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -115,9 +116,9 @@ class HeadMappingResource extends Resource
                     ->preload(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Actions\EditAction::make(),
 
-                Tables\Actions\Action::make('test_rule')
+                Actions\Action::make('test_rule')
                     ->label('Test Rule')
                     ->icon('heroicon-o-beaker')
                     ->color('info')
@@ -133,11 +134,11 @@ class HeadMappingResource extends Resource
                             ->send();
                     }),
 
-                Tables\Actions\DeleteAction::make(),
+                Actions\DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                Actions\BulkActionGroup::make([
+                    Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }

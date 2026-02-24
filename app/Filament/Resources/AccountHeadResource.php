@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AccountHeadResource\Pages;
 use App\Models\AccountHead;
 use BackedEnum;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -102,16 +103,16 @@ class AccountHeadResource extends Resource
                         ->pluck('group_name', 'group_name')),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Actions\EditAction::make(),
+                Actions\DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                Actions\BulkActionGroup::make([
+                    Actions\DeleteBulkAction::make(),
                 ]),
             ])
             ->headerActions([
-                Tables\Actions\Action::make('import_tally')
+                Actions\Action::make('import_tally')
                     ->label('Import from Tally XML')
                     ->icon('heroicon-o-arrow-up-tray')
                     ->color('info')
