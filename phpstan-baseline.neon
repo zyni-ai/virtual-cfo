@@ -67,66 +67,6 @@ parameters:
 			path: app/Enums/MappingType.php
 
 		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\Action\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/AccountHeadResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkActionGroup\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/AccountHeadResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteAction\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/AccountHeadResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteBulkAction\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/AccountHeadResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\EditAction\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/AccountHeadResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\Action\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/HeadMappingResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkActionGroup\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/HeadMappingResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteAction\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/HeadMappingResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteBulkAction\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/HeadMappingResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\EditAction\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/HeadMappingResource.php
-
-		-
 			message: '#^Cannot call method getLabel\(\) on string\.$#'
 			identifier: method.nonObject
 			count: 1
@@ -135,36 +75,6 @@ parameters:
 		-
 			message: '#^Call to function in_array\(\) with string and array\{App\\Enums\\ImportStatus\:\:Completed, App\\Enums\\ImportStatus\:\:Failed\} will always evaluate to false\.$#'
 			identifier: function.impossibleType
-			count: 1
-			path: app/Filament/Resources/ImportedFileResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\Action\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/ImportedFileResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkActionGroup\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/ImportedFileResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteAction\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/ImportedFileResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteBulkAction\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/ImportedFileResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\ViewAction\.$#'
-			identifier: class.notFound
 			count: 1
 			path: app/Filament/Resources/ImportedFileResource.php
 
@@ -183,30 +93,6 @@ parameters:
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:transactions\(\)\.$#'
 			identifier: method.notFound
-			count: 1
-			path: app/Filament/Resources/TransactionResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\Action\.$#'
-			identifier: class.notFound
-			count: 4
-			path: app/Filament/Resources/TransactionResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkAction\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/TransactionResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\BulkActionGroup\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/Filament/Resources/TransactionResource.php
-
-		-
-			message: '#^Call to static method make\(\) on an unknown class Filament\\Tables\\Actions\\DeleteBulkAction\.$#'
-			identifier: class.notFound
 			count: 1
 			path: app/Filament/Resources/TransactionResource.php
 
