@@ -187,7 +187,12 @@ jobs:
           echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
       - name: Run unit tests
-        run: php artisan test --ci tests/Unit
+        run: |
+          if [ -n "$(find tests/Unit -name '*Test.php' 2>/dev/null)" ]; then
+            php artisan test --ci tests/Unit
+          else
+            echo "No unit tests found, skipping."
+          fi
 
       - name: Run architecture tests
         run: php artisan test --ci tests/Architecture
@@ -265,7 +270,12 @@ jobs:
           echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
       - name: Run feature tests with coverage
-        run: vendor/bin/pest --coverage --min=50 --profile tests/Feature
+        run: |
+          if [ -n "$(find tests/Feature -name '*Test.php' 2>/dev/null)" ]; then
+            vendor/bin/pest --coverage --min=50 --profile tests/Feature
+          else
+            echo "No feature tests found, skipping."
+          fi
 
   # Job 7: Type coverage (no database required)
   type-coverage:

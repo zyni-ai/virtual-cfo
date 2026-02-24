@@ -14,6 +14,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ImportedFileResource extends Resource
 {
@@ -83,7 +84,7 @@ class ImportedFileResource extends Resource
                 Tables\Columns\TextColumn::make('mapped_percentage')
                     ->label('Mapped %')
                     ->suffix('%')
-                    ->sortable(query: function ($query, $direction) {
+                    ->sortable(query: function (Builder $query, string $direction) {
                         $dir = strtolower($direction) === 'desc' ? 'DESC' : 'ASC';
 
                         return $query->orderByRaw(

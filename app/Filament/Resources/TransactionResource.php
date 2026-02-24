@@ -125,8 +125,8 @@ class TransactionResource extends Resource
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
-                            ->when($data['from'], fn (Builder $q, $date) => $q->whereDate('date', '>=', $date))
-                            ->when($data['until'], fn (Builder $q, $date) => $q->whereDate('date', '<=', $date));
+                            ->when($data['from'], fn (Builder $q, string $date) => $q->whereDate('date', '>=', $date))
+                            ->when($data['until'], fn (Builder $q, string $date) => $q->whereDate('date', '<=', $date));
                     }),
 
                 Tables\Filters\TernaryFilter::make('unmapped_only')
@@ -217,7 +217,7 @@ class TransactionResource extends Resource
                                 ->searchable()
                                 ->required(),
                         ])
-                        ->action(function ($records, array $data) {
+                        ->action(function (\Illuminate\Database\Eloquent\Collection $records, array $data) {
                             $records->each(function (Transaction $record) use ($data) {
                                 $record->update([
                                     'account_head_id' => $data['account_head_id'],
@@ -252,7 +252,7 @@ class TransactionResource extends Resource
                     ->requiresConfirmation()
                     ->modalDescription('This will run rule-based and AI matching on all unmapped transactions across all files.')
                     ->action(function () {
-                        $files = ImportedFile::whereHas('transactions', function ($q) {
+                        $files = ImportedFile::whereHas('transactions', function (Builder $q) {
                             $q->where('mapping_type', MappingType::Unmapped);
                         })->get();
 
