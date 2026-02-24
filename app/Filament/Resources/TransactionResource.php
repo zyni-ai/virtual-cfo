@@ -218,7 +218,7 @@ class TransactionResource extends Resource
                                 ->required(),
                         ])
                         ->action(function (\Illuminate\Database\Eloquent\Collection $records, array $data) {
-                            $records->each(function (Transaction $record) use ($data) {
+                            $records->each(function (\Illuminate\Database\Eloquent\Model $record) use ($data) {
                                 $record->update([
                                     'account_head_id' => $data['account_head_id'],
                                     'mapping_type' => MappingType::Manual,

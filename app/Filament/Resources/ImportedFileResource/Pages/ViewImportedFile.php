@@ -46,7 +46,7 @@ class ViewImportedFile extends ViewRecord
                             ->placeholder('Not processed'),
                         Infolists\Components\TextEntry::make('error_message')
                             ->label('Error')
-                            ->visible(fn ($record) => $record->error_message !== null)
+                            ->visible(fn (\App\Models\ImportedFile $record) => $record->error_message !== null)
                             ->color('danger')
                             ->columnSpanFull(),
                     ])

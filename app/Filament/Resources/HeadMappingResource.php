@@ -40,7 +40,7 @@ class HeadMappingResource extends Resource
                             ->required()
                             ->helperText('The text pattern to match against transaction descriptions')
                             ->rules([
-                                fn (Get $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
+                                fn (Get $get): \Closure => function (string $attribute, mixed $value, \Closure $fail) use ($get) {
                                     if ($get('match_type') === MatchType::Regex->value && @preg_match($value, '') === false) {
                                         $fail('The pattern is not a valid regular expression.');
                                     }
