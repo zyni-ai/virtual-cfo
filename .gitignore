@@ -11,7 +11,8 @@
 /public/hot
 /public/storage
 /public/build
-/bootstrap/cache/
+/bootstrap/cache/*
+!/bootstrap/cache/.gitkeep
 /.phpunit.cache
 /.idea/
 /.vscode/
