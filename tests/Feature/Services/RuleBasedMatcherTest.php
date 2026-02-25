@@ -85,6 +85,54 @@ describe('RuleBasedMatcher::match()', function () {
         expect($mapping->fresh()->usage_count)->toBe(1);
     });
 
+    it('bulk increments usage_count for multiple matches on same rule', function () {
+        $head = AccountHead::factory()->create();
+        $mapping = HeadMapping::factory()->create([
+            'pattern' => 'EMI',
+            'match_type' => MatchType::Contains,
+            'account_head_id' => $head->id,
+            'usage_count' => 5,
+        ]);
+
+        $file = ImportedFile::factory()->create();
+        Transaction::factory()->unmapped()->for($file)->count(3)->create(['description' => 'EMI PAYMENT']);
+
+        $matcher = new RuleBasedMatcher;
+        $matches = $matcher->match($file->transactions);
+
+        expect($matches)->toHaveCount(3)
+            ->and($mapping->fresh()->usage_count)->toBe(8);
+    });
+
+    it('bulk increments usage_count for multiple rules correctly', function () {
+        $head1 = AccountHead::factory()->create();
+        $head2 = AccountHead::factory()->create();
+
+        $mapping1 = HeadMapping::factory()->create([
+            'pattern' => 'SALARY',
+            'match_type' => MatchType::Contains,
+            'account_head_id' => $head1->id,
+            'usage_count' => 0,
+        ]);
+        $mapping2 = HeadMapping::factory()->create([
+            'pattern' => 'EMI',
+            'match_type' => MatchType::Contains,
+            'account_head_id' => $head2->id,
+            'usage_count' => 2,
+        ]);
+
+        $file = ImportedFile::factory()->create();
+        Transaction::factory()->unmapped()->for($file)->count(2)->create(['description' => 'SALARY JUNE']);
+        Transaction::factory()->unmapped()->for($file)->count(3)->create(['description' => 'EMI PAYMENT']);
+
+        $matcher = new RuleBasedMatcher;
+        $matches = $matcher->match($file->transactions()->get());
+
+        expect($matches)->toHaveCount(5)
+            ->and($mapping1->fresh()->usage_count)->toBe(2)
+            ->and($mapping2->fresh()->usage_count)->toBe(5);
+    });
+
     it('uses first match wins strategy', function () {
         $head1 = AccountHead::factory()->create(['name' => 'Head 1']);
         $head2 = AccountHead::factory()->create(['name' => 'Head 2']);

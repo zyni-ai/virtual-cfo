@@ -59,6 +59,35 @@ describe('HeadMatcherService::matchForFile()', function () {
 
         expect($result)->toBeInstanceOf(HeadMatcherService::class);
     });
+
+    it('matches many transactions using chunked rule-based matching', function () {
+        $head1 = AccountHead::factory()->create(['name' => 'Salary']);
+        $head2 = AccountHead::factory()->create(['name' => 'EMI']);
+
+        HeadMapping::factory()->create([
+            'pattern' => 'SALARY',
+            'match_type' => \App\Enums\MatchType::Contains,
+            'account_head_id' => $head1->id,
+            'usage_count' => 0,
+        ]);
+        $emiMapping = HeadMapping::factory()->create([
+            'pattern' => 'EMI',
+            'match_type' => \App\Enums\MatchType::Contains,
+            'account_head_id' => $head2->id,
+            'usage_count' => 0,
+        ]);
+
+        $file = ImportedFile::factory()->create();
+        Transaction::factory()->unmapped()->for($file)->count(5)->create(['description' => 'SALARY JUNE']);
+        Transaction::factory()->unmapped()->for($file)->count(3)->create(['description' => 'EMI PAYMENT']);
+
+        $service = app(HeadMatcherService::class);
+        $results = $service->matchForFile($file);
+
+        expect($results['rule_matched'])->toBe(8)
+            ->and($results['unmatched'])->toBe(0)
+            ->and($emiMapping->fresh()->usage_count)->toBe(3);
+    });
 });
 
 describe('HeadMatcherService::resolveAccountHead()', function () {

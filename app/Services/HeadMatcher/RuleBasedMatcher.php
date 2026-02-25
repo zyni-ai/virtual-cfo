@@ -31,6 +31,8 @@ class RuleBasedMatcher
         $rules = $query->get();
 
         $matches = [];
+        /** @var array<int, int> $usageCounts */
+        $usageCounts = [];
 
         foreach ($transactions as $transaction) {
             if ($transaction->mapping_type !== MappingType::Unmapped) {
@@ -47,11 +49,16 @@ class RuleBasedMatcher
                         'mapping_id' => $rule->id,
                     ];
 
-                    $rule->increment('usage_count');
+                    $usageCounts[$rule->id] = ($usageCounts[$rule->id] ?? 0) + 1;
 
                     break; // First match wins
                 }
             }
+        }
+
+        // Bulk update usage counts — one query per matched rule instead of per match
+        foreach ($usageCounts as $mappingId => $count) {
+            HeadMapping::where('id', $mappingId)->increment('usage_count', $count);
         }
 
         return $matches;
