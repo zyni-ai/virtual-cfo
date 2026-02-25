@@ -9,6 +9,10 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call([
+            AccountHeadSeeder::class,
+        ]);
+
         if (app()->environment('local', 'testing')) {
             User::factory()->create([
                 'name' => 'Admin',
