@@ -23,6 +23,20 @@ describe('StatementParser agent', function () {
     it('has HasStructuredOutput schema method', function () {
         expect(method_exists(StatementParser::class, 'schema'))->toBeTrue();
     });
+
+    it('uses the configured model from ai config', function () {
+        $agent = new StatementParser;
+
+        expect($agent->model())->toBe(config('ai.models.parsing'));
+    });
+
+    it('adapts to a custom model when config is changed', function () {
+        config()->set('ai.models.parsing', 'mistral-small-latest');
+
+        $agent = new StatementParser;
+
+        expect($agent->model())->toBe('mistral-small-latest');
+    });
 });
 
 describe('HeadMatcher agent', function () {
@@ -53,5 +67,19 @@ describe('HeadMatcher agent', function () {
 
     it('has HasStructuredOutput schema method', function () {
         expect(method_exists(HeadMatcher::class, 'schema'))->toBeTrue();
+    });
+
+    it('uses the configured model from ai config', function () {
+        $agent = new HeadMatcher;
+
+        expect($agent->model())->toBe(config('ai.models.matching'));
+    });
+
+    it('adapts to a custom model when config is changed', function () {
+        config()->set('ai.models.matching', 'codestral-latest');
+
+        $agent = new HeadMatcher;
+
+        expect($agent->model())->toBe('codestral-latest');
     });
 });

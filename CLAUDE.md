@@ -165,6 +165,15 @@ For new migrations, these rules are non-negotiable:
 - `StatementParser` — PDF → structured transaction data
 - `HeadMatcher` — transaction descriptions → account head suggestions with confidence
 
+**Model configuration:** Each agent reads its model from `config/ai.php` via environment variables:
+
+| Agent | Env Var | Config Key | Default |
+|-------|---------|------------|---------|
+| `StatementParser` | `AI_PARSING_MODEL` | `ai.models.parsing` | `mistral-large-latest` |
+| `HeadMatcher` | `AI_MATCHING_MODEL` | `ai.models.matching` | `mistral-large-latest` |
+
+The agents use the `model()` method (laravel/ai convention) to resolve the model at runtime, allowing model changes without code modifications.
+
 ### Background Jobs
 - `ProcessImportedFile` — parses PDF via StatementParser agent, creates transactions
 - `MatchTransactionHeads` — runs rule-based + AI matching on unmapped transactions

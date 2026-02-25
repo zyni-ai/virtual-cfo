@@ -4,7 +4,6 @@ namespace App\Ai\Agents;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\MaxTokens;
-use Laravel\Ai\Attributes\Model;
 use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Contracts\Agent;
@@ -14,12 +13,19 @@ use Laravel\Ai\Promptable;
 use Stringable;
 
 #[Provider(Lab::Mistral)]
-#[Model('mistral-large-latest')]
 #[MaxTokens(8192)]
 #[Temperature(0.1)]
 class StatementParser implements Agent, HasStructuredOutput
 {
     use Promptable;
+
+    /**
+     * Get the model to use for statement parsing.
+     */
+    public function model(): string
+    {
+        return config('ai.models.parsing', 'mistral-large-latest');
+    }
 
     public function instructions(): Stringable|string
     {
