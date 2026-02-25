@@ -1,11 +1,124 @@
 <?php
 
+use App\Ai\Agents\HeadMatcher;
+use App\Enums\MappingType;
 use App\Models\AccountHead;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\HeadMatcher\HeadMatcherService;
 use App\Services\HeadMatcher\RuleBasedMatcher;
+
+describe('HeadMatcherService AI matching with Agent::fake()', function () {
+    it('matches unmapped transactions via AI when no rules match', function () {
+        $head = AccountHead::factory()->create(['name' => 'Salary', 'is_active' => true]);
+
+        $file = ImportedFile::factory()->create();
+        $transaction = Transaction::factory()->unmapped()->for($file)->create([
+            'description' => 'MONTHLY COMPENSATION',
+            'credit' => '50000',
+        ]);
+
+        HeadMatcher::fake([
+            [
+                'matches' => [
+                    [
+                        'transaction_id' => $transaction->id,
+                        'suggested_head_id' => $head->id,
+                        'suggested_head_name' => 'Salary',
+                        'confidence' => 0.92,
+                        'reasoning' => 'Monthly compensation is salary',
+                    ],
+                ],
+            ],
+        ]);
+
+        $service = app(HeadMatcherService::class);
+        $results = $service->matchForFile($file);
+
+        expect($results['rule_matched'])->toBe(0)
+            ->and($results['ai_matched'])->toBe(1)
+            ->and($results['unmatched'])->toBe(0);
+
+        $transaction->refresh();
+        expect($transaction->mapping_type)->toBe(MappingType::Ai)
+            ->and($transaction->account_head_id)->toBe($head->id)
+            ->and((float) $transaction->ai_confidence)->toBe(0.92);
+    });
+
+    it('does not assign head when AI returns unknown head ID', function () {
+        $head = AccountHead::factory()->create(['name' => 'Salary', 'is_active' => true]);
+
+        $file = ImportedFile::factory()->create();
+        $transaction = Transaction::factory()->unmapped()->for($file)->create([
+            'description' => 'UNKNOWN PAYMENT',
+            'debit' => '1000',
+        ]);
+
+        HeadMatcher::fake([
+            [
+                'matches' => [
+                    [
+                        'transaction_id' => $transaction->id,
+                        'suggested_head_id' => 99999,
+                        'suggested_head_name' => 'Nonexistent Head',
+                        'confidence' => 0.85,
+                        'reasoning' => 'Best guess',
+                    ],
+                ],
+            ],
+        ]);
+
+        $service = app(HeadMatcherService::class);
+        $results = $service->matchForFile($file);
+
+        expect($results['ai_matched'])->toBe(0)
+            ->and($results['unmatched'])->toBe(1);
+
+        $transaction->refresh();
+        expect($transaction->mapping_type)->toBe(MappingType::Unmapped)
+            ->and($transaction->account_head_id)->toBeNull();
+    });
+
+    it('runs AI only on remaining unmapped after rules', function () {
+        $salaryHead = AccountHead::factory()->create(['name' => 'Salary', 'is_active' => true]);
+        $rentHead = AccountHead::factory()->create(['name' => 'Rent', 'is_active' => true]);
+
+        HeadMapping::factory()->create([
+            'pattern' => 'SALARY',
+            'match_type' => \App\Enums\MatchType::Contains,
+            'account_head_id' => $salaryHead->id,
+        ]);
+
+        $file = ImportedFile::factory()->create();
+        Transaction::factory()->unmapped()->for($file)->create(['description' => 'SALARY JUNE 2024', 'credit' => '50000']);
+        $rentTransaction = Transaction::factory()->unmapped()->for($file)->create(['description' => 'HOUSE RENT PAYMENT', 'debit' => '15000']);
+
+        HeadMatcher::fake([
+            [
+                'matches' => [
+                    [
+                        'transaction_id' => $rentTransaction->id,
+                        'suggested_head_id' => $rentHead->id,
+                        'suggested_head_name' => 'Rent',
+                        'confidence' => 0.88,
+                        'reasoning' => 'Rent payment',
+                    ],
+                ],
+            ],
+        ]);
+
+        $service = app(HeadMatcherService::class);
+        $results = $service->matchForFile($file);
+
+        expect($results['rule_matched'])->toBe(1)
+            ->and($results['ai_matched'])->toBe(1)
+            ->and($results['unmatched'])->toBe(0);
+
+        HeadMatcher::assertPrompted(fn ($prompt) => $prompt->contains('HOUSE RENT PAYMENT')
+            && ! $prompt->contains('SALARY'));
+    });
+});
 
 describe('HeadMatcherService::matchForFile()', function () {
     it('returns zeros when no unmapped transactions', function () {
