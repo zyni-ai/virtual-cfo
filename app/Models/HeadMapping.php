@@ -21,12 +21,13 @@ class HeadMapping extends Model
         'bank_name',
         'created_by',
         'usage_count',
+        'priority',
     ];
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['pattern', 'match_type', 'account_head_id', 'bank_name', 'usage_count'])
+            ->logOnly(['pattern', 'match_type', 'account_head_id', 'bank_name', 'usage_count', 'priority'])
             ->logOnlyDirty()
             ->useLogName('head-mappings');
     }
@@ -36,6 +37,7 @@ class HeadMapping extends Model
         return [
             'match_type' => MatchType::class,
             'usage_count' => 'integer',
+            'priority' => 'integer',
         ];
     }
 
