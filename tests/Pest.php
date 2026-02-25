@@ -12,7 +12,7 @@ pest()->extend(Tests\TestCase::class)
  */
 function asUser(?User $user = null): User
 {
-    $user ??= User::factory()->create();
+    $user ??= User::factory()->admin()->create();
 
     test()->actingAs($user);
 

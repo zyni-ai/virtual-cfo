@@ -22,9 +22,15 @@ describe('User relationships', function () {
 });
 
 describe('User Filament access', function () {
-    it('can access the admin panel', function () {
-        $user = User::factory()->create();
+    it('can access the admin panel with a role', function () {
+        $user = User::factory()->admin()->create();
 
         expect($user->canAccessPanel(app(Panel::class)))->toBeTrue();
+    });
+
+    it('cannot access the admin panel without a role', function () {
+        $user = User::factory()->create();
+
+        expect($user->canAccessPanel(app(Panel::class)))->toBeFalse();
     });
 });
