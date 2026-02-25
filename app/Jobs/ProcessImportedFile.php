@@ -2,20 +2,15 @@
 
 namespace App\Jobs;
 
-use App\Ai\Agents\StatementParser;
 use App\Enums\ImportStatus;
-use App\Enums\MappingType;
 use App\Models\ImportedFile;
-use App\Models\Transaction;
+use App\Services\DocumentProcessor\DocumentProcessor;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Laravel\Ai\Files\Document;
 
 class ProcessImportedFile implements ShouldQueue
 {
@@ -39,76 +34,20 @@ class ProcessImportedFile implements ShouldQueue
         return [30, 120, 300];
     }
 
-    public function handle(): void
+    public function handle(DocumentProcessor $documentProcessor): void
     {
-        $this->importedFile->update(['status' => ImportStatus::Processing]);
-
         try {
-            $response = (new StatementParser)->prompt(
-                'Parse all transactions from this bank statement. Extract every single transaction row.',
-                attachments: [
-                    Document::fromStorage($this->importedFile->file_path),
-                ]
-            );
+            $documentProcessor->process($this->importedFile);
 
-            if (! isset($response['transactions']) || ! is_array($response['transactions'])) {
-                Log::warning('StatementParser returned invalid response', [
-                    'file_id' => $this->importedFile->id,
-                    'response' => $response,
-                ]);
+            // Dispatch head matching job only on successful completion
+            $this->importedFile->refresh();
 
-                throw new \RuntimeException(
-                    'StatementParser response missing valid transactions array.'
-                );
+            /** @var ImportStatus $status */
+            $status = $this->importedFile->status;
+
+            if ($status === ImportStatus::Completed) {
+                MatchTransactionHeads::dispatch($this->importedFile);
             }
-
-            $bankName = $response['bank_name'] ?? null;
-            $accountNumber = $response['account_number'] ?? null;
-            $transactions = $response['transactions'];
-
-            if (empty($transactions)) {
-                $this->importedFile->update([
-                    'status' => ImportStatus::Failed,
-                    'error_message' => 'No transactions found in the statement.',
-                ]);
-
-                return;
-            }
-
-            DB::transaction(function () use ($bankName, $accountNumber, $transactions) {
-                if ($bankName) {
-                    $this->importedFile->update(['bank_name' => $bankName]);
-                }
-
-                if ($accountNumber) {
-                    $this->importedFile->update(['account_number' => $accountNumber]);
-                }
-
-                foreach ($transactions as $row) {
-                    Transaction::create([
-                        'imported_file_id' => $this->importedFile->id,
-                        'date' => Carbon::parse($row['date']),
-                        'description' => $row['description'] ?? '',
-                        'reference_number' => $row['reference'] ?? null,
-                        'debit' => isset($row['debit']) ? (string) $row['debit'] : null,
-                        'credit' => isset($row['credit']) ? (string) $row['credit'] : null,
-                        'balance' => isset($row['balance']) ? (string) $row['balance'] : null,
-                        'mapping_type' => MappingType::Unmapped,
-                        'raw_data' => $row,
-                        'bank_format' => $bankName,
-                    ]);
-                }
-
-                $this->importedFile->update([
-                    'status' => ImportStatus::Completed,
-                    'total_rows' => count($transactions),
-                    'mapped_rows' => 0,
-                    'processed_at' => now(),
-                ]);
-            });
-
-            // Dispatch head matching job
-            MatchTransactionHeads::dispatch($this->importedFile);
 
         } catch (\Throwable $e) {
             Log::error('Failed to process imported file', [

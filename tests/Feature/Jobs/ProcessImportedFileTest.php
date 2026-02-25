@@ -7,6 +7,7 @@ use App\Jobs\MatchTransactionHeads;
 use App\Jobs\ProcessImportedFile;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use App\Services\DocumentProcessor\DocumentProcessor;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +29,7 @@ describe('ProcessImportedFile job', function () {
         $job = new ProcessImportedFile($file);
 
         try {
-            $job->handle();
+            $job->handle(app(DocumentProcessor::class));
         } catch (\Throwable) {
             // Expected — job rethrows after logging
         }
@@ -103,7 +104,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
         ]);
 
         $job = new ProcessImportedFile($file);
-        $job->handle();
+        $job->handle(app(DocumentProcessor::class));
 
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Completed)
@@ -140,7 +141,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
         ]);
 
         $job = new ProcessImportedFile($file);
-        $job->handle();
+        $job->handle(app(DocumentProcessor::class));
 
         Queue::assertPushed(MatchTransactionHeads::class, function ($job) use ($file) {
             return $job->importedFile->id === $file->id;
@@ -166,7 +167,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
         ]);
 
         $job = new ProcessImportedFile($file);
-        $job->handle();
+        $job->handle(app(DocumentProcessor::class));
 
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Failed)
@@ -194,7 +195,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
         $job = new ProcessImportedFile($file);
 
         try {
-            $job->handle();
+            $job->handle(app(DocumentProcessor::class));
         } catch (\Throwable) {
             // Expected — missing transactions key
         }

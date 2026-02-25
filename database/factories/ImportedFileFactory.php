@@ -68,6 +68,31 @@ class ImportedFileFactory extends Factory
         ]);
     }
 
+    public function invoice(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'statement_type' => StatementType::Invoice,
+            'file_path' => 'statements/'.fake()->uuid().'.pdf',
+            'original_filename' => 'invoice_'.fake()->date('Y_m').'.pdf',
+        ]);
+    }
+
+    public function csv(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'file_path' => 'statements/'.fake()->uuid().'.csv',
+            'original_filename' => ($attributes['bank_name'] ?? 'Bank').'_statement.csv',
+        ]);
+    }
+
+    public function xlsx(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'file_path' => 'statements/'.fake()->uuid().'.xlsx',
+            'original_filename' => ($attributes['bank_name'] ?? 'Bank').'_statement.xlsx',
+        ]);
+    }
+
     public function forBank(string $bank): static
     {
         return $this->state(fn (array $attributes) => [
