@@ -51,6 +51,12 @@ class ImportedFileResource extends Resource
                         Forms\Components\TextInput::make('bank_name')
                             ->label('Bank Name (optional, auto-detected)')
                             ->maxLength(255),
+
+                        Forms\Components\Toggle::make('force_reimport')
+                            ->label('Force re-import')
+                            ->helperText('If this file was already imported, delete the previous import and re-import.')
+                            ->default(false)
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
             ]);

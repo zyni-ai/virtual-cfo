@@ -5,7 +5,10 @@ namespace App\Filament\Resources\ImportedFileResource\Pages;
 use App\Enums\ImportStatus;
 use App\Filament\Resources\ImportedFileResource;
 use App\Jobs\ProcessImportedFile;
+use App\Models\ImportedFile;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Support\Exceptions\Halt;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -26,6 +29,34 @@ class CreateImportedFile extends CreateRecord
 
         // Store original filename
         $data['original_filename'] = basename($filePath);
+
+        // Check for duplicate file
+        if (isset($data['file_hash'])) {
+            $existing = ImportedFile::where('file_hash', $data['file_hash'])->first();
+
+            if ($existing) {
+                $forceReimport = $data['force_reimport'] ?? false;
+
+                if ($forceReimport) {
+                    $existing->transactions()->delete();
+                    $existing->delete();
+                } else {
+                    $importedDate = $existing->created_at->format('d M Y, H:i');
+
+                    Notification::make()
+                        ->danger()
+                        ->title('Duplicate file detected')
+                        ->body("This file was already imported on {$importedDate} as \"{$existing->original_filename}\". Enable \"Force re-import\" to replace it.")
+                        ->persistent()
+                        ->send();
+
+                    throw (new Halt)->rollBackDatabaseTransaction();
+                }
+            }
+        }
+
+        // Remove force_reimport from data — it's not a database column
+        unset($data['force_reimport']);
 
         return $data;
     }
