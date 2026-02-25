@@ -6,10 +6,13 @@ use App\Enums\MatchType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class HeadMapping extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     protected $fillable = [
         'pattern',
@@ -19,6 +22,14 @@ class HeadMapping extends Model
         'created_by',
         'usage_count',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['pattern', 'match_type', 'account_head_id', 'bank_name', 'usage_count'])
+            ->logOnlyDirty()
+            ->useLogName('head-mappings');
+    }
 
     protected function casts(): array
     {
