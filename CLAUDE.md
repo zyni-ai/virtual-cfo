@@ -159,11 +159,14 @@ For new migrations, these rules are non-negotiable:
 - `ImportStatus`: pending, processing, completed, failed
 - `MappingType`: unmapped, auto, manual, ai
 - `MatchType`: contains, exact, regex
-- `StatementType`: bank, credit_card
+- `StatementType`: bank, credit_card, invoice (planned)
 
 ### AI Agents
-- `StatementParser` — PDF → structured transaction data
+- `StatementParser` — PDF bank/CC statements → structured transaction data
+- `InvoiceParser` — PDF invoices → vendor details, GST breakup, line items (planned, see #42)
 - `HeadMatcher` — transaction descriptions → account head suggestions with confidence
+
+See [AI Agent Design](docs/architecture/ai-agent-design.md) for architecture rationale.
 
 **Model configuration:** Each agent reads its model from `config/ai.php` via environment variables:
 
@@ -182,6 +185,7 @@ The agents use the `model()` method (laravel/ai convention) to resolve the model
 
 | Folder | Purpose | When to Read |
 |--------|---------|--------------|
+| `docs/architecture/` | Architecture decisions (pipeline, agents, data model, Tally XML) | Before implementing #40–#43, #15 |
 | `docs/guides/` | How-to guides (AI workflow, testing) | For step-by-step workflows |
 | `docs/PLAN.md` | Project setup plan and implementation order | For project context |
 
@@ -199,8 +203,19 @@ Follow the [Testing Best Practices](docs/guides/testing-best-practices.md) guide
 - **No assertOk-only tests** — every test must assert something beyond HTTP 200
 - **Filament CRUD tests** must verify form fields, table records, or visible content
 
+## Pipeline Architecture
+
+```
+Upload → Parse → Reconcile → Export
+```
+
+The full pipeline is documented in `docs/architecture/`:
+- [Reconciliation Pipeline](docs/architecture/reconciliation-pipeline.md) — overview and dependency graph
+- [AI Agent Design](docs/architecture/ai-agent-design.md) — why focused agents behind one service
+- [Data Model: JSONB Strategy](docs/architecture/data-model-jsonb.md) — raw_data flow through stages
+- [Tally XML Format](docs/architecture/tally-xml-format.md) — field reference and examples from real Tally export
+
 ## Development Notes
 - Very few users (small accounts team)
-- Stage-based development — start with import/parse/map/export pipeline
-- Tally XML reference file to be provided later
+- Tally XML reference file: `DayBook zysk april25.xml` (April 2025, UTF-16LE, 383 vouchers)
 - OCR support via Mistral handles scanned PDFs automatically
