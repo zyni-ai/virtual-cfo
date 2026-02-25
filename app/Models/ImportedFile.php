@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -16,13 +17,26 @@ class ImportedFile extends Model
 {
     use HasFactory;
     use LogsActivity;
+    use SoftDeletes;
 
     protected static function booted(): void
     {
         static::deleting(function (ImportedFile $file) {
-            if ($file->file_path && Storage::disk('local')->exists($file->file_path)) {
-                Storage::disk('local')->delete($file->file_path);
+            if ($file->isForceDeleting()) {
+                if ($file->file_path && Storage::disk('local')->exists($file->file_path)) {
+                    Storage::disk('local')->delete($file->file_path);
+                }
+            } else {
+                Transaction::where('imported_file_id', $file->id)->each(
+                    fn (Transaction $transaction) => $transaction->delete()
+                );
             }
+        });
+
+        static::restoring(function (ImportedFile $file) {
+            Transaction::onlyTrashed()->where('imported_file_id', $file->id)->each(
+                fn (Transaction $transaction) => $transaction->restore()
+            );
         });
     }
 

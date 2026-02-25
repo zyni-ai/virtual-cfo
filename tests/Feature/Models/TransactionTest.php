@@ -3,6 +3,38 @@
 use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+describe('Transaction soft deletes', function () {
+    it('uses the SoftDeletes trait', function () {
+        expect(in_array(SoftDeletes::class, class_uses_recursive(Transaction::class)))->toBeTrue();
+    });
+
+    it('is excluded from normal queries after soft delete', function () {
+        $transaction = Transaction::factory()->create();
+
+        $transaction->delete();
+
+        expect(Transaction::find($transaction->id))->toBeNull();
+    });
+
+    it('can be restored after soft delete', function () {
+        $transaction = Transaction::factory()->create();
+        $transaction->delete();
+
+        $transaction->restore();
+
+        expect(Transaction::find($transaction->id))->not->toBeNull();
+    });
+
+    it('is permanently removed after force delete', function () {
+        $transaction = Transaction::factory()->create();
+
+        $transaction->forceDelete();
+
+        expect(Transaction::withTrashed()->find($transaction->id))->toBeNull();
+    });
+});
 
 describe('Transaction scopes', function () {
     beforeEach(function () {

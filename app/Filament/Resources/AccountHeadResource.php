@@ -11,7 +11,10 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use UnitEnum;
 
 class AccountHeadResource extends Resource
@@ -93,6 +96,8 @@ class AccountHeadResource extends Resource
             ])
             ->defaultSort('name')
             ->filters([
+                TrashedFilter::make(),
+
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Active'),
 
@@ -105,10 +110,14 @@ class AccountHeadResource extends Resource
             ->actions([
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
+                Actions\ForceDeleteAction::make(),
+                Actions\RestoreAction::make(),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
+                    Actions\ForceDeleteBulkAction::make(),
+                    Actions\RestoreBulkAction::make(),
                 ]),
             ])
             ->headerActions([
@@ -122,6 +131,15 @@ class AccountHeadResource extends Resource
                     })
                     ->disabled()
                     ->tooltip('Coming soon — awaiting Tally XML reference format'),
+            ]);
+    }
+
+    /** @return Builder<AccountHead> */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
             ]);
     }
 
