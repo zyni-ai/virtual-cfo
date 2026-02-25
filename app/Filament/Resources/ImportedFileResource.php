@@ -113,6 +113,13 @@ class ImportedFileResource extends Resource
             ->actions([
                 Actions\ViewAction::make(),
 
+                Actions\Action::make('download')
+                    ->label('Download')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->url(fn (ImportedFile $record): string => route('imported-files.download', $record))
+                    ->openUrlInNewTab(),
+
                 Actions\Action::make('reprocess')
                     ->label('Re-process')
                     ->icon('heroicon-o-arrow-path')
