@@ -2,9 +2,6 @@
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Illuminate\Foundation\Testing\TestCase;
-
-pest()->extend(TestCase::class);
 
 pest()->extend(Tests\TestCase::class)
     ->use(LazilyRefreshDatabase::class)
@@ -15,7 +12,7 @@ pest()->extend(Tests\TestCase::class)
  */
 function asUser(?User $user = null): User
 {
-    $user ??= User::factory()->create();
+    $user ??= User::factory()->admin()->create();
 
     test()->actingAs($user);
 
