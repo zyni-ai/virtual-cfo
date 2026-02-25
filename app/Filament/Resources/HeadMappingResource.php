@@ -65,6 +65,13 @@ class HeadMappingResource extends Resource
                             ->label('Bank Name')
                             ->helperText('Optional: restrict this rule to a specific bank')
                             ->maxLength(255),
+
+                        Forms\Components\TextInput::make('priority')
+                            ->label('Priority')
+                            ->numeric()
+                            ->integer()
+                            ->minValue(1)
+                            ->helperText('Optional: lower number = higher priority. Overrides automatic ordering.'),
                     ])
                     ->columns(2),
             ]);
@@ -95,6 +102,12 @@ class HeadMappingResource extends Resource
                 Tables\Columns\TextColumn::make('usage_count')
                     ->label('Uses')
                     ->numeric()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('priority')
+                    ->label('Priority')
+                    ->numeric()
+                    ->placeholder('Auto')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('creator.name')

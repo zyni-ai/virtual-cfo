@@ -33,6 +33,7 @@ class HeadMappingFactory extends Factory
             'bank_name' => null,
             'created_by' => User::factory(),
             'usage_count' => 0,
+            'priority' => null,
         ];
     }
 
@@ -62,6 +63,13 @@ class HeadMappingFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'usage_count' => $count,
+        ]);
+    }
+
+    public function withPriority(int $priority): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'priority' => $priority,
         ]);
     }
 }
