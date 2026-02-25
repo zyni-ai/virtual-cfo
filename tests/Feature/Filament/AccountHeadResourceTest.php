@@ -83,4 +83,38 @@ describe('AccountHeadResource', function () {
         expect(AccountHeadResource::getNavigationLabel())->toBe('Account Heads')
             ->and(AccountHeadResource::getNavigationSort())->toBe(3);
     });
+
+    it('soft-deletes the record and retains it in the database', function () {
+        $head = AccountHead::factory()->create();
+
+        livewire(ListAccountHeads::class)
+            ->callTableAction('delete', $head);
+
+        // Record should not appear via normal query
+        expect(AccountHead::find($head->id))->toBeNull();
+        // But should still exist in the database with a deleted_at timestamp
+        expect(AccountHead::withTrashed()->find($head->id))->not->toBeNull()
+            ->and(AccountHead::withTrashed()->find($head->id)->deleted_at)->not->toBeNull();
+    });
+
+    it('can filter trashed records', function () {
+        $active = AccountHead::factory()->create();
+        $trashed = AccountHead::factory()->create();
+        $trashed->delete();
+
+        livewire(ListAccountHeads::class)
+            ->assertCanSeeTableRecords([$active])
+            ->filterTable('trashed', true)
+            ->assertCanSeeTableRecords([$trashed]);
+    });
+
+    it('can filter by active status', function () {
+        $active = AccountHead::factory()->create(['is_active' => true]);
+        $inactive = AccountHead::factory()->create(['is_active' => false]);
+
+        livewire(ListAccountHeads::class)
+            ->filterTable('is_active', true)
+            ->assertCanSeeTableRecords([$active])
+            ->assertCanNotSeeTableRecords([$inactive]);
+    });
 });
