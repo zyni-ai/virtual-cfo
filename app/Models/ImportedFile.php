@@ -9,10 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class ImportedFile extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     protected static function booted(): void
     {
@@ -37,6 +40,26 @@ class ImportedFile extends Model
         'uploaded_by',
         'processed_at',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'bank_name',
+                'statement_type',
+                'file_path',
+                'original_filename',
+                'file_hash',
+                'status',
+                'total_rows',
+                'mapped_rows',
+                'error_message',
+                'uploaded_by',
+                'processed_at',
+            ])
+            ->logOnlyDirty()
+            ->useLogName('imported-files');
+    }
 
     protected function casts(): array
     {

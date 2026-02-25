@@ -7,10 +7,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Transaction extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     protected $fillable = [
         'imported_file_id',
@@ -26,6 +29,22 @@ class Transaction extends Model
         'raw_data',
         'bank_format',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'imported_file_id',
+                'date',
+                'reference_number',
+                'account_head_id',
+                'mapping_type',
+                'ai_confidence',
+                'bank_format',
+            ])
+            ->logOnlyDirty()
+            ->useLogName('transactions');
+    }
 
     protected function casts(): array
     {
