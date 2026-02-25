@@ -55,6 +55,7 @@ describe('MatchType', function () {
 describe('StatementType', function () {
     it('has correct labels', function () {
         expect(StatementType::Bank->getLabel())->toBe('Bank Statement')
-            ->and(StatementType::CreditCard->getLabel())->toBe('Credit Card Statement');
+            ->and(StatementType::CreditCard->getLabel())->toBe('Credit Card Statement')
+            ->and(StatementType::Invoice->getLabel())->toBe('Invoice');
     });
 });

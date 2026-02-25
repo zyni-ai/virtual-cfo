@@ -36,8 +36,13 @@ class ImportedFileResource extends Resource
                 Section::make('Upload Statement')
                     ->schema([
                         Forms\Components\FileUpload::make('file_path')
-                            ->label('Statement PDF')
-                            ->acceptedFileTypes(['application/pdf'])
+                            ->label('Statement File')
+                            ->acceptedFileTypes([
+                                'application/pdf',
+                                'text/csv',
+                                'application/vnd.ms-excel',
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            ])
                             ->directory('statements')
                             ->disk('local')
                             ->maxSize(10240) // 10MB
