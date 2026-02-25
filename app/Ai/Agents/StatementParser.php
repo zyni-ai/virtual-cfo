@@ -8,11 +8,10 @@ use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasStructuredOutput;
-use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-#[Provider(Lab::Mistral)]
+#[Provider('mistral')]
 #[MaxTokens(8192)]
 #[Temperature(0.1)]
 class StatementParser implements Agent, HasStructuredOutput
@@ -53,14 +52,14 @@ class StatementParser implements Agent, HasStructuredOutput
             'bank_name' => $schema->string()->required(),
             'account_number' => $schema->string(),
             'statement_period' => $schema->string(),
-            'transactions' => $schema->array()->items([
+            'transactions' => $schema->array()->items($schema->object([
                 'date' => $schema->string()->required(),
                 'description' => $schema->string()->required(),
                 'reference' => $schema->string(),
                 'debit' => $schema->number(),
                 'credit' => $schema->number(),
                 'balance' => $schema->number(),
-            ])->required(),
+            ]))->required(),
         ];
     }
 }

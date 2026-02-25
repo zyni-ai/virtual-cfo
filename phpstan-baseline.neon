@@ -7,32 +7,8 @@ parameters:
 			path: app/Ai/Agents/HeadMatcher.php
 
 		-
-			message: '#^Parameter \#1 \$type of method Illuminate\\JsonSchema\\Types\\ArrayType\:\:items\(\) expects Illuminate\\JsonSchema\\Types\\Type, array\<string, Illuminate\\JsonSchema\\Types\\IntegerType\|Illuminate\\JsonSchema\\Types\\NumberType\|Illuminate\\JsonSchema\\Types\\StringType\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Ai/Agents/HeadMatcher.php
-
-		-
-			message: '#^Parameter \#1 \$value of attribute class Laravel\\Ai\\Attributes\\Provider constructor expects array\|string, Laravel\\Ai\\Enums\\Lab\:\:Mistral given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Ai/Agents/HeadMatcher.php
-
-		-
 			message: '#^Method App\\Ai\\Agents\\StatementParser\:\:schema\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
-			count: 1
-			path: app/Ai/Agents/StatementParser.php
-
-		-
-			message: '#^Parameter \#1 \$type of method Illuminate\\JsonSchema\\Types\\ArrayType\:\:items\(\) expects Illuminate\\JsonSchema\\Types\\Type, array\<string, Illuminate\\JsonSchema\\Types\\NumberType\|Illuminate\\JsonSchema\\Types\\StringType\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Ai/Agents/StatementParser.php
-
-		-
-			message: '#^Parameter \#1 \$value of attribute class Laravel\\Ai\\Attributes\\Provider constructor expects array\|string, Laravel\\Ai\\Enums\\Lab\:\:Mistral given\.$#'
-			identifier: argument.type
 			count: 1
 			path: app/Ai/Agents/StatementParser.php
 

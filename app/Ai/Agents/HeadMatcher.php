@@ -8,11 +8,10 @@ use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasStructuredOutput;
-use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-#[Provider(Lab::Mistral)]
+#[Provider('mistral')]
 #[MaxTokens(4096)]
 #[Temperature(0.2)]
 class HeadMatcher implements Agent, HasStructuredOutput
@@ -70,13 +69,13 @@ class HeadMatcher implements Agent, HasStructuredOutput
     public function schema(JsonSchema $schema): array
     {
         return [
-            'matches' => $schema->array()->items([
+            'matches' => $schema->array()->items($schema->object([
                 'transaction_id' => $schema->integer()->required(),
                 'suggested_head_id' => $schema->integer()->required(),
                 'suggested_head_name' => $schema->string()->required(),
                 'confidence' => $schema->number()->required(),
                 'reasoning' => $schema->string()->required(),
-            ])->required(),
+            ]))->required(),
         ];
     }
 }
