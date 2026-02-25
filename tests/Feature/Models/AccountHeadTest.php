@@ -1,6 +1,61 @@
 <?php
 
 use App\Models\AccountHead;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+describe('AccountHead soft deletes', function () {
+    it('uses the SoftDeletes trait', function () {
+        expect(in_array(SoftDeletes::class, class_uses_recursive(AccountHead::class)))->toBeTrue();
+    });
+
+    it('is excluded from normal queries after soft delete', function () {
+        $head = AccountHead::factory()->create();
+
+        $head->delete();
+
+        expect(AccountHead::find($head->id))->toBeNull();
+    });
+
+    it('can be restored after soft delete', function () {
+        $head = AccountHead::factory()->create();
+        $head->delete();
+
+        $head->restore();
+
+        expect(AccountHead::find($head->id))->not->toBeNull();
+    });
+
+    it('is permanently removed after force delete', function () {
+        $head = AccountHead::factory()->create();
+
+        $head->forceDelete();
+
+        expect(AccountHead::withTrashed()->find($head->id))->toBeNull();
+    });
+
+    it('is included in withTrashed queries after soft delete', function () {
+        $head = AccountHead::factory()->create();
+        $head->delete();
+
+        expect(AccountHead::withTrashed()->find($head->id))->not->toBeNull();
+        expect(AccountHead::withTrashed()->find($head->id)->trashed())->toBeTrue();
+    });
+
+    it('allows duplicate name+group when one is soft-deleted', function () {
+        $head = AccountHead::factory()->create([
+            'name' => 'Unique Test Head',
+            'group_name' => 'Test Group',
+        ]);
+        $head->delete();
+
+        $newHead = AccountHead::factory()->create([
+            'name' => 'Unique Test Head',
+            'group_name' => 'Test Group',
+        ]);
+
+        expect($newHead->exists)->toBeTrue();
+    });
+});
 
 describe('AccountHead::fullPath', function () {
     it('returns just the name when there is no parent', function () {

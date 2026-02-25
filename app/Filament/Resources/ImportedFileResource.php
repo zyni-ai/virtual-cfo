@@ -14,8 +14,10 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ImportedFileResource extends Resource
 {
@@ -110,6 +112,8 @@ class ImportedFileResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
+                TrashedFilter::make(),
+
                 Tables\Filters\SelectFilter::make('status')
                     ->options(ImportStatus::class),
 
@@ -147,11 +151,24 @@ class ImportedFileResource extends Resource
                     ])),
 
                 Actions\DeleteAction::make(),
+                Actions\ForceDeleteAction::make(),
+                Actions\RestoreAction::make(),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
+                    Actions\ForceDeleteBulkAction::make(),
+                    Actions\RestoreBulkAction::make(),
                 ]),
+            ]);
+    }
+
+    /** @return Builder<ImportedFile> */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
             ]);
     }
 
