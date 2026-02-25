@@ -14,6 +14,10 @@ class HeadMatcherService
 {
     protected float $confidenceThreshold = 0.8;
 
+    protected int $ruleChunkSize = 500;
+
+    protected int $aiChunkSize = 50;
+
     public function __construct(
         protected RuleBasedMatcher $ruleBasedMatcher,
     ) {}
@@ -30,29 +34,19 @@ class HeadMatcherService
      */
     public function matchForFile(ImportedFile $importedFile): array
     {
-        $transactions = $importedFile->transactions()
+        $hasUnmapped = $importedFile->transactions()
             ->where('mapping_type', MappingType::Unmapped)
-            ->get();
+            ->exists();
 
-        if ($transactions->isEmpty()) {
+        if (! $hasUnmapped) {
             return ['rule_matched' => 0, 'ai_matched' => 0, 'unmatched' => 0];
         }
 
-        // Pass 1: Rule-based matching
-        $ruleMatches = $this->ruleBasedMatcher->match($transactions, $importedFile->bank_name);
-        $ruleCount = $this->ruleBasedMatcher->applyMatches($ruleMatches);
+        // Pass 1: Rule-based matching in chunks
+        $ruleCount = $this->runChunkedRuleMatching($importedFile);
 
-        // Refresh for remaining unmapped
-        $unmapped = $importedFile->transactions()
-            ->where('mapping_type', MappingType::Unmapped)
-            ->get();
-
-        $aiCount = 0;
-
-        if ($unmapped->isNotEmpty()) {
-            // Pass 2: AI matching
-            $aiCount = $this->runAiMatching($unmapped);
-        }
+        // Pass 2: AI matching in chunks for remaining unmapped
+        $aiCount = $this->runChunkedAiMatching($importedFile);
 
         // Update file stats
         $importedFile->update([
@@ -71,15 +65,57 @@ class HeadMatcherService
     }
 
     /**
-     * Run AI matching on a collection of unmapped transactions.
+     * Run rule-based matching in chunks to avoid loading all transactions at once.
      */
-    protected function runAiMatching(Collection $transactions): int
+    protected function runChunkedRuleMatching(ImportedFile $importedFile): int
     {
-        $chartOfAccounts = AccountHead::where('is_active', true)
+        $totalMatched = 0;
+
+        $importedFile->transactions()
+            ->where('mapping_type', MappingType::Unmapped)
+            ->chunkById($this->ruleChunkSize, function (Collection $transactions) use ($importedFile, &$totalMatched) {
+                $ruleMatches = $this->ruleBasedMatcher->match($transactions, $importedFile->bank_name);
+                $totalMatched += $this->ruleBasedMatcher->applyMatches($ruleMatches);
+            });
+
+        return $totalMatched;
+    }
+
+    /**
+     * Run AI matching in batches of descriptions per agent call.
+     */
+    protected function runChunkedAiMatching(ImportedFile $importedFile): int
+    {
+        $totalMatched = 0;
+
+        // Load chart of accounts once for all chunks
+        $chartOfAccounts = $this->loadChartOfAccounts();
+
+        $importedFile->transactions()
+            ->where('mapping_type', MappingType::Unmapped)
+            ->chunkById($this->aiChunkSize, function (Collection $transactions) use (&$totalMatched, $chartOfAccounts) {
+                $totalMatched += $this->runAiMatching($transactions, $chartOfAccounts);
+            });
+
+        return $totalMatched;
+    }
+
+    /**
+     * Load active account heads formatted for the AI agent.
+     */
+    protected function loadChartOfAccounts(): string
+    {
+        return AccountHead::where('is_active', true)
             ->get()
             ->map(fn (AccountHead $head) => "{$head->id}: {$head->name} ({$head->group_name})")
             ->implode("\n");
+    }
 
+    /**
+     * Run AI matching on a collection of unmapped transactions.
+     */
+    protected function runAiMatching(Collection $transactions, string $chartOfAccounts): int
+    {
         $descriptions = $transactions->map(fn (Transaction $t) => [
             'id' => $t->id,
             'description' => $t->description,
