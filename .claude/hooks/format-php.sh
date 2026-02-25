@@ -12,8 +12,9 @@
 # Read tool input from stdin
 input=$(cat)
 
-# Extract file_path from JSON input
-file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
+# Windows paths have backslashes that break jq — escape them first
+sanitized=$(echo "$input" | sed 's/\\/\\\\/g')
+file_path=$(echo "$sanitized" | jq -r '.tool_input.file_path // empty')
 
 # Exit if no file path provided
 if [[ -z "$file_path" ]]; then

@@ -3,7 +3,9 @@
 # Exit code 2 = block with message shown to Claude
 
 input=$(cat)
-file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
+# Windows paths have backslashes that break jq — escape them first
+sanitized=$(echo "$input" | sed 's/\\/\\\\/g')
+file_path=$(echo "$sanitized" | jq -r '.tool_input.file_path // empty')
 
 if [[ -z "$file_path" ]]; then
   exit 0
