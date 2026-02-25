@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\UserRole;
 use App\Models\AccountHead;
 use App\Models\User;
 use App\Policies\AccountHeadPolicy;
