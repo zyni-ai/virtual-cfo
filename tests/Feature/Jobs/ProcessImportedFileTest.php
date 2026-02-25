@@ -12,19 +12,6 @@ describe('ProcessImportedFile job', function () {
             ->toImplement(Illuminate\Contracts\Queue\ShouldQueue::class);
     });
 
-    it('sets status to processing at the start', function () {
-        $file = ImportedFile::factory()->create(['status' => ImportStatus::Pending]);
-
-        // The job will fail because there's no real PDF, but it should set status to Processing first
-        Log::shouldReceive('error')->once();
-
-        $job = new ProcessImportedFile($file);
-        $job->handle();
-
-        // After failure, status should be Failed, but it was Processing during execution
-        expect($file->fresh()->status)->toBe(ImportStatus::Failed);
-    });
-
     it('sets status to failed with error message on exception', function () {
         $file = ImportedFile::factory()->create(['status' => ImportStatus::Pending]);
 
@@ -34,7 +21,12 @@ describe('ProcessImportedFile job', function () {
                 && $ctx['file_id'] === $file->id);
 
         $job = new ProcessImportedFile($file);
-        $job->handle();
+
+        try {
+            $job->handle();
+        } catch (\Throwable) {
+            // Expected — job rethrows after logging
+        }
 
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Failed)
@@ -53,11 +45,29 @@ describe('ProcessImportedFile job', function () {
         });
     });
 
-    it('has correct retry and timeout settings', function () {
+    it('has exponential backoff configured', function () {
         $file = ImportedFile::factory()->create();
         $job = new ProcessImportedFile($file);
 
-        expect($job->tries)->toBe(2)
-            ->and($job->timeout)->toBe(300);
+        expect($job->backoff())->toBe([30, 120, 300]);
+    });
+
+    it('has 600 second timeout', function () {
+        expect((new ProcessImportedFile(ImportedFile::factory()->create()))->timeout)->toBe(600);
+    });
+
+    it('has 3 tries configured', function () {
+        expect((new ProcessImportedFile(ImportedFile::factory()->create()))->tries)->toBe(3);
+    });
+
+    it('marks file as failed on permanent failure', function () {
+        $file = ImportedFile::factory()->create(['status' => ImportStatus::Processing]);
+        $job = new ProcessImportedFile($file);
+
+        $job->failed(new RuntimeException('Test error'));
+
+        $file->refresh();
+        expect($file->status)->toBe(ImportStatus::Failed)
+            ->and($file->error_message)->toContain('permanently failed');
     });
 });

@@ -36,7 +36,7 @@ describe('MatchTransactionHeads job', function () {
         $job->handle($service);
     });
 
-    it('handles errors gracefully', function () {
+    it('logs and rethrows errors', function () {
         $file = ImportedFile::factory()->create();
 
         Log::shouldReceive('error')
@@ -48,11 +48,27 @@ describe('MatchTransactionHeads job', function () {
             ->andThrow(new RuntimeException('AI service unavailable'));
 
         $job = new MatchTransactionHeads($file);
-        $job->handle($service);
+
+        expect(fn () => $job->handle($service))->toThrow(RuntimeException::class, 'AI service unavailable');
     });
 
     it('implements ShouldQueue', function () {
         expect(MatchTransactionHeads::class)
             ->toImplement(Illuminate\Contracts\Queue\ShouldQueue::class);
+    });
+
+    it('has exponential backoff configured', function () {
+        $file = ImportedFile::factory()->create();
+        $job = new MatchTransactionHeads($file);
+
+        expect($job->backoff())->toBe([30, 120, 300]);
+    });
+
+    it('has 600 second timeout', function () {
+        expect((new MatchTransactionHeads(ImportedFile::factory()->create()))->timeout)->toBe(600);
+    });
+
+    it('has 3 tries configured', function () {
+        expect((new MatchTransactionHeads(ImportedFile::factory()->create()))->tries)->toBe(3);
     });
 });
