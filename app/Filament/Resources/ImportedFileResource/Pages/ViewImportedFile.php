@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ImportedFileResource\Pages;
 
 use App\Filament\Resources\ImportedFileResource;
 use App\Models\ImportedFile;
+use Filament\Actions;
 use Filament\Infolists;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
@@ -12,6 +13,18 @@ use Filament\Schemas\Schema;
 class ViewImportedFile extends ViewRecord
 {
     protected static string $resource = ImportedFileResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\Action::make('download')
+                ->label('Download PDF')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('gray')
+                ->url(fn (): string => route('imported-files.download', $this->record))
+                ->openUrlInNewTab(),
+        ];
+    }
 
     public function infolist(Schema $schema): Schema
     {
