@@ -8,6 +8,7 @@ use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
 
 class HeadMatcherService
 {
@@ -98,38 +99,61 @@ class HeadMatcherService
         $matched = 0;
 
         foreach ($response['matches'] ?? [] as $match) {
-            if ($match['confidence'] < $this->confidenceThreshold) {
-                // Still store the suggestion but mark as AI with low confidence
-                $head = AccountHead::where('name', $match['suggested_head_name'])->first();
+            $head = $this->resolveAccountHead($match);
 
-                if ($head) {
-                    Transaction::where('id', $match['transaction_id'])
-                        ->where('mapping_type', MappingType::Unmapped)
-                        ->update([
-                            'account_head_id' => $head->id,
-                            'mapping_type' => MappingType::Ai,
-                            'ai_confidence' => $match['confidence'],
-                        ]);
-                    $matched++;
-                }
-
+            if (! $head) {
                 continue;
             }
 
-            $head = AccountHead::where('name', $match['suggested_head_name'])->first();
-
-            if ($head) {
-                Transaction::where('id', $match['transaction_id'])
-                    ->where('mapping_type', MappingType::Unmapped)
-                    ->update([
-                        'account_head_id' => $head->id,
-                        'mapping_type' => MappingType::Ai,
-                        'ai_confidence' => $match['confidence'],
-                    ]);
-                $matched++;
-            }
+            Transaction::where('id', $match['transaction_id'])
+                ->where('mapping_type', MappingType::Unmapped)
+                ->update([
+                    'account_head_id' => $head->id,
+                    'mapping_type' => MappingType::Ai,
+                    'ai_confidence' => $match['confidence'],
+                ]);
+            $matched++;
         }
 
         return $matched;
+    }
+
+    /**
+     * Resolve an account head from AI match data, preferring ID lookup with name fallback.
+     *
+     * @param  array<string, mixed>  $match
+     */
+    private function resolveAccountHead(array $match): ?AccountHead
+    {
+        // Primary: lookup by ID
+        if (isset($match['suggested_head_id'])) {
+            $head = AccountHead::find($match['suggested_head_id']);
+
+            if ($head) {
+                return $head;
+            }
+        }
+
+        // Fallback: lookup by name
+        if (isset($match['suggested_head_name'])) {
+            $head = AccountHead::where('name', $match['suggested_head_name'])->first();
+
+            if ($head) {
+                Log::warning('AI matching: account head resolved by name fallback', [
+                    'suggested_head_id' => $match['suggested_head_id'] ?? null,
+                    'suggested_head_name' => $match['suggested_head_name'],
+                    'resolved_id' => $head->id,
+                ]);
+
+                return $head;
+            }
+        }
+
+        Log::warning('AI matching: could not resolve account head', [
+            'suggested_head_id' => $match['suggested_head_id'] ?? null,
+            'suggested_head_name' => $match['suggested_head_name'] ?? null,
+        ]);
+
+        return null;
     }
 }

@@ -23,6 +23,9 @@ class HeadMatcher implements Agent, HasStructuredOutput
 
     protected string $chartOfAccounts = '';
 
+    /**
+     * Set the chart of accounts context (format: "ID: Name (Group)" per line).
+     */
     public function withChartOfAccounts(string $chartOfAccounts): static
     {
         $this->chartOfAccounts = $chartOfAccounts;
@@ -40,10 +43,15 @@ class HeadMatcher implements Agent, HasStructuredOutput
 
         Rules:
         - Match based on the nature of the transaction (salary, rent, utilities, vendor payments, etc.)
+        - Always return the account head ID (suggested_head_id) from the chart of accounts
+        - Also return the account head name (suggested_head_name) for readability
         - Provide a confidence score between 0 and 1 for each match
         - Provide brief reasoning for each suggestion
         - If no good match exists, suggest the closest head with a low confidence score
         - Consider Indian business context (GST, TDS, etc.)
+
+        The chart of accounts is provided in the format "ID: Name (Group)".
+        Always use the numeric ID from this list for suggested_head_id.
         INSTRUCTIONS;
 
         if ($this->chartOfAccounts) {
@@ -58,6 +66,7 @@ class HeadMatcher implements Agent, HasStructuredOutput
         return [
             'matches' => $schema->array()->items([
                 'transaction_id' => $schema->integer()->required(),
+                'suggested_head_id' => $schema->integer()->required(),
                 'suggested_head_name' => $schema->string()->required(),
                 'confidence' => $schema->number()->required(),
                 'reasoning' => $schema->string()->required(),
