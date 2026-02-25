@@ -20,4 +20,22 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | AI Model Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure which models each AI agent uses. This allows switching models
+    | via environment variables without code changes.
+    |
+    */
+
+    'models' => [
+
+        'parsing' => env('AI_PARSING_MODEL', 'mistral-large-latest'),
+
+        'matching' => env('AI_MATCHING_MODEL', 'mistral-large-latest'),
+
+    ],
+
 ];

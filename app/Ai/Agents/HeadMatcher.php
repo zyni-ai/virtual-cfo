@@ -4,7 +4,6 @@ namespace App\Ai\Agents;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\MaxTokens;
-use Laravel\Ai\Attributes\Model;
 use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Contracts\Agent;
@@ -14,7 +13,6 @@ use Laravel\Ai\Promptable;
 use Stringable;
 
 #[Provider(Lab::Mistral)]
-#[Model('mistral-large-latest')]
 #[MaxTokens(4096)]
 #[Temperature(0.2)]
 class HeadMatcher implements Agent, HasStructuredOutput
@@ -22,6 +20,14 @@ class HeadMatcher implements Agent, HasStructuredOutput
     use Promptable;
 
     protected string $chartOfAccounts = '';
+
+    /**
+     * Get the model to use for head matching.
+     */
+    public function model(): string
+    {
+        return config('ai.models.matching', 'mistral-large-latest');
+    }
 
     /**
      * Set the chart of accounts context (format: "ID: Name (Group)" per line).
