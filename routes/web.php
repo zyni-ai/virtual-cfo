@@ -1,7 +1,10 @@
 <?php
 
+use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\ImportedFileDownloadController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/health', HealthCheckController::class);
 
 Route::get('/', function () {
     return redirect('/admin');
