@@ -2,6 +2,7 @@
 
 namespace App\Services\DocumentProcessor;
 
+use App\Ai\Agents\InvoiceParser;
 use App\Ai\Agents\StatementParser;
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
@@ -170,9 +171,7 @@ class DocumentProcessor
 
         match ($statementType) {
             StatementType::Bank, StatementType::CreditCard => $this->parsePdfStatement($file),
-            StatementType::Invoice => throw new \RuntimeException(
-                'Invoice parsing is not yet implemented. See issue #42.'
-            ),
+            StatementType::Invoice => $this->parsePdfInvoice($file),
         };
     }
 
@@ -239,6 +238,63 @@ class DocumentProcessor
             $file->update([
                 'status' => ImportStatus::Completed,
                 'total_rows' => count($transactions),
+                'mapped_rows' => 0,
+                'processed_at' => now(),
+            ]);
+        });
+    }
+
+    /**
+     * Parse a PDF invoice via the InvoiceParser agent.
+     */
+    protected function parsePdfInvoice(ImportedFile $file): void
+    {
+        $response = (new InvoiceParser)->prompt(
+            'Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.',
+            attachments: [
+                Document::fromStorage($file->file_path),
+            ]
+        );
+
+        if (! isset($response['invoice_number']) || ! isset($response['vendor_name'])
+            || ! $response['invoice_number'] || ! $response['vendor_name']) {
+            Log::warning('InvoiceParser returned invalid response', [
+                'file_id' => $file->id,
+                'response' => $response,
+            ]);
+
+            throw new \RuntimeException(
+                'InvoiceParser response missing required fields (vendor_name, invoice_number).'
+            );
+        }
+
+        $vendorName = $response['vendor_name'];
+        $invoiceNumber = $response['invoice_number'];
+        $invoiceDate = $response['invoice_date'] ?? null;
+        $totalAmount = $response['total_amount'] ?? null;
+
+        /** @var \Laravel\Ai\Responses\StructuredAgentResponse $response */
+        $rawData = $response->toArray();
+
+        DB::transaction(function () use ($file, $rawData, $vendorName, $invoiceNumber, $invoiceDate, $totalAmount) {
+            $file->update(['bank_name' => $vendorName]);
+
+            Transaction::create([
+                'imported_file_id' => $file->id,
+                'date' => $invoiceDate ? Carbon::parse($invoiceDate) : now(),
+                'description' => $invoiceNumber.' - '.$vendorName,
+                'reference_number' => $invoiceNumber,
+                'debit' => $totalAmount !== null ? (string) (int) $totalAmount : null,
+                'credit' => null,
+                'balance' => null,
+                'mapping_type' => MappingType::Unmapped,
+                'raw_data' => $rawData,
+                'bank_format' => $vendorName,
+            ]);
+
+            $file->update([
+                'status' => ImportStatus::Completed,
+                'total_rows' => 1,
                 'mapped_rows' => 0,
                 'processed_at' => now(),
             ]);
