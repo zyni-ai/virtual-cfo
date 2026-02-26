@@ -32,7 +32,7 @@ class OcrService
         $response = Http::withHeaders([
             'Authorization' => 'Bearer '.config('ai.providers.mistral.key'),
             'Content-Type' => 'application/json',
-        ])->timeout(120)->post('https://api.mistral.ai/v1/ocr', [
+        ])->timeout(180)->post('https://api.mistral.ai/v1/ocr', [
             'model' => config('ai.models.ocr', 'mistral-ocr-latest'),
             'document' => $documentField,
         ]);
