@@ -97,7 +97,7 @@ class StatementParser implements Agent, HasStructuredOutput
 ### Invocation with File Attachment
 
 ```php
-$response = (new StatementParser)->prompt(
+$response = StatementParser::make()->prompt(
     'Parse all transactions from this bank statement.',
     attachments: [Document::fromStorage($file->file_path)]
 );
@@ -109,7 +109,7 @@ $transactions = $response['transactions']; // structured array access
 
 ```php
 // HeadMatcher accepts chart of accounts as runtime context
-$response = (new HeadMatcher)
+$response = HeadMatcher::make()
     ->withChartOfAccounts($chartString)
     ->prompt('Match these transactions to account heads: ...');
 ```

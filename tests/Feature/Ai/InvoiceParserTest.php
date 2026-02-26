@@ -40,6 +40,22 @@ describe('InvoiceParser agent', function () {
     });
 });
 
+describe('InvoiceParser provider', function () {
+    it('uses the openrouter provider', function () {
+        $attributes = (new ReflectionClass(InvoiceParser::class))
+            ->getAttributes(Laravel\Ai\Attributes\Provider::class);
+
+        expect($attributes)->toHaveCount(1)
+            ->and($attributes[0]->getArguments()[0])->toBe('openrouter');
+    });
+
+    it('can be resolved via container using make()', function () {
+        $agent = InvoiceParser::make();
+
+        expect($agent)->toBeInstanceOf(InvoiceParser::class);
+    });
+});
+
 describe('InvoiceParser timeout', function () {
     it('has a 180 second timeout', function () {
         $attributes = (new ReflectionClass(InvoiceParser::class))

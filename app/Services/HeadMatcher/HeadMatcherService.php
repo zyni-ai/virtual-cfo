@@ -133,7 +133,7 @@ class HeadMatcherService
             $prompt .= "ID {$desc['id']}: {$desc['description']} ({$amount})\n";
         }
 
-        $agent = (new HeadMatcher)->withChartOfAccounts($chartOfAccounts);
+        $agent = HeadMatcher::make()->withChartOfAccounts($chartOfAccounts);
         $response = $agent->prompt($prompt);
 
         $matched = 0;

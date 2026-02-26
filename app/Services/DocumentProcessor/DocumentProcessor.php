@@ -187,7 +187,7 @@ class DocumentProcessor
     {
         $extractedText = $this->ocrService->extractText($file->file_path);
 
-        $response = (new StatementParser)->prompt(
+        $response = StatementParser::make()->prompt(
             "Parse all transactions from this bank statement. Extract every single transaction row.\n\n--- STATEMENT TEXT ---\n{$extractedText}"
         );
 
@@ -275,7 +275,7 @@ class DocumentProcessor
     {
         $extractedText = $this->ocrService->extractText($file->file_path);
 
-        $response = (new InvoiceParser)->prompt(
+        $response = InvoiceParser::make()->prompt(
             "Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.\n\n--- INVOICE TEXT ---\n{$extractedText}"
         );
 
