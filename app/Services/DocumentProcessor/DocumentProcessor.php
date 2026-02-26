@@ -12,11 +12,14 @@ use App\Models\Transaction;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Laravel\Ai\Files\Document;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DocumentProcessor
 {
+    public function __construct(
+        protected OcrService $ocrService = new OcrService,
+    ) {}
+
     /**
      * Process an imported file by detecting its format and routing to the appropriate parser.
      */
@@ -176,15 +179,14 @@ class DocumentProcessor
     }
 
     /**
-     * Parse a PDF bank/credit card statement via the StatementParser agent.
+     * Parse a PDF bank/credit card statement via OCR + StatementParser agent.
      */
     protected function parsePdfStatement(ImportedFile $file): void
     {
+        $extractedText = $this->ocrService->extractText($file->file_path);
+
         $response = (new StatementParser)->prompt(
-            'Parse all transactions from this bank statement. Extract every single transaction row.',
-            attachments: [
-                Document::fromStorage($file->file_path),
-            ]
+            "Parse all transactions from this bank statement. Extract every single transaction row.\n\n--- STATEMENT TEXT ---\n{$extractedText}"
         );
 
         if (! isset($response['transactions']) || ! is_array($response['transactions'])) {
@@ -245,15 +247,14 @@ class DocumentProcessor
     }
 
     /**
-     * Parse a PDF invoice via the InvoiceParser agent.
+     * Parse a PDF invoice via OCR + InvoiceParser agent.
      */
     protected function parsePdfInvoice(ImportedFile $file): void
     {
+        $extractedText = $this->ocrService->extractText($file->file_path);
+
         $response = (new InvoiceParser)->prompt(
-            'Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.',
-            attachments: [
-                Document::fromStorage($file->file_path),
-            ]
+            "Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.\n\n--- INVOICE TEXT ---\n{$extractedText}"
         );
 
         if (! isset($response['invoice_number']) || ! isset($response['vendor_name'])
