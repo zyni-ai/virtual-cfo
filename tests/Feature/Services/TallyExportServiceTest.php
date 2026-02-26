@@ -73,7 +73,7 @@ describe('TallyExportService::exportTransactions()', function () {
 
 describe('TallyExportService with Company', function () {
     it('includes company name in XML header', function () {
-        $company = \App\Models\Company::factory()->create(['name' => 'Zysk Technologies']);
+        $company = Company::factory()->create(['name' => 'Zysk Technologies']);
         $head = AccountHead::factory()->create(['company_id' => $company->id]);
         $file = ImportedFile::factory()->create(['company_id' => $company->id]);
 
