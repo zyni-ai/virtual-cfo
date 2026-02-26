@@ -15,7 +15,7 @@ use Stringable;
 #[Provider('mistral')]
 #[MaxTokens(8192)]
 #[Temperature(0.1)]
-#[Timeout(120)]
+#[Timeout(300)]
 class StatementParser implements Agent, HasStructuredOutput
 {
     use Promptable;

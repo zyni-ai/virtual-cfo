@@ -40,6 +40,16 @@ describe('InvoiceParser agent', function () {
     });
 });
 
+describe('InvoiceParser timeout', function () {
+    it('has a 180 second timeout', function () {
+        $attributes = (new ReflectionClass(InvoiceParser::class))
+            ->getAttributes(Laravel\Ai\Attributes\Timeout::class);
+
+        expect($attributes)->toHaveCount(1)
+            ->and($attributes[0]->getArguments()[0])->toBe(180);
+    });
+});
+
 describe('InvoiceParser with Agent::fake()', function () {
     it('returns structured response with intra-state invoice data', function () {
         Storage::fake('local');

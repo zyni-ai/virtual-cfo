@@ -40,6 +40,16 @@ describe('StatementParser agent', function () {
     });
 });
 
+describe('StatementParser timeout', function () {
+    it('has a 300 second timeout', function () {
+        $attributes = (new ReflectionClass(StatementParser::class))
+            ->getAttributes(Laravel\Ai\Attributes\Timeout::class);
+
+        expect($attributes)->toHaveCount(1)
+            ->and($attributes[0]->getArguments()[0])->toBe(300);
+    });
+});
+
 describe('HeadMatcher agent', function () {
     it('implements Agent interface', function () {
         expect(HeadMatcher::class)->toImplement(Laravel\Ai\Contracts\Agent::class);
@@ -82,6 +92,14 @@ describe('HeadMatcher agent', function () {
         $agent = new HeadMatcher;
 
         expect($agent->model())->toBe('codestral-latest');
+    });
+
+    it('has a 120 second timeout', function () {
+        $attributes = (new ReflectionClass(HeadMatcher::class))
+            ->getAttributes(Laravel\Ai\Attributes\Timeout::class);
+
+        expect($attributes)->toHaveCount(1)
+            ->and($attributes[0]->getArguments()[0])->toBe(120);
     });
 });
 
