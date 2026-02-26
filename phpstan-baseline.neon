@@ -43,6 +43,24 @@ parameters:
 			path: app/Enums/MappingType.php
 
 		-
+			message: '#^Method App\\Enums\\ReconciliationStatus\:\:getColor\(\) never returns array\<string\> so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/ReconciliationStatus.php
+
+		-
+			message: '#^Method App\\Enums\\ReconciliationStatus\:\:getColor\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/ReconciliationStatus.php
+
+		-
+			message: '#^Method App\\Enums\\ReconciliationStatus\:\:getIcon\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/ReconciliationStatus.php
+
+		-
 			message: '#^Cannot call method getLabel\(\) on string\.$#'
 			identifier: method.nonObject
 			count: 1
@@ -163,6 +181,24 @@ parameters:
 			path: app/Models/ImportedFile.php
 
 		-
+			message: '#^Class App\\Models\\ReconciliationMatch uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/ReconciliationMatch.php
+
+		-
+			message: '#^Method App\\Models\\ReconciliationMatch\:\:bankTransaction\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/ReconciliationMatch.php
+
+		-
+			message: '#^Method App\\Models\\ReconciliationMatch\:\:invoiceTransaction\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/ReconciliationMatch.php
+
+		-
 			message: '#^Class App\\Models\\Transaction uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -212,6 +248,42 @@ parameters:
 
 		-
 			message: '#^Method App\\Models\\Transaction\:\:scopeUnmapped\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:reconciliationMatchesAsBank\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:reconciliationMatchesAsInvoice\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeUnreconciled\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeUnreconciled\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeFlagged\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:scopeFlagged\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Transaction.php
@@ -299,3 +371,33 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: app/Services/TallyExport/TallyExportService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:reject\(\) expects bool\|\(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|Illuminate\\Database\\Eloquent\\Model, Closure\(App\\Models\\Transaction\)\: bool given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Reconciliation/ReconciliationService.php
+
+		-
+			message: '#^Parameter \#2 \$invoices of method App\\Services\\Reconciliation\\ReconciliationService\:\:matchByAmount\(\) expects Illuminate\\Support\\Collection\<int, App\\Models\\Transaction\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Reconciliation/ReconciliationService.php
+
+		-
+			message: '#^Parameter \#2 \$invoices of method App\\Services\\Reconciliation\\ReconciliationService\:\:matchByAmountAndDate\(\) expects Illuminate\\Support\\Collection\<int, App\\Models\\Transaction\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Reconciliation/ReconciliationService.php
+
+		-
+			message: '#^Parameter \#2 \$invoices of method App\\Services\\Reconciliation\\ReconciliationService\:\:matchByPartyName\(\) expects Illuminate\\Support\\Collection\<int, App\\Models\\Transaction\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Reconciliation/ReconciliationService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Services/Reconciliation/ReconciliationService.php

@@ -7,6 +7,7 @@ use App\Enums\ReconciliationStatus;
 use App\Models\ImportedFile;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -57,6 +58,7 @@ class ReconciliationService
         }
 
         // Track which invoices have been matched to avoid double-matching
+        /** @var Collection<int, int> $matchedInvoiceIds */
         $matchedInvoiceIds = collect();
 
         DB::transaction(function () use (
@@ -68,6 +70,7 @@ class ReconciliationService
             $dayWindow,
         ) {
             foreach ($bankTransactions as $bankTxn) {
+                /** @var Transaction $bankTxn */
                 $availableInvoices = $invoiceTransactions->reject(
                     fn (Transaction $inv) => $matchedInvoiceIds->contains($inv->id)
                 );
@@ -113,6 +116,8 @@ class ReconciliationService
     /**
      * Match by exact amount (within tolerance).
      * Returns the created ReconciliationMatch or null if no match found.
+     *
+     * @param  Collection<int, Transaction>  $invoices
      */
     public function matchByAmount(
         Transaction $bankTxn,
@@ -126,6 +131,7 @@ class ReconciliationService
         }
 
         foreach ($invoices as $invoice) {
+            /** @var Transaction $invoice */
             $invoiceAmount = $invoice->amount;
 
             if ($invoiceAmount === null) {
@@ -148,6 +154,8 @@ class ReconciliationService
     /**
      * Match by amount + date proximity.
      * The bank payment date should be on or after the invoice date, within the day window.
+     *
+     * @param  Collection<int, Transaction>  $invoices
      */
     public function matchByAmountAndDate(
         Transaction $bankTxn,
@@ -156,16 +164,22 @@ class ReconciliationService
         int $dayWindow = self::DEFAULT_DATE_WINDOW,
     ): ?ReconciliationMatch {
         $bankAmount = $bankTxn->amount;
+
+        /** @var Carbon|null $bankDate */
         $bankDate = $bankTxn->date;
 
         if ($bankAmount === null || $bankDate === null) {
             return null;
         }
 
+        /** @var Collection<int, array{invoice: Transaction, days_diff: int}> $candidates */
         $candidates = collect();
 
         foreach ($invoices as $invoice) {
+            /** @var Transaction $invoice */
             $invoiceAmount = $invoice->amount;
+
+            /** @var Carbon|null $invoiceDate */
             $invoiceDate = $invoice->date;
 
             if ($invoiceAmount === null || $invoiceDate === null) {
@@ -216,6 +230,8 @@ class ReconciliationService
     /**
      * Match by amount + date + party name fuzzy match.
      * Uses PHP's similar_text() for fuzzy string comparison.
+     *
+     * @param  Collection<int, Transaction>  $invoices
      */
     public function matchByPartyName(
         Transaction $bankTxn,
@@ -224,7 +240,11 @@ class ReconciliationService
         int $dayWindow = self::DEFAULT_DATE_WINDOW,
     ): ?ReconciliationMatch {
         $bankAmount = $bankTxn->amount;
+
+        /** @var Carbon|null $bankDate */
         $bankDate = $bankTxn->date;
+
+        /** @var string|null $bankDescription */
         $bankDescription = $bankTxn->description;
 
         if ($bankAmount === null || $bankDescription === null) {
@@ -235,6 +255,7 @@ class ReconciliationService
         $bestConfidence = 0.0;
 
         foreach ($invoices as $invoice) {
+            /** @var Transaction $invoice */
             $invoiceAmount = $invoice->amount;
 
             if ($invoiceAmount === null) {
@@ -247,20 +268,24 @@ class ReconciliationService
 
             // Date check (optional - if dates available)
             if ($bankDate !== null && $invoice->date !== null) {
-                if ($bankDate->lt($invoice->date)) {
+                /** @var Carbon $invDate */
+                $invDate = $invoice->date;
+                if ($bankDate->lt($invDate)) {
                     continue;
                 }
-                $daysDiff = (int) abs($bankDate->diffInDays($invoice->date));
+                $daysDiff = (int) abs($bankDate->diffInDays($invDate));
                 if ($daysDiff > $dayWindow) {
                     continue;
                 }
             }
 
             // Fuzzy match party name from bank description against invoice description
+            /** @var string $invoiceDescription */
             $invoiceDescription = $invoice->description ?? '';
             $similarity = $this->calculateNameSimilarity($bankDescription, $invoiceDescription);
 
             // Also check against vendor_name in raw_data if available
+            /** @var array<string, mixed>|null $rawData */
             $rawData = $invoice->raw_data;
             if (is_array($rawData) && isset($rawData['vendor_name'])) {
                 $vendorSimilarity = $this->calculateNameSimilarity(
@@ -318,18 +343,21 @@ class ReconciliationService
             ->get();
 
         foreach ($matchedTransactions as $bankTxn) {
+            /** @var Transaction $bankTxn */
             $match = ReconciliationMatch::where('bank_transaction_id', $bankTxn->id)->first();
 
             if (! $match) {
                 continue;
             }
 
+            /** @var Transaction|null $invoiceTxn */
             $invoiceTxn = $match->invoiceTransaction;
 
             if (! $invoiceTxn) {
                 continue;
             }
 
+            /** @var array<string, mixed>|null $invoiceRawData */
             $invoiceRawData = $invoiceTxn->raw_data;
 
             if (! is_array($invoiceRawData)) {
@@ -348,6 +376,7 @@ class ReconciliationService
                 'line_items' => $invoiceRawData['line_items'] ?? null,
             ];
 
+            /** @var array<string, mixed> $currentRawData */
             $currentRawData = $bankTxn->raw_data ?? [];
             $bankTxn->update([
                 'raw_data' => array_merge($currentRawData, $enrichment),
