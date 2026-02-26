@@ -151,4 +151,22 @@ describe('HeadMappingResource', function () {
 
         expect(HeadMapping::where('pattern', 'SALARY PAYMENT')->exists())->toBeTrue();
     });
+
+    it('can create a mapping with bank name from select', function () {
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        \App\Models\BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'ICICI Bank']);
+
+        livewire(CreateHeadMapping::class)
+            ->fillForm([
+                'pattern' => 'UPI PAYMENT',
+                'match_type' => MatchType::Contains->value,
+                'account_head_id' => $head->id,
+                'bank_name' => 'ICICI Bank',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $mapping = HeadMapping::where('pattern', 'UPI PAYMENT')->first();
+        expect($mapping->bank_name)->toBe('ICICI Bank');
+    });
 });

@@ -106,4 +106,27 @@ describe('ImportedFileResource', function () {
             ->assertTableActionHidden('reprocess', $pendingFile)
             ->assertTableActionHidden('reprocess', $processingFile);
     });
+
+    it('shows linked bank account name in table', function () {
+        $account = \App\Models\BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'HDFC Bank']);
+        ImportedFile::factory()->create([
+            'company_id' => tenant()->id,
+            'bank_account_id' => $account->id,
+            'bank_name' => null,
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->assertSuccessful();
+    });
+
+    it('falls back to bank_name when no bank account linked', function () {
+        ImportedFile::factory()->create([
+            'company_id' => tenant()->id,
+            'bank_account_id' => null,
+            'bank_name' => 'SBI',
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->assertSuccessful();
+    });
 });

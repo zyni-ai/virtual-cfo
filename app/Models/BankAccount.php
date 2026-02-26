@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AccountType;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,6 +45,22 @@ class BankAccount extends Model
             'account_type' => AccountType::class,
             'is_active' => 'boolean',
         ];
+    }
+
+    /** @return Attribute<string|null, never> */
+    protected function maskedAccountNumber(): Attribute
+    {
+        return Attribute::make(
+            get: function (): ?string {
+                if (! $this->account_number) {
+                    return null;
+                }
+
+                $number = $this->account_number;
+
+                return str_repeat('•', max(0, strlen($number) - 4)).substr($number, -4);
+            },
+        );
     }
 
     /** @return BelongsTo<Company, $this> */

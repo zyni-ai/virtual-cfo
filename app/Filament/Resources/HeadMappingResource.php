@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\MatchType;
 use App\Filament\Resources\HeadMappingResource\Pages;
+use App\Models\BankAccount;
 use App\Models\HeadMapping;
 use App\Models\Transaction;
 use BackedEnum;
@@ -61,10 +62,13 @@ class HeadMappingResource extends Resource
                             ->preload()
                             ->required(),
 
-                        Forms\Components\TextInput::make('bank_name')
+                        Forms\Components\Select::make('bank_name')
                             ->label('Bank Name')
                             ->helperText('Optional: restrict this rule to a specific bank')
-                            ->maxLength(255),
+                            ->options(fn () => BankAccount::query()
+                                ->pluck('name', 'name')
+                                ->unique())
+                            ->searchable(),
 
                         Forms\Components\TextInput::make('priority')
                             ->label('Priority')
