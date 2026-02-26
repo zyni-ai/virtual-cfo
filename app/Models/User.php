@@ -4,16 +4,21 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasDefaultTenant;
+use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 
 /**
  * @property UserRole|null $role
  */
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, HasDefaultTenant, HasTenants
 {
     use HasFactory, Notifiable;
 
@@ -41,6 +46,28 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->role !== null;
+    }
+
+    /** @return BelongsToMany<Company, $this> */
+    public function companies(): BelongsToMany
+    {
+        return $this->belongsToMany(Company::class)->withTimestamps();
+    }
+
+    /** @return Collection<int, Company> */
+    public function getTenants(Panel $panel): Collection
+    {
+        return $this->companies;
+    }
+
+    public function canAccessTenant(Model $tenant): bool
+    {
+        return $this->companies()->whereKey($tenant)->exists();
+    }
+
+    public function getDefaultTenant(Panel $panel): ?Model
+    {
+        return $this->companies->first();
     }
 
     public function importedFiles(): HasMany

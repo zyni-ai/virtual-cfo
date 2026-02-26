@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
+use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,6 +21,7 @@ class ImportedFileFactory extends Factory
         $bank = fake()->randomElement(['HDFC', 'ICICI', 'SBI', 'Axis', 'Kotak']);
 
         return [
+            'company_id' => Company::factory(),
             'bank_name' => $bank,
             'account_number' => fake()->numerify('################'),
             'statement_type' => StatementType::Bank,

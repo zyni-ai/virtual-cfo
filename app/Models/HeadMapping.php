@@ -15,6 +15,7 @@ class HeadMapping extends Model
     use LogsActivity;
 
     protected $fillable = [
+        'company_id',
         'pattern',
         'match_type',
         'account_head_id',
@@ -39,6 +40,12 @@ class HeadMapping extends Model
             'usage_count' => 'integer',
             'priority' => 'integer',
         ];
+    }
+
+    /** @return BelongsTo<Company, $this> */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     public function accountHead(): BelongsTo

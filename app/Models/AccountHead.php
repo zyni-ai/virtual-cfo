@@ -17,6 +17,7 @@ class AccountHead extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'company_id',
         'name',
         'parent_id',
         'tally_guid',
@@ -37,6 +38,12 @@ class AccountHead extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    /** @return BelongsTo<Company, $this> */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     public function parent(): BelongsTo

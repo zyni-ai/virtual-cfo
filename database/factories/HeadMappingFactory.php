@@ -4,12 +4,13 @@ namespace Database\Factories;
 
 use App\Enums\MatchType;
 use App\Models\AccountHead;
+use App\Models\Company;
 use App\Models\HeadMapping;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\HeadMapping>
+ * @extends Factory<HeadMapping>
  */
 class HeadMappingFactory extends Factory
 {
@@ -18,6 +19,7 @@ class HeadMappingFactory extends Factory
     public function definition(): array
     {
         return [
+            'company_id' => Company::factory(),
             'pattern' => fake()->randomElement([
                 'SALARY',
                 'NEFT',

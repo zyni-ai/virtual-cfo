@@ -20,6 +20,7 @@ class Transaction extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'company_id',
         'imported_file_id',
         'date',
         'description',
@@ -65,6 +66,12 @@ class Transaction extends Model
             'ai_confidence' => 'float',
             'reconciliation_status' => ReconciliationStatus::class,
         ];
+    }
+
+    /** @return BelongsTo<Company, $this> */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     public function importedFile(): BelongsTo

@@ -34,6 +34,8 @@ class HeadMatcherService
      */
     public function matchForFile(ImportedFile $importedFile): array
     {
+        $importedFile->loadMissing('bankAccount');
+
         $hasUnmapped = $importedFile->transactions()
             ->where('mapping_type', MappingType::Unmapped)
             ->exists();
@@ -71,10 +73,12 @@ class HeadMatcherService
     {
         $totalMatched = 0;
 
+        $bankName = $importedFile->bankAccount?->name ?? $importedFile->bank_name;
+
         $importedFile->transactions()
             ->where('mapping_type', MappingType::Unmapped)
-            ->chunkById($this->ruleChunkSize, function (Collection $transactions) use ($importedFile, &$totalMatched) {
-                $ruleMatches = $this->ruleBasedMatcher->match($transactions, $importedFile->bank_name);
+            ->chunkById($this->ruleChunkSize, function (Collection $transactions) use ($bankName, &$totalMatched) {
+                $ruleMatches = $this->ruleBasedMatcher->match($transactions, $bankName);
                 $totalMatched += $this->ruleBasedMatcher->applyMatches($ruleMatches);
             });
 

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -9,15 +10,26 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call([
-            AccountHeadSeeder::class,
-        ]);
+        $company = Company::firstOrCreate(
+            ['gstin' => '29AABCZ5012F1ZG'],
+            [
+                'name' => 'Zysk Technologies Private Limited - 2025 - 2026',
+                'state' => 'Karnataka',
+                'gst_registration_type' => 'Regular',
+                'financial_year' => '2025-2026',
+                'currency' => 'INR',
+            ],
+        );
+
+        (new AccountHeadSeeder)->run($company);
 
         if (app()->environment('local', 'testing')) {
-            User::factory()->create([
+            $user = User::factory()->create([
                 'name' => 'Admin',
                 'email' => 'admin@zysk.in',
             ]);
+
+            $company->users()->syncWithoutDetaching($user);
         }
     }
 }

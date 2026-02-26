@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\AccountHead;
+use App\Models\Company;
 use Illuminate\Database\Seeder;
 
 class AccountHeadSeeder extends Seeder
@@ -12,13 +13,16 @@ class AccountHeadSeeder extends Seeder
      *
      * Uses firstOrCreate() for idempotency — safe to run multiple times.
      */
-    public function run(): void
+    public function run(?Company $company = null): void
     {
+        $companyId = $company?->id;
+
         foreach ($this->chartOfAccounts() as $primaryGroup) {
             $parent = AccountHead::firstOrCreate(
                 [
                     'name' => $primaryGroup['name'],
                     'group_name' => $primaryGroup['name'],
+                    'company_id' => $companyId,
                 ],
                 [
                     'parent_id' => null,
@@ -31,6 +35,7 @@ class AccountHeadSeeder extends Seeder
                     [
                         'name' => $child['name'],
                         'group_name' => $primaryGroup['name'],
+                        'company_id' => $companyId,
                     ],
                     [
                         'parent_id' => $parent->id,
@@ -43,6 +48,7 @@ class AccountHeadSeeder extends Seeder
                         [
                             'name' => $leafName,
                             'group_name' => $primaryGroup['name'],
+                            'company_id' => $companyId,
                         ],
                         [
                             'parent_id' => $subGroup->id,

@@ -11,7 +11,7 @@ use function Pest\Livewire\livewire;
 
 describe('HeadMappingResource', function () {
     beforeEach(function () {
-        asUser();
+        $this->user = asUser();
     });
 
     it('can render the list page', function () {
@@ -19,7 +19,7 @@ describe('HeadMappingResource', function () {
     });
 
     it('can list head mappings', function () {
-        $mappings = HeadMapping::factory()->count(3)->create();
+        $mappings = HeadMapping::factory()->count(3)->create(['company_id' => tenant()->id]);
 
         livewire(ListHeadMappings::class)
             ->assertCanSeeTableRecords($mappings);
@@ -30,7 +30,7 @@ describe('HeadMappingResource', function () {
     });
 
     it('can create a head mapping', function () {
-        $head = AccountHead::factory()->create();
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
 
         livewire(CreateHeadMapping::class)
             ->fillForm([
@@ -45,8 +45,7 @@ describe('HeadMappingResource', function () {
     });
 
     it('sets created_by to current user', function () {
-        $head = AccountHead::factory()->create();
-        $user = asUser();
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
 
         livewire(CreateHeadMapping::class)
             ->fillForm([
@@ -58,7 +57,7 @@ describe('HeadMappingResource', function () {
             ->assertHasNoFormErrors();
 
         $mapping = HeadMapping::where('pattern', 'EMI')->first();
-        expect($mapping->created_by)->toBe($user->id);
+        expect($mapping->created_by)->toBe($this->user->id);
     });
 
     it('validates required fields on create', function () {
@@ -73,14 +72,14 @@ describe('HeadMappingResource', function () {
     });
 
     it('can render the edit page', function () {
-        $mapping = HeadMapping::factory()->create();
+        $mapping = HeadMapping::factory()->create(['company_id' => tenant()->id]);
 
         livewire(EditHeadMapping::class, ['record' => $mapping->getRouteKey()])
             ->assertSuccessful();
     });
 
     it('can update a head mapping', function () {
-        $mapping = HeadMapping::factory()->create(['pattern' => 'OLD_PATTERN']);
+        $mapping = HeadMapping::factory()->create(['company_id' => tenant()->id, 'pattern' => 'OLD_PATTERN']);
 
         livewire(EditHeadMapping::class, ['record' => $mapping->getRouteKey()])
             ->fillForm([
@@ -93,7 +92,7 @@ describe('HeadMappingResource', function () {
     });
 
     it('can delete a head mapping from the table', function () {
-        $mapping = HeadMapping::factory()->create();
+        $mapping = HeadMapping::factory()->create(['company_id' => tenant()->id]);
 
         livewire(ListHeadMappings::class)
             ->callTableAction('delete', $mapping);
@@ -102,7 +101,7 @@ describe('HeadMappingResource', function () {
     });
 
     it('rejects invalid regex patterns when match type is regex', function () {
-        $head = AccountHead::factory()->create();
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
 
         livewire(CreateHeadMapping::class)
             ->fillForm([
@@ -124,7 +123,7 @@ describe('HeadMappingResource', function () {
     });
 
     it('accepts valid regex patterns when match type is regex', function () {
-        $head = AccountHead::factory()->create();
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
 
         livewire(CreateHeadMapping::class)
             ->fillForm([
@@ -139,7 +138,7 @@ describe('HeadMappingResource', function () {
     });
 
     it('allows non-regex patterns without regex validation', function () {
-        $head = AccountHead::factory()->create();
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
 
         livewire(CreateHeadMapping::class)
             ->fillForm([
@@ -151,5 +150,23 @@ describe('HeadMappingResource', function () {
             ->assertHasNoFormErrors();
 
         expect(HeadMapping::where('pattern', 'SALARY PAYMENT')->exists())->toBeTrue();
+    });
+
+    it('can create a mapping with bank name from select', function () {
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        \App\Models\BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'ICICI Bank']);
+
+        livewire(CreateHeadMapping::class)
+            ->fillForm([
+                'pattern' => 'UPI PAYMENT',
+                'match_type' => MatchType::Contains->value,
+                'account_head_id' => $head->id,
+                'bank_name' => 'ICICI Bank',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $mapping = HeadMapping::where('pattern', 'UPI PAYMENT')->first();
+        expect($mapping->bank_name)->toBe('ICICI Bank');
     });
 });

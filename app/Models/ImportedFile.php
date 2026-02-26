@@ -41,6 +41,7 @@ class ImportedFile extends Model
     }
 
     protected $fillable = [
+        'company_id',
         'bank_name',
         'account_number',
         'statement_type',
@@ -53,6 +54,7 @@ class ImportedFile extends Model
         'error_message',
         'uploaded_by',
         'processed_at',
+        'bank_account_id',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -87,9 +89,21 @@ class ImportedFile extends Model
         ];
     }
 
+    /** @return BelongsTo<Company, $this> */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    /** @return BelongsTo<BankAccount, $this> */
+    public function bankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class);
     }
 
     public function transactions(): HasMany

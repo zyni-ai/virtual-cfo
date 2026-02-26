@@ -7,6 +7,7 @@ use App\Ai\Agents\StatementParser;
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
 use App\Enums\StatementType;
+use App\Models\BankAccount;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use Illuminate\Support\Carbon;
@@ -79,6 +80,7 @@ class DocumentProcessor
                 $normalized = $this->normalizeStructuredRow($row);
 
                 Transaction::create([
+                    'company_id' => $file->company_id,
                     'imported_file_id' => $file->id,
                     'date' => $normalized['date'],
                     'description' => $normalized['description'] ?? '',
@@ -216,6 +218,7 @@ class DocumentProcessor
         DB::transaction(function () use ($file, $bankName, $accountNumber, $transactions) {
             if ($bankName) {
                 $file->update(['bank_name' => $bankName]);
+                $this->autoMatchBankAccount($file, $bankName);
             }
 
             if ($accountNumber) {
@@ -224,6 +227,7 @@ class DocumentProcessor
 
             foreach ($transactions as $row) {
                 Transaction::create([
+                    'company_id' => $file->company_id,
                     'imported_file_id' => $file->id,
                     'date' => Carbon::parse($row['date']),
                     'description' => $row['description'] ?? '',
@@ -244,6 +248,24 @@ class DocumentProcessor
                 'processed_at' => now(),
             ]);
         });
+    }
+
+    /**
+     * Attempt to match an AI-detected bank name to an existing BankAccount for the file's company.
+     */
+    protected function autoMatchBankAccount(ImportedFile $file, string $bankName): void
+    {
+        if ($file->bank_account_id) {
+            return;
+        }
+
+        $bankAccount = BankAccount::where('company_id', $file->company_id)
+            ->where('name', $bankName)
+            ->first();
+
+        if ($bankAccount) {
+            $file->update(['bank_account_id' => $bankAccount->id]);
+        }
     }
 
     /**
@@ -281,6 +303,7 @@ class DocumentProcessor
             $file->update(['bank_name' => $vendorName]);
 
             Transaction::create([
+                'company_id' => $file->company_id,
                 'imported_file_id' => $file->id,
                 'date' => $invoiceDate ? Carbon::parse($invoiceDate) : now(),
                 'description' => $invoiceNumber.' - '.$vendorName,

@@ -55,6 +55,13 @@ class ImportedFileResource extends Resource
                             ->default(StatementType::Bank)
                             ->required(),
 
+                        Forms\Components\Select::make('bank_account_id')
+                            ->label('Bank Account')
+                            ->relationship('bankAccount', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('Auto-detect from statement'),
+
                         Forms\Components\TextInput::make('bank_name')
                             ->label('Bank Name (optional, auto-detected)')
                             ->maxLength(255),
@@ -78,10 +85,14 @@ class ImportedFileResource extends Resource
                     ->searchable()
                     ->limit(40),
 
+                Tables\Columns\TextColumn::make('bankAccount.name')
+                    ->label('Bank Account')
+                    ->placeholder(fn (ImportedFile $record) => $record->bank_name ?? 'Detecting...'),
+
                 Tables\Columns\TextColumn::make('bank_name')
-                    ->label('Bank')
+                    ->label('Detected Bank')
                     ->searchable()
-                    ->placeholder('Detecting...'),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('statement_type')
                     ->label('Type')
