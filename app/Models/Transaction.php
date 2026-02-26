@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use App\Enums\MappingType;
+use App\Enums\ReconciliationStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -30,6 +32,7 @@ class Transaction extends Model
         'ai_confidence',
         'raw_data',
         'bank_format',
+        'reconciliation_status',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -43,6 +46,7 @@ class Transaction extends Model
                 'mapping_type',
                 'ai_confidence',
                 'bank_format',
+                'reconciliation_status',
             ])
             ->logOnlyDirty()
             ->useLogName('transactions');
@@ -59,6 +63,7 @@ class Transaction extends Model
             'raw_data' => 'encrypted:array',
             'mapping_type' => MappingType::class,
             'ai_confidence' => 'float',
+            'reconciliation_status' => ReconciliationStatus::class,
         ];
     }
 
@@ -70,6 +75,16 @@ class Transaction extends Model
     public function accountHead(): BelongsTo
     {
         return $this->belongsTo(AccountHead::class);
+    }
+
+    public function reconciliationMatchesAsBank(): HasMany
+    {
+        return $this->hasMany(ReconciliationMatch::class, 'bank_transaction_id');
+    }
+
+    public function reconciliationMatchesAsInvoice(): HasMany
+    {
+        return $this->hasMany(ReconciliationMatch::class, 'invoice_transaction_id');
     }
 
     public function scopeUnmapped(Builder $query): Builder
@@ -88,6 +103,16 @@ class Transaction extends Model
             ->where('ai_confidence', '<', 0.8);
     }
 
+    public function scopeUnreconciled(Builder $query): Builder
+    {
+        return $query->where('reconciliation_status', ReconciliationStatus::Unreconciled);
+    }
+
+    public function scopeFlagged(Builder $query): Builder
+    {
+        return $query->where('reconciliation_status', ReconciliationStatus::Flagged);
+    }
+
     public function getDecryptedDebitAttribute(): ?float
     {
         return $this->debit !== null ? (float) $this->debit : null;
@@ -101,5 +126,23 @@ class Transaction extends Model
     public function getDecryptedBalanceAttribute(): ?float
     {
         return $this->balance !== null ? (float) $this->balance : null;
+    }
+
+    /**
+     * Get the transaction amount (debit or credit) as a float.
+     * For bank transactions, debit means money going out (payment).
+     * For invoices, the debit field stores the invoice total.
+     */
+    public function getAmountAttribute(): ?float
+    {
+        if ($this->debit !== null) {
+            return (float) $this->debit;
+        }
+
+        if ($this->credit !== null) {
+            return (float) $this->credit;
+        }
+
+        return null;
     }
 }

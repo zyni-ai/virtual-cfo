@@ -41,6 +41,7 @@ class TransactionFactory extends Factory
             'ai_confidence' => null,
             'raw_data' => null,
             'bank_format' => null,
+            'reconciliation_status' => \App\Enums\ReconciliationStatus::Unreconciled,
         ];
     }
 
