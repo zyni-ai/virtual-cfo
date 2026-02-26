@@ -1,11 +1,16 @@
 <?php
 
 use App\Models\AccountHead;
+use App\Models\Company;
 use Database\Seeders\AccountHeadSeeder;
 
 describe('AccountHeadSeeder', function () {
+    beforeEach(function () {
+        $this->company = Company::factory()->create();
+    });
+
     it('creates the expected number of account heads', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         // 13 primary groups + 9 sub-groups + 4 bank leaf heads + 1 Cash
         // + 2 Direct Expenses leaves + 15 Indirect Expenses leaves
@@ -15,17 +20,17 @@ describe('AccountHeadSeeder', function () {
     });
 
     it('is idempotent — running twice does not create duplicates', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
         $countAfterFirst = AccountHead::count();
 
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
         $countAfterSecond = AccountHead::count();
 
         expect($countAfterSecond)->toBe($countAfterFirst);
     });
 
     it('creates all 13 primary groups with no parent', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         $primaryGroups = AccountHead::whereNull('parent_id')->pluck('name')->sort()->values();
 
@@ -47,7 +52,7 @@ describe('AccountHeadSeeder', function () {
     });
 
     it('sets group_name on primary groups to their own name', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         $primaryGroups = AccountHead::whereNull('parent_id')->get();
 
@@ -57,7 +62,7 @@ describe('AccountHeadSeeder', function () {
     });
 
     it('creates sub-groups under Current Assets', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         $currentAssets = AccountHead::where('name', 'Current Assets')->whereNull('parent_id')->first();
         $subGroups = $currentAssets->children()->pluck('name')->sort()->values();
@@ -73,7 +78,7 @@ describe('AccountHeadSeeder', function () {
     });
 
     it('creates sub-groups under Current Liabilities', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         $currentLiabilities = AccountHead::where('name', 'Current Liabilities')->whereNull('parent_id')->first();
         $subGroups = $currentLiabilities->children()->pluck('name')->sort()->values();
@@ -86,7 +91,7 @@ describe('AccountHeadSeeder', function () {
     });
 
     it('creates bank leaf heads under Bank Accounts', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         $bankAccounts = AccountHead::where('name', 'Bank Accounts')
             ->where('group_name', 'Current Assets')
@@ -102,7 +107,7 @@ describe('AccountHeadSeeder', function () {
     });
 
     it('creates leaf heads under Indirect Expenses', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         $indirectExpenses = AccountHead::where('name', 'Indirect Expenses')->whereNull('parent_id')->first();
         $leafHeads = $indirectExpenses->children()->pluck('name')->sort()->values();
@@ -127,7 +132,7 @@ describe('AccountHeadSeeder', function () {
     });
 
     it('creates tax-related leaf heads under Duties & Taxes', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         $dutiesAndTaxes = AccountHead::where('name', 'Duties & Taxes')
             ->where('group_name', 'Current Liabilities')
@@ -148,7 +153,7 @@ describe('AccountHeadSeeder', function () {
     });
 
     it('sets group_name on sub-groups and leaf heads to their top-level group', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         // Sub-group should have parent's group_name
         $bankAccounts = AccountHead::where('name', 'Bank Accounts')
@@ -166,7 +171,7 @@ describe('AccountHeadSeeder', function () {
     });
 
     it('marks all seeded heads as active', function () {
-        $this->seed(AccountHeadSeeder::class);
+        (new AccountHeadSeeder)->run($this->company);
 
         $inactiveCount = AccountHead::where('is_active', false)->count();
 

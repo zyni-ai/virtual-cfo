@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\MappingType;
 use App\Models\AccountHead;
+use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,6 +21,7 @@ class TransactionFactory extends Factory
         $isDebit = fake()->boolean();
 
         return [
+            'company_id' => Company::factory(),
             'imported_file_id' => ImportedFile::factory(),
             'date' => fake()->dateTimeBetween('-1 year', 'now'),
             'description' => fake()->randomElement([

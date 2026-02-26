@@ -79,6 +79,7 @@ class DocumentProcessor
                 $normalized = $this->normalizeStructuredRow($row);
 
                 Transaction::create([
+                    'company_id' => $file->company_id,
                     'imported_file_id' => $file->id,
                     'date' => $normalized['date'],
                     'description' => $normalized['description'] ?? '',
@@ -224,6 +225,7 @@ class DocumentProcessor
 
             foreach ($transactions as $row) {
                 Transaction::create([
+                    'company_id' => $file->company_id,
                     'imported_file_id' => $file->id,
                     'date' => Carbon::parse($row['date']),
                     'description' => $row['description'] ?? '',
@@ -281,6 +283,7 @@ class DocumentProcessor
             $file->update(['bank_name' => $vendorName]);
 
             Transaction::create([
+                'company_id' => $file->company_id,
                 'imported_file_id' => $file->id,
                 'date' => $invoiceDate ? Carbon::parse($invoiceDate) : now(),
                 'description' => $invoiceNumber.' - '.$vendorName,
