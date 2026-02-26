@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AccountHead;
+use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\TallyExport\TallyExportService;
@@ -67,5 +68,23 @@ describe('TallyExportService::exportTransactions()', function () {
         expect($xml)->toContain('<ENVELOPE>')
             ->and($xml)->toContain('Rent')
             ->and(substr_count($xml, '<TALLYMESSAGE'))->toBe(2);
+    });
+});
+
+describe('TallyExportService with Company', function () {
+    it('includes company name in XML header', function () {
+        $company = \App\Models\Company::factory()->create(['name' => 'Zysk Technologies']);
+        $head = AccountHead::factory()->create(['company_id' => $company->id]);
+        $file = ImportedFile::factory()->create(['company_id' => $company->id]);
+
+        Transaction::factory()->mapped($head)->debit(5000)->for($file)->create([
+            'company_id' => $company->id,
+            'date' => '2024-06-15',
+        ]);
+
+        $service = new TallyExportService;
+        $xml = $service->exportForFile($file);
+
+        expect($xml)->toContain('Zysk Technologies');
     });
 });

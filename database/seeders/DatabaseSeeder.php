@@ -11,13 +11,13 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $company = Company::firstOrCreate(
-            ['gstin' => config('company.gstin', '29AABCZ5012F1ZG')],
+            ['gstin' => '29AABCZ5012F1ZG'],
             [
-                'name' => config('company.name', 'Zysk Technologies Private Limited - 2025 - 2026'),
-                'state' => config('company.state', 'Karnataka'),
-                'gst_registration_type' => config('company.gst_registration_type', 'Regular'),
-                'financial_year' => config('company.financial_year', '2025-2026'),
-                'currency' => config('company.currency', 'INR'),
+                'name' => 'Zysk Technologies Private Limited - 2025 - 2026',
+                'state' => 'Karnataka',
+                'gst_registration_type' => 'Regular',
+                'financial_year' => '2025-2026',
+                'currency' => 'INR',
             ],
         );
 

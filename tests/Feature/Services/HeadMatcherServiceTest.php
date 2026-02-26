@@ -203,6 +203,53 @@ describe('HeadMatcherService::matchForFile()', function () {
     });
 });
 
+describe('HeadMatcherService bank name resolution', function () {
+    it('prefers bankAccount name over bank_name for rule matching', function () {
+        $head = AccountHead::factory()->create(['name' => 'HDFC Transfer']);
+        HeadMapping::factory()->forBank('HDFC Savings')->create([
+            'pattern' => 'NEFT',
+            'match_type' => \App\Enums\MatchType::Contains,
+            'account_head_id' => $head->id,
+        ]);
+
+        $bankAccount = \App\Models\BankAccount::factory()->create(['name' => 'HDFC Savings']);
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'HDFC Bank',
+            'bank_account_id' => $bankAccount->id,
+        ]);
+        Transaction::factory()->unmapped()->for($file)->create(['description' => 'NEFT TRANSFER']);
+
+        // Fake AI agent so it doesn't make real API calls
+        HeadMatcher::fake([['matches' => []]]);
+
+        $service = app(HeadMatcherService::class);
+        $results = $service->matchForFile($file);
+
+        // Should match because bankAccount->name is 'HDFC Savings', not 'HDFC Bank'
+        expect($results['rule_matched'])->toBe(1);
+    });
+
+    it('falls back to bank_name when no bankAccount is linked', function () {
+        $head = AccountHead::factory()->create(['name' => 'SBI Transfer']);
+        HeadMapping::factory()->forBank('SBI')->create([
+            'pattern' => 'NEFT',
+            'match_type' => \App\Enums\MatchType::Contains,
+            'account_head_id' => $head->id,
+        ]);
+
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'SBI',
+            'bank_account_id' => null,
+        ]);
+        Transaction::factory()->unmapped()->for($file)->create(['description' => 'NEFT TRANSFER']);
+
+        $service = app(HeadMatcherService::class);
+        $results = $service->matchForFile($file);
+
+        expect($results['rule_matched'])->toBe(1);
+    });
+});
+
 describe('HeadMatcherService::resolveAccountHead()', function () {
     it('resolves account head by ID', function () {
         $head = AccountHead::factory()->create();

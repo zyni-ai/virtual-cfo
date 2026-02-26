@@ -15,6 +15,8 @@ class TallyExportService
      */
     public function exportForFile(ImportedFile $importedFile): string
     {
+        $importedFile->loadMissing('company');
+
         $transactions = $importedFile->transactions()
             ->whereNotNull('account_head_id')
             ->with('accountHead')
@@ -43,10 +45,17 @@ class TallyExportService
      */
     protected function generateXml(Collection $transactions, ?ImportedFile $importedFile): string
     {
+        $companyName = $importedFile?->company?->name;
+
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
         $xml .= '<ENVELOPE>'."\n";
         $xml .= '  <HEADER>'."\n";
         $xml .= '    <TALLYREQUEST>Import Data</TALLYREQUEST>'."\n";
+
+        if ($companyName) {
+            $xml .= '    <COMPANYNAME>'.htmlspecialchars($companyName, ENT_XML1).'</COMPANYNAME>'."\n";
+        }
+
         $xml .= '  </HEADER>'."\n";
         $xml .= '  <BODY>'."\n";
         $xml .= '    <IMPORTDATA>'."\n";

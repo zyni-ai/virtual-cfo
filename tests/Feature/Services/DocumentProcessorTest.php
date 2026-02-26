@@ -347,6 +347,78 @@ describe('DocumentProcessor', function () {
         });
     });
 
+    describe('bank account auto-matching', function () {
+        it('auto-sets bank_account_id when AI-detected bank_name matches a BankAccount', function () {
+            Storage::put('statements/bank.pdf', 'fake-pdf-content');
+
+            $this->mockOcr->shouldReceive('extractText')
+                ->once()
+                ->with('statements/bank.pdf')
+                ->andReturn('HDFC Bank Statement');
+
+            $company = \App\Models\Company::factory()->create();
+            $bankAccount = \App\Models\BankAccount::factory()->create([
+                'company_id' => $company->id,
+                'name' => 'HDFC Bank',
+            ]);
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'HDFC Bank',
+                    'account_number' => '1234567890',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'SALARY', 'credit' => 50000, 'balance' => 150000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/bank.pdf',
+                'original_filename' => 'hdfc_statement.pdf',
+                'statement_type' => StatementType::Bank,
+                'status' => ImportStatus::Pending,
+                'company_id' => $company->id,
+                'bank_account_id' => null,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->bank_account_id)->toBe($bankAccount->id);
+        });
+
+        it('does not set bank_account_id when no matching BankAccount exists', function () {
+            Storage::put('statements/bank2.pdf', 'fake-pdf-content');
+
+            $this->mockOcr->shouldReceive('extractText')
+                ->once()
+                ->with('statements/bank2.pdf')
+                ->andReturn('Unknown Bank Statement');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'Unknown Bank',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'PAYMENT', 'debit' => 1000, 'balance' => 9000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/bank2.pdf',
+                'original_filename' => 'unknown.pdf',
+                'statement_type' => StatementType::Bank,
+                'status' => ImportStatus::Pending,
+                'bank_account_id' => null,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->bank_account_id)->toBeNull();
+        });
+    });
+
     describe('unsupported formats', function () {
         it('throws for unsupported file extensions', function () {
             $file = ImportedFile::factory()->create([
