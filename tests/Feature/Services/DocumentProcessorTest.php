@@ -257,8 +257,32 @@ describe('DocumentProcessor', function () {
             expect($file->status)->toBe(ImportStatus::Completed);
         });
 
-        it('throws for invoice PDFs since InvoiceParser is not yet implemented', function () {
+        it('routes invoice PDFs to InvoiceParser agent', function () {
             Storage::put('statements/invoice.pdf', 'fake-pdf-content');
+
+            \App\Ai\Agents\InvoiceParser::fake([
+                [
+                    'vendor_name' => 'Test Vendor',
+                    'vendor_gstin' => '29AABCT1234A1Z5',
+                    'invoice_number' => 'TV/001',
+                    'invoice_date' => '2025-01-15',
+                    'due_date' => null,
+                    'place_of_supply' => 'Karnataka',
+                    'line_items' => [
+                        ['description' => 'Service', 'hsn_sac' => '998311', 'quantity' => 1, 'rate' => 5000.00, 'amount' => 5000.00],
+                    ],
+                    'base_amount' => 5000.00,
+                    'cgst_rate' => 9,
+                    'cgst_amount' => 450.00,
+                    'sgst_rate' => 9,
+                    'sgst_amount' => 450.00,
+                    'igst_rate' => null,
+                    'igst_amount' => null,
+                    'tds_amount' => null,
+                    'total_amount' => 5900.00,
+                    'amount_in_words' => null,
+                ],
+            ]);
 
             $file = ImportedFile::factory()->invoice()->create([
                 'file_path' => 'statements/invoice.pdf',
@@ -267,7 +291,13 @@ describe('DocumentProcessor', function () {
             ]);
 
             $this->processor->process($file);
-        })->throws(\RuntimeException::class, 'Invoice parsing is not yet implemented');
+
+            \App\Ai\Agents\InvoiceParser::assertPrompted('Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.');
+
+            $file->refresh();
+            expect($file->status)->toBe(ImportStatus::Completed)
+                ->and($file->total_rows)->toBe(1);
+        });
 
         it('marks file as failed when PDF has no transactions', function () {
             Storage::put('statements/empty.pdf', 'fake-pdf-content');
