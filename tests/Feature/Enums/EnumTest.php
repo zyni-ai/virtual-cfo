@@ -2,7 +2,9 @@
 
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
+use App\Enums\MatchMethod;
 use App\Enums\MatchType;
+use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
 
 describe('ImportStatus', function () {
@@ -57,5 +59,38 @@ describe('StatementType', function () {
         expect(StatementType::Bank->getLabel())->toBe('Bank Statement')
             ->and(StatementType::CreditCard->getLabel())->toBe('Credit Card Statement')
             ->and(StatementType::Invoice->getLabel())->toBe('Invoice');
+    });
+});
+
+describe('ReconciliationStatus', function () {
+    it('has correct labels', function () {
+        expect(ReconciliationStatus::Unreconciled->getLabel())->toBe('Unreconciled')
+            ->and(ReconciliationStatus::Matched->getLabel())->toBe('Matched')
+            ->and(ReconciliationStatus::PartiallyMatched->getLabel())->toBe('Partially Matched')
+            ->and(ReconciliationStatus::Flagged->getLabel())->toBe('Flagged');
+    });
+
+    it('has colors', function () {
+        expect(ReconciliationStatus::Unreconciled->getColor())->toBeString()
+            ->and(ReconciliationStatus::Matched->getColor())->toBeString()
+            ->and(ReconciliationStatus::PartiallyMatched->getColor())->toBeString()
+            ->and(ReconciliationStatus::Flagged->getColor())->toBeString();
+    });
+
+    it('has icons', function () {
+        expect(ReconciliationStatus::Unreconciled->getIcon())->toBeString()
+            ->and(ReconciliationStatus::Matched->getIcon())->toBeString()
+            ->and(ReconciliationStatus::PartiallyMatched->getIcon())->toBeString()
+            ->and(ReconciliationStatus::Flagged->getIcon())->toBeString();
+    });
+});
+
+describe('MatchMethod', function () {
+    it('has correct labels', function () {
+        expect(MatchMethod::Amount->getLabel())->toBe('Amount Match')
+            ->and(MatchMethod::AmountDate->getLabel())->toBe('Amount + Date')
+            ->and(MatchMethod::AmountDateParty->getLabel())->toBe('Amount + Date + Party')
+            ->and(MatchMethod::Ai->getLabel())->toBe('AI Matched')
+            ->and(MatchMethod::Manual->getLabel())->toBe('Manual');
     });
 });
