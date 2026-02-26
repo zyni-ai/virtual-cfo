@@ -16,7 +16,7 @@ return [
 
         'mistral' => [
             'driver' => 'mistral',
-            'api_key' => env('MISTRAL_API_KEY'),
+            'key' => env('MISTRAL_API_KEY'),
         ],
 
     ],
@@ -36,6 +36,8 @@ return [
         'parsing' => env('AI_PARSING_MODEL', 'mistral-large-latest'),
 
         'matching' => env('AI_MATCHING_MODEL', 'mistral-large-latest'),
+
+        'ocr' => env('AI_OCR_MODEL', 'mistral-ocr-latest'),
 
     ],
 

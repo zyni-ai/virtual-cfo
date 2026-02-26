@@ -7,12 +7,15 @@ use App\Enums\StatementType;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\DocumentProcessor\DocumentProcessor;
+use App\Services\DocumentProcessor\OcrService;
 use Illuminate\Support\Facades\Storage;
 
 describe('DocumentProcessor', function () {
     beforeEach(function () {
         Storage::fake('local');
-        $this->processor = new DocumentProcessor;
+
+        $this->mockOcr = Mockery::mock(OcrService::class);
+        $this->processor = new DocumentProcessor($this->mockOcr);
     });
 
     describe('detectFormat', function () {
@@ -203,6 +206,11 @@ describe('DocumentProcessor', function () {
         it('routes bank statement PDFs to StatementParser agent', function () {
             Storage::put('statements/bank.pdf', 'fake-pdf-content');
 
+            $this->mockOcr->shouldReceive('extractText')
+                ->once()
+                ->with('statements/bank.pdf')
+                ->andReturn('HDFC Bank Statement - Jan 2024');
+
             StatementParser::fake([
                 [
                     'bank_name' => 'HDFC Bank',
@@ -223,7 +231,7 @@ describe('DocumentProcessor', function () {
 
             $this->processor->process($file);
 
-            StatementParser::assertPrompted('Parse all transactions from this bank statement. Extract every single transaction row.');
+            StatementParser::assertPrompted(fn ($prompt) => $prompt->contains('Parse all transactions from this bank statement'));
 
             $file->refresh();
             expect($file->status)->toBe(ImportStatus::Completed)
@@ -233,6 +241,11 @@ describe('DocumentProcessor', function () {
 
         it('routes credit card statement PDFs to StatementParser agent', function () {
             Storage::put('statements/cc.pdf', 'fake-pdf-content');
+
+            $this->mockOcr->shouldReceive('extractText')
+                ->once()
+                ->with('statements/cc.pdf')
+                ->andReturn('ICICI Credit Card Statement - Jan 2024');
 
             StatementParser::fake([
                 [
@@ -251,7 +264,7 @@ describe('DocumentProcessor', function () {
 
             $this->processor->process($file);
 
-            StatementParser::assertPrompted('Parse all transactions from this bank statement. Extract every single transaction row.');
+            StatementParser::assertPrompted(fn ($prompt) => $prompt->contains('Parse all transactions from this bank statement'));
 
             $file->refresh();
             expect($file->status)->toBe(ImportStatus::Completed);
@@ -259,6 +272,11 @@ describe('DocumentProcessor', function () {
 
         it('routes invoice PDFs to InvoiceParser agent', function () {
             Storage::put('statements/invoice.pdf', 'fake-pdf-content');
+
+            $this->mockOcr->shouldReceive('extractText')
+                ->once()
+                ->with('statements/invoice.pdf')
+                ->andReturn('Invoice TV/001 - Test Vendor - Total: 5900.00');
 
             \App\Ai\Agents\InvoiceParser::fake([
                 [
@@ -292,7 +310,7 @@ describe('DocumentProcessor', function () {
 
             $this->processor->process($file);
 
-            \App\Ai\Agents\InvoiceParser::assertPrompted('Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.');
+            \App\Ai\Agents\InvoiceParser::assertPrompted(fn ($prompt) => $prompt->contains('Parse all data from this vendor invoice'));
 
             $file->refresh();
             expect($file->status)->toBe(ImportStatus::Completed)
@@ -301,6 +319,11 @@ describe('DocumentProcessor', function () {
 
         it('marks file as failed when PDF has no transactions', function () {
             Storage::put('statements/empty.pdf', 'fake-pdf-content');
+
+            $this->mockOcr->shouldReceive('extractText')
+                ->once()
+                ->with('statements/empty.pdf')
+                ->andReturn('SBI Bank Statement - No transactions');
 
             StatementParser::fake([
                 [

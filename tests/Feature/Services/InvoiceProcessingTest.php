@@ -8,6 +8,7 @@ use App\Jobs\ProcessImportedFile;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\DocumentProcessor\DocumentProcessor;
+use App\Services\DocumentProcessor\OcrService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +16,10 @@ use Illuminate\Support\Facades\Storage;
 describe('DocumentProcessor invoice routing', function () {
     beforeEach(function () {
         Storage::fake('local');
-        $this->processor = new DocumentProcessor;
+
+        $this->mockOcr = Mockery::mock(OcrService::class);
+        $this->mockOcr->shouldReceive('extractText')->andReturn('Extracted invoice text content');
+        $this->processor = new DocumentProcessor($this->mockOcr);
     });
 
     it('routes invoice PDFs to InvoiceParser agent', function () {
@@ -59,7 +63,7 @@ describe('DocumentProcessor invoice routing', function () {
 
         $this->processor->process($file);
 
-        InvoiceParser::assertPrompted('Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.');
+        InvoiceParser::assertPrompted(fn ($prompt) => $prompt->contains('Parse all data from this vendor invoice'));
 
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Completed)
@@ -341,6 +345,14 @@ describe('DocumentProcessor invoice routing', function () {
 });
 
 describe('ProcessImportedFile job with InvoiceParser', function () {
+    beforeEach(function () {
+        $mockOcr = Mockery::mock(OcrService::class);
+        $mockOcr->shouldReceive('extractText')->andReturn('Extracted invoice text');
+        app()->bind(DocumentProcessor::class, function () use ($mockOcr) {
+            return new DocumentProcessor($mockOcr);
+        });
+    });
+
     it('processes invoice and dispatches MatchTransactionHeads on success', function () {
         Storage::fake('local');
         Storage::put('statements/invoice.pdf', 'fake-pdf-content');
