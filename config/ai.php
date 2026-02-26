@@ -8,11 +8,18 @@ return [
     |--------------------------------------------------------------------------
     |
     | Configure API keys for AI providers used by the application.
-    | The primary provider is Mistral, used for PDF parsing and head matching.
+    | OpenRouter is the primary provider for all AI agents (parsing, matching).
+    | Mistral is retained for OCR only (Mistral's /v1/ocr is not on OpenRouter).
     |
     */
 
     'providers' => [
+
+        'openrouter' => [
+            'driver' => 'openai',
+            'key' => env('OPENROUTER_API_KEY'),
+            'url' => 'https://openrouter.ai/api/v1',
+        ],
 
         'mistral' => [
             'driver' => 'mistral',
@@ -33,9 +40,9 @@ return [
 
     'models' => [
 
-        'parsing' => env('AI_PARSING_MODEL', 'mistral-large-latest'),
+        'parsing' => env('AI_PARSING_MODEL', 'mistralai/mistral-large-latest'),
 
-        'matching' => env('AI_MATCHING_MODEL', 'mistral-large-latest'),
+        'matching' => env('AI_MATCHING_MODEL', 'mistralai/mistral-large-latest'),
 
         'ocr' => env('AI_OCR_MODEL', 'mistral-ocr-latest'),
 

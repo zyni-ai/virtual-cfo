@@ -12,7 +12,7 @@ use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-#[Provider('mistral')]
+#[Provider('openrouter')]
 #[MaxTokens(8192)]
 #[Temperature(0.1)]
 #[Timeout(180)]
@@ -25,7 +25,7 @@ class InvoiceParser implements Agent, HasStructuredOutput
      */
     public function model(): string
     {
-        return config('ai.models.parsing', 'mistral-large-latest');
+        return config('ai.models.parsing', 'mistralai/mistral-large-latest');
     }
 
     public function instructions(): Stringable|string

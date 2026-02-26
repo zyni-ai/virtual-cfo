@@ -12,7 +12,7 @@ use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-#[Provider('mistral')]
+#[Provider('openrouter')]
 #[MaxTokens(4096)]
 #[Temperature(0.2)]
 #[Timeout(120)]
@@ -27,7 +27,7 @@ class HeadMatcher implements Agent, HasStructuredOutput
      */
     public function model(): string
     {
-        return config('ai.models.matching', 'mistral-large-latest');
+        return config('ai.models.matching', 'mistralai/mistral-large-latest');
     }
 
     /**

@@ -4,6 +4,21 @@ use App\Ai\Agents\HeadMatcher;
 use App\Ai\Agents\StatementParser;
 use Illuminate\Support\Facades\Storage;
 
+describe('AI provider configuration', function () {
+    it('has an openrouter provider configured', function () {
+        $config = config('ai.providers.openrouter');
+
+        expect($config)->not->toBeNull()
+            ->and($config['driver'])->toBe('openai')
+            ->and($config)->toHaveKey('url');
+    });
+
+    it('keeps mistral provider for OCR', function () {
+        expect(config('ai.providers.mistral'))->not->toBeNull()
+            ->and(config('ai.providers.mistral.driver'))->toBe('mistral');
+    });
+});
+
 describe('StatementParser agent', function () {
     it('implements Agent interface', function () {
         expect(StatementParser::class)->toImplement(Laravel\Ai\Contracts\Agent::class);
@@ -37,6 +52,22 @@ describe('StatementParser agent', function () {
         $agent = new StatementParser;
 
         expect($agent->model())->toBe('mistral-small-latest');
+    });
+});
+
+describe('StatementParser provider', function () {
+    it('uses the openrouter provider', function () {
+        $attributes = (new ReflectionClass(StatementParser::class))
+            ->getAttributes(Laravel\Ai\Attributes\Provider::class);
+
+        expect($attributes)->toHaveCount(1)
+            ->and($attributes[0]->getArguments()[0])->toBe('openrouter');
+    });
+
+    it('can be resolved via container using make()', function () {
+        $agent = StatementParser::make();
+
+        expect($agent)->toBeInstanceOf(StatementParser::class);
     });
 });
 
@@ -100,6 +131,20 @@ describe('HeadMatcher agent', function () {
 
         expect($attributes)->toHaveCount(1)
             ->and($attributes[0]->getArguments()[0])->toBe(120);
+    });
+
+    it('uses the openrouter provider', function () {
+        $attributes = (new ReflectionClass(HeadMatcher::class))
+            ->getAttributes(Laravel\Ai\Attributes\Provider::class);
+
+        expect($attributes)->toHaveCount(1)
+            ->and($attributes[0]->getArguments()[0])->toBe('openrouter');
+    });
+
+    it('can be resolved via container using make()', function () {
+        $agent = HeadMatcher::make();
+
+        expect($agent)->toBeInstanceOf(HeadMatcher::class);
     });
 });
 
