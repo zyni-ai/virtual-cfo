@@ -6,6 +6,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\MaxTokens;
 use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Temperature;
+use Laravel\Ai\Attributes\Timeout;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Promptable;
@@ -14,6 +15,7 @@ use Stringable;
 #[Provider('mistral')]
 #[MaxTokens(8192)]
 #[Temperature(0.1)]
+#[Timeout(120)]
 class InvoiceParser implements Agent, HasStructuredOutput
 {
     use Promptable;

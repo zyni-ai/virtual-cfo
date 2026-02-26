@@ -23,17 +23,18 @@ class OcrService
 
         $base64 = base64_encode($fileContent);
         $mimeType = $this->detectMimeType($storagePath);
+        $dataUri = "data:{$mimeType};base64,{$base64}";
+
+        $documentField = str_starts_with($mimeType, 'image/')
+            ? ['type' => 'image_url', 'image_url' => $dataUri]
+            : ['type' => 'document_url', 'document_url' => $dataUri];
 
         $response = Http::withHeaders([
             'Authorization' => 'Bearer '.config('ai.providers.mistral.key'),
             'Content-Type' => 'application/json',
         ])->timeout(120)->post('https://api.mistral.ai/v1/ocr', [
             'model' => config('ai.models.ocr', 'mistral-ocr-latest'),
-            'document' => [
-                'type' => 'base64',
-                'base64' => $base64,
-                'mime_type' => $mimeType,
-            ],
+            'document' => $documentField,
         ]);
 
         if ($response->failed()) {
