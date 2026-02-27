@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property array<string, mixed>|null $source_metadata
+ */
 class ImportedFile extends Model
 {
     use HasFactory;

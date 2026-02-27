@@ -181,7 +181,11 @@ class ZohoInvoiceService
             ->contains(function (ImportedFile $file) use ($zohoInvoiceId) {
                 $metadata = $file->source_metadata;
 
-                return is_array($metadata) && ($metadata['zoho_invoice_id'] ?? null) === $zohoInvoiceId;
+                if ($metadata === null) {
+                    return false;
+                }
+
+                return ($metadata['zoho_invoice_id'] ?? null) === $zohoInvoiceId;
             });
     }
 }

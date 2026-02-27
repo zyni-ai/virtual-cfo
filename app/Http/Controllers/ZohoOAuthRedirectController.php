@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use Filament\Facades\Filament;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Crypt;
@@ -10,6 +11,7 @@ class ZohoOAuthRedirectController
 {
     public function __invoke(): RedirectResponse
     {
+        /** @var Company $company */
         $company = Filament::getTenant();
 
         $params = http_build_query([

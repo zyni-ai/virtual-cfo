@@ -13,6 +13,24 @@ parameters:
 			path: app/Ai/Agents/StatementParser.php
 
 		-
+			message: '#^Method App\\Enums\\ImportSource\:\:getColor\(\) never returns array\<string\> so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/ImportSource.php
+
+		-
+			message: '#^Method App\\Enums\\ImportSource\:\:getColor\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/ImportSource.php
+
+		-
+			message: '#^Method App\\Enums\\ImportSource\:\:getIcon\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: app/Enums/ImportSource.php
+
+		-
 			message: '#^Method App\\Enums\\ImportStatus\:\:getColor\(\) never returns array\<string\> so it can be removed from the return type\.$#'
 			identifier: return.unusedType
 			count: 1
