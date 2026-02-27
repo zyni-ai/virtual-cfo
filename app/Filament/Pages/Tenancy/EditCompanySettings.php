@@ -197,13 +197,16 @@ class EditCompanySettings extends EditTenantProfile
                 ->color('success'),
             TextEntry::make('zoho_last_synced')
                 ->label('Last Synced')
-                ->state(fn () => $connector->last_synced_at?->diffForHumans() ?? 'Never'),
+                ->state(fn (): string => $connector->last_synced_at?->diffForHumans() ?? 'Never'),
         ];
     }
 
     protected function getZohoConnector(): ?Connector
     {
-        return Filament::getTenant()
+        /** @var \App\Models\Company|null $company */
+        $company = Filament::getTenant();
+
+        return $company
             ?->connectors()
             ->where('provider', ConnectorProvider::Zoho)
             ->where('is_active', true)

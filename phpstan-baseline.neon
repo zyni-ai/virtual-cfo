@@ -121,6 +121,12 @@ parameters:
 			path: app/Models/AccountHead.php
 
 		-
+			message: '#^Class App\\Models\\Connector uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Connector.php
+
+		-
 			message: '#^Class App\\Models\\HeadMapping uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1

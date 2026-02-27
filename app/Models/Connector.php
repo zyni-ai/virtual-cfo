@@ -10,6 +10,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $token_expires_at
+ * @property \Illuminate\Support\Carbon|null $last_synced_at
+ */
 class Connector extends Model
 {
     use HasFactory;
