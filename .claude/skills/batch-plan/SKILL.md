@@ -2,7 +2,7 @@
 name: batch-plan
 description: Scan open GitHub issues, group them into prioritized batches by kind, and present a wave execution plan. Use when the user wants to plan the next wave of work, review remaining issues, or organize tasks into batches.
 disable-model-invocation: true
-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Glob, Grep, Bash
 ---
 
 # Batch Plan

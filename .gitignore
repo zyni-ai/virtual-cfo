@@ -16,6 +16,8 @@
 /.phpunit.cache
 /.idea/
 /.vscode/
+.mcp.json
+boost.json
 *.swp
 *.swo
 .DS_Store
