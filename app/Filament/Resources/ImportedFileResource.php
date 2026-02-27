@@ -160,13 +160,15 @@ class ImportedFileResource extends Resource
                     ->color('warning')
                     ->requiresConfirmation()
                     ->action(function (ImportedFile $record) {
-                        $record->transactions()->delete();
-                        $record->update([
-                            'status' => ImportStatus::Pending,
-                            'total_rows' => 0,
-                            'mapped_rows' => 0,
-                            'error_message' => null,
-                        ]);
+                        \Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+                            $record->transactions()->delete();
+                            $record->update([
+                                'status' => ImportStatus::Pending,
+                                'total_rows' => 0,
+                                'mapped_rows' => 0,
+                                'error_message' => null,
+                            ]);
+                        });
                         ProcessImportedFile::dispatch($record);
                     })
                     ->visible(fn (ImportedFile $record) => in_array($record->status, [

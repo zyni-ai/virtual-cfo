@@ -151,19 +151,21 @@ class TransactionResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Transaction $record, array $data) {
-                        $record->update([
-                            'account_head_id' => $data['account_head_id'],
-                            'mapping_type' => MappingType::Manual,
-                            'ai_confidence' => null,
-                        ]);
+                        \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+                            $record->update([
+                                'account_head_id' => $data['account_head_id'],
+                                'mapping_type' => MappingType::Manual,
+                                'ai_confidence' => null,
+                            ]);
 
-                        // Update parent file stats
-                        $file = $record->importedFile;
-                        $file->update([
-                            'mapped_rows' => $file->transactions()
-                                ->where('mapping_type', '!=', MappingType::Unmapped)
-                                ->count(),
-                        ]);
+                            // Update parent file stats
+                            $file = $record->importedFile;
+                            $file->update([
+                                'mapped_rows' => $file->transactions()
+                                    ->where('mapping_type', '!=', MappingType::Unmapped)
+                                    ->count(),
+                            ]);
+                        });
                     }),
 
                 Actions\Action::make('create_rule')
@@ -221,26 +223,28 @@ class TransactionResource extends Resource
                                 ->required(),
                         ])
                         ->action(function (Collection $records, array $data) {
-                            $records->each(function (Model $record) use ($data) {
-                                $record->update([
-                                    'account_head_id' => $data['account_head_id'],
-                                    'mapping_type' => MappingType::Manual,
-                                    'ai_confidence' => null,
-                                ]);
-                            });
-
-                            // Update file stats for affected files
-                            $fileIds = $records->pluck('imported_file_id')->unique();
-                            foreach ($fileIds as $fileId) {
-                                $file = ImportedFile::find($fileId);
-                                if ($file) {
-                                    $file->update([
-                                        'mapped_rows' => $file->transactions()
-                                            ->where('mapping_type', '!=', MappingType::Unmapped)
-                                            ->count(),
+                            \Illuminate\Support\Facades\DB::transaction(function () use ($records, $data) {
+                                $records->each(function (Model $record) use ($data) {
+                                    $record->update([
+                                        'account_head_id' => $data['account_head_id'],
+                                        'mapping_type' => MappingType::Manual,
+                                        'ai_confidence' => null,
                                     ]);
+                                });
+
+                                // Update file stats for affected files
+                                $fileIds = $records->pluck('imported_file_id')->unique();
+                                foreach ($fileIds as $fileId) {
+                                    $file = ImportedFile::find($fileId);
+                                    if ($file) {
+                                        $file->update([
+                                            'mapped_rows' => $file->transactions()
+                                                ->where('mapping_type', '!=', MappingType::Unmapped)
+                                                ->count(),
+                                        ]);
+                                    }
                                 }
-                            }
+                            });
                         })
                         ->deselectRecordsAfterCompletion(),
 
@@ -273,11 +277,26 @@ class TransactionResource extends Resource
                     ->label('Export to Tally XML')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('success')
-                    ->action(function (): StreamedResponse {
-                        $transactions = Transaction::whereNotNull('account_head_id')
-                            ->with(['accountHead', 'importedFile'])
-                            ->orderBy('date')
-                            ->get();
+                    ->form([
+                        Forms\Components\DatePicker::make('from')
+                            ->label('From Date'),
+                        Forms\Components\DatePicker::make('until')
+                            ->label('Until Date'),
+                    ])
+                    ->action(function (array $data): StreamedResponse {
+                        $query = Transaction::whereNotNull('account_head_id')
+                            ->with(['accountHead', 'importedFile.company', 'importedFile.bankAccount'])
+                            ->orderBy('date');
+
+                        if (! empty($data['from'])) {
+                            $query->whereDate('date', '>=', $data['from']);
+                        }
+
+                        if (! empty($data['until'])) {
+                            $query->whereDate('date', '<=', $data['until']);
+                        }
+
+                        $transactions = $query->get();
 
                         $service = new TallyExportService;
                         $xml = $service->exportTransactions($transactions);

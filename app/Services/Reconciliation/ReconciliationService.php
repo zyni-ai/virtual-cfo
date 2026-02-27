@@ -393,24 +393,26 @@ class ReconciliationService
         float $confidence,
         MatchMethod $method,
     ): ReconciliationMatch {
-        $match = ReconciliationMatch::create([
-            'bank_transaction_id' => $bankTxn->id,
-            'invoice_transaction_id' => $invoiceTxn->id,
-            'confidence' => round($confidence, 4),
-            'match_method' => $method,
-        ]);
+        return DB::transaction(function () use ($bankTxn, $invoiceTxn, $confidence, $method) {
+            $match = ReconciliationMatch::create([
+                'bank_transaction_id' => $bankTxn->id,
+                'invoice_transaction_id' => $invoiceTxn->id,
+                'confidence' => round($confidence, 4),
+                'match_method' => $method,
+            ]);
 
-        $bankTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
-        $invoiceTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
+            $bankTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
+            $invoiceTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
 
-        Log::info('Reconciliation match created', [
-            'bank_transaction_id' => $bankTxn->id,
-            'invoice_transaction_id' => $invoiceTxn->id,
-            'method' => $method->value,
-            'confidence' => $confidence,
-        ]);
+            Log::info('Reconciliation match created', [
+                'bank_transaction_id' => $bankTxn->id,
+                'invoice_transaction_id' => $invoiceTxn->id,
+                'method' => $method->value,
+                'confidence' => $confidence,
+            ]);
 
-        return $match;
+            return $match;
+        });
     }
 
     /**
