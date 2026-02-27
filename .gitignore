@@ -11,6 +11,9 @@
 /public/hot
 /public/storage
 /public/build
+/public/css
+/public/fonts
+/public/js
 /bootstrap/cache/*
 !/bootstrap/cache/.gitkeep
 /.phpunit.cache
@@ -20,6 +23,7 @@
 boost.json
 *.swp
 *.swo
+DayBook *.xml
 .DS_Store
 Thumbs.db
 /storage/framework/cache/data/*
