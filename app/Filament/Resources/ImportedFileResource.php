@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use App\Filament\Resources\ImportedFileResource\Pages;
@@ -98,6 +99,10 @@ class ImportedFileResource extends Resource
                     ->label('Type')
                     ->badge(),
 
+                Tables\Columns\TextColumn::make('source')
+                    ->label('Source')
+                    ->badge(),
+
                 Tables\Columns\TextColumn::make('status')
                     ->badge(),
 
@@ -135,6 +140,9 @@ class ImportedFileResource extends Resource
 
                 Tables\Filters\SelectFilter::make('statement_type')
                     ->options(StatementType::class),
+
+                Tables\Filters\SelectFilter::make('source')
+                    ->options(ImportSource::class),
             ])
             ->actions([
                 Actions\ViewAction::make(),

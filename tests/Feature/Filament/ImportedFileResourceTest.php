@@ -129,4 +129,21 @@ describe('ImportedFileResource', function () {
         livewire(ListImportedFiles::class)
             ->assertSuccessful();
     });
+
+    it('can filter by source', function () {
+        $manual = ImportedFile::factory()->create(['source' => \App\Enums\ImportSource::ManualUpload]);
+        $email = ImportedFile::factory()->fromEmail()->create();
+
+        livewire(ListImportedFiles::class)
+            ->filterTable('source', \App\Enums\ImportSource::Email->value)
+            ->assertCanSeeTableRecords([$email])
+            ->assertCanNotSeeTableRecords([$manual]);
+    });
+
+    it('displays source badge in table', function () {
+        ImportedFile::factory()->fromEmail()->create();
+
+        livewire(ListImportedFiles::class)
+            ->assertSuccessful();
+    });
 });

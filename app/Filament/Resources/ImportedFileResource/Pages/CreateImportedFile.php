@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ImportedFileResource\Pages;
 
+use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Filament\Resources\ImportedFileResource;
 use App\Jobs\ProcessImportedFile;
@@ -20,6 +21,7 @@ class CreateImportedFile extends CreateRecord
     {
         $data['uploaded_by'] = Auth::id();
         $data['status'] = ImportStatus::Pending;
+        $data['source'] = ImportSource::ManualUpload;
 
         // Generate file hash for duplicate detection
         $filePath = $data['file_path'];
