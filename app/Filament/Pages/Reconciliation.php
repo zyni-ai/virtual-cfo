@@ -23,6 +23,7 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class Reconciliation extends Page implements HasTable
 {
@@ -125,19 +126,21 @@ class Reconciliation extends Page implements HasTable
                     $bankTxn = Transaction::findOrFail($data['bank_transaction_id']);
                     $invoiceTxn = Transaction::findOrFail($data['invoice_transaction_id']);
 
-                    ReconciliationMatch::create([
-                        'bank_transaction_id' => $bankTxn->id,
-                        'invoice_transaction_id' => $invoiceTxn->id,
-                        'confidence' => 1.0,
-                        'match_method' => MatchMethod::Manual,
-                    ]);
+                    DB::transaction(function () use ($bankTxn, $invoiceTxn) {
+                        ReconciliationMatch::create([
+                            'bank_transaction_id' => $bankTxn->id,
+                            'invoice_transaction_id' => $invoiceTxn->id,
+                            'confidence' => 1.0,
+                            'match_method' => MatchMethod::Manual,
+                        ]);
 
-                    $bankTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
-                    $invoiceTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
+                        $bankTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
+                        $invoiceTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
 
-                    /** @var ImportedFile $importedFile */
-                    $importedFile = $bankTxn->importedFile;
-                    app(ReconciliationService::class)->enrichMatchedTransactions($importedFile);
+                        /** @var ImportedFile $importedFile */
+                        $importedFile = $bankTxn->importedFile;
+                        app(ReconciliationService::class)->enrichMatchedTransactions($importedFile);
+                    });
 
                     Notification::make()
                         ->title('Manual match created')
