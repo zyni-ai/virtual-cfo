@@ -8,6 +8,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Pages\Tenancy\RegisterTenant;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Str;
 
 class RegisterCompany extends RegisterTenant
 {
@@ -90,6 +91,19 @@ class RegisterCompany extends RegisterTenant
 
         $company->users()->attach(auth()->user());
 
+        $company->update([
+            'inbox_address' => $this->generateInboxAddress($company),
+        ]);
+
         return $company;
+    }
+
+    protected function generateInboxAddress(Company $company): string
+    {
+        $slug = Str::slug($company->name);
+        $hash = substr(hash_hmac('sha256', (string) $company->id, config('app.key')), 0, 6);
+        $domain = config('services.mailgun.inbox_domain');
+
+        return "{$slug}-{$hash}@{$domain}";
     }
 }
