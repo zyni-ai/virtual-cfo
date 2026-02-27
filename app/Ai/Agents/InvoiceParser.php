@@ -8,6 +8,7 @@ use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Attributes\Timeout;
 use Laravel\Ai\Contracts\Agent;
+use Laravel\Ai\Contracts\HasMiddleware;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Promptable;
 use Stringable;
@@ -16,9 +17,19 @@ use Stringable;
 #[MaxTokens(8192)]
 #[Temperature(0.1)]
 #[Timeout(180)]
-class InvoiceParser implements Agent, HasStructuredOutput
+class InvoiceParser implements Agent, HasMiddleware, HasStructuredOutput
 {
     use Promptable;
+
+    /**
+     * @return array<int, \App\Ai\Middleware\AuditLlmCalls>
+     */
+    public function middleware(): array
+    {
+        return [
+            new \App\Ai\Middleware\AuditLlmCalls,
+        ];
+    }
 
     /**
      * Get the model to use for invoice parsing.

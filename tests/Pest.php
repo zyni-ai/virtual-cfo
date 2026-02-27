@@ -9,6 +9,9 @@ pest()->extend(Tests\TestCase::class)
     ->use(LazilyRefreshDatabase::class)
     ->in('Feature');
 
+pest()->extend(Tests\TestCase::class)
+    ->in('Integration');
+
 /**
  * Authenticate as a user for Filament tests and set up tenant context.
  */
