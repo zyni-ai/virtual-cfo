@@ -1,15 +1,17 @@
 <?php
 
-use App\Enums\ImportStatus;
 use App\Enums\MatchMethod;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
 use App\Filament\Pages\Reconciliation;
+use App\Filament\Widgets\ReconciliationStatsOverview;
 use App\Jobs\ReconcileImportedFiles;
 use App\Models\ImportedFile;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Queue;
+
+use function Pest\Livewire\livewire;
 
 describe('Reconciliation Page', function () {
     beforeEach(function () {
@@ -21,13 +23,9 @@ describe('Reconciliation Page', function () {
             ->assertSuccessful();
     });
 
-    it('displays summary stats', function () {
-        // Create matched transactions
+    it('displays summary stats via widget', function () {
         $bankFile = ImportedFile::factory()->completed()->create([
             'statement_type' => StatementType::Bank,
-        ]);
-        $invoiceFile = ImportedFile::factory()->completed()->create([
-            'statement_type' => StatementType::Invoice,
         ]);
 
         Transaction::factory()->count(2)->create([
@@ -38,19 +36,41 @@ describe('Reconciliation Page', function () {
             'imported_file_id' => $bankFile->id,
             'reconciliation_status' => ReconciliationStatus::Flagged,
         ]);
-        Transaction::factory()->count(1)->create([
-            'imported_file_id' => $invoiceFile->id,
+        Transaction::factory()->count(5)->create([
+            'imported_file_id' => $bankFile->id,
             'reconciliation_status' => ReconciliationStatus::Unreconciled,
         ]);
 
-        $this->get(Reconciliation::getUrl())
-            ->assertSuccessful()
+        livewire(ReconciliationStatsOverview::class)
+            ->assertSee('Unreconciled')
             ->assertSee('Matched')
             ->assertSee('Flagged')
-            ->assertSee('Unreconciled');
+            ->assertSee('Total Matches');
     });
 
-    it('displays reconciliation matches in the table', function () {
+    it('registers the stats widget as a header widget', function () {
+        $page = new Reconciliation;
+        $widgets = $page->getHeaderWidgets();
+
+        expect($widgets)->toContain(ReconciliationStatsOverview::class);
+    });
+
+    it('displays bank transactions in the table', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+
+        $transactions = Transaction::factory()->count(3)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        livewire(Reconciliation::class)
+            ->assertCanSeeTableRecords($transactions)
+            ->assertCountTableRecords(3);
+    });
+
+    it('excludes invoice transactions from the table', function () {
         $bankFile = ImportedFile::factory()->completed()->create([
             'statement_type' => StatementType::Bank,
         ]);
@@ -58,32 +78,41 @@ describe('Reconciliation Page', function () {
             'statement_type' => StatementType::Invoice,
         ]);
 
-        $bankTxn = Transaction::factory()->debit(31900.00)->create([
+        $bankTxn = Transaction::factory()->create([
             'imported_file_id' => $bankFile->id,
-            'description' => 'NEFT-Assetpro Payment',
-            'date' => '2025-04-15',
-            'reconciliation_status' => ReconciliationStatus::Matched,
         ]);
-
-        $invoiceTxn = Transaction::factory()->debit(31900.00)->create([
+        $invoiceTxn = Transaction::factory()->create([
             'imported_file_id' => $invoiceFile->id,
-            'description' => 'ASPL/2439 - Assetpro Solution',
-            'date' => '2025-04-10',
+        ]);
+
+        livewire(Reconciliation::class)
+            ->assertCanSeeTableRecords([$bankTxn])
+            ->assertCanNotSeeTableRecords([$invoiceTxn]);
+    });
+
+    it('can filter by reconciliation status', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+
+        $unreconciled = Transaction::factory()->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+        $matched = Transaction::factory()->create([
+            'imported_file_id' => $bankFile->id,
             'reconciliation_status' => ReconciliationStatus::Matched,
         ]);
-
-        ReconciliationMatch::factory()->create([
-            'bank_transaction_id' => $bankTxn->id,
-            'invoice_transaction_id' => $invoiceTxn->id,
-            'match_method' => MatchMethod::Amount,
-            'confidence' => 1.0,
+        $flagged = Transaction::factory()->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Flagged,
         ]);
 
-        $this->get(Reconciliation::getUrl())
-            ->assertSuccessful();
-
-        // Verify the match appears in the table
-        expect(ReconciliationMatch::count())->toBe(1);
+        livewire(Reconciliation::class)
+            ->assertCanSeeTableRecords([$unreconciled, $matched, $flagged])
+            ->filterTable('reconciliation_status', ReconciliationStatus::Unreconciled->value)
+            ->assertCanSeeTableRecords([$unreconciled])
+            ->assertCanNotSeeTableRecords([$matched, $flagged]);
     });
 
     it('dispatches reconciliation job when run reconciliation action is triggered', function () {
@@ -91,15 +120,13 @@ describe('Reconciliation Page', function () {
 
         $bankFile = ImportedFile::factory()->completed()->create([
             'statement_type' => StatementType::Bank,
-            'status' => ImportStatus::Completed,
         ]);
 
         $invoiceFile = ImportedFile::factory()->completed()->create([
             'statement_type' => StatementType::Invoice,
-            'status' => ImportStatus::Completed,
         ]);
 
-        \Livewire\Livewire::test(Reconciliation::class)
+        livewire(Reconciliation::class)
             ->callAction('run_reconciliation', [
                 'bank_file_id' => $bankFile->id,
                 'invoice_file_id' => $invoiceFile->id,
@@ -109,45 +136,6 @@ describe('Reconciliation Page', function () {
             return $job->bankFile->id === $bankFile->id
                 && $job->invoiceFile->id === $invoiceFile->id;
         });
-    });
-
-    it('can unmatch a reconciliation match', function () {
-        $bankFile = ImportedFile::factory()->completed()->create([
-            'statement_type' => StatementType::Bank,
-        ]);
-        $invoiceFile = ImportedFile::factory()->completed()->create([
-            'statement_type' => StatementType::Invoice,
-        ]);
-
-        $bankTxn = Transaction::factory()->debit(5000.00)->create([
-            'imported_file_id' => $bankFile->id,
-            'reconciliation_status' => ReconciliationStatus::Matched,
-        ]);
-
-        $invoiceTxn = Transaction::factory()->debit(5000.00)->create([
-            'imported_file_id' => $invoiceFile->id,
-            'reconciliation_status' => ReconciliationStatus::Matched,
-        ]);
-
-        $match = ReconciliationMatch::factory()->create([
-            'bank_transaction_id' => $bankTxn->id,
-            'invoice_transaction_id' => $invoiceTxn->id,
-            'match_method' => MatchMethod::Amount,
-            'confidence' => 1.0,
-        ]);
-
-        \Livewire\Livewire::test(Reconciliation::class)
-            ->callTableAction('unmatch', $match);
-
-        // The match should be soft-deleted
-        expect(ReconciliationMatch::count())->toBe(0)
-            ->and(ReconciliationMatch::withTrashed()->count())->toBe(1);
-
-        // Transactions should be reset to unreconciled
-        $bankTxn->refresh();
-        $invoiceTxn->refresh();
-        expect($bankTxn->reconciliation_status)->toBe(ReconciliationStatus::Unreconciled)
-            ->and($invoiceTxn->reconciliation_status)->toBe(ReconciliationStatus::Unreconciled);
     });
 
     it('can create a manual match', function () {
@@ -173,23 +161,43 @@ describe('Reconciliation Page', function () {
             'raw_data' => ['vendor_name' => 'Test Vendor'],
         ]);
 
-        \Livewire\Livewire::test(Reconciliation::class)
+        livewire(Reconciliation::class)
             ->callAction('manual_match', [
                 'bank_transaction_id' => $bankTxn->id,
                 'invoice_transaction_id' => $invoiceTxn->id,
             ]);
 
-        // Match should be created
         expect(ReconciliationMatch::count())->toBe(1);
 
         $match = ReconciliationMatch::first();
         expect($match->match_method)->toBe(MatchMethod::Manual)
             ->and($match->confidence)->toBe(1.0);
 
-        // Both transactions should be matched
         $bankTxn->refresh();
         $invoiceTxn->refresh();
         expect($bankTxn->reconciliation_status)->toBe(ReconciliationStatus::Matched)
             ->and($invoiceTxn->reconciliation_status)->toBe(ReconciliationStatus::Matched);
+    });
+});
+
+describe('Transaction::scopeMatched', function () {
+    it('returns only matched transactions', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+
+        $matched = Transaction::factory()->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Matched,
+        ]);
+        Transaction::factory()->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        $results = Transaction::matched()->get();
+
+        expect($results)->toHaveCount(1)
+            ->and($results->first()->id)->toBe($matched->id);
     });
 });

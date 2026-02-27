@@ -6,6 +6,7 @@ use App\Enums\ImportStatus;
 use App\Enums\MatchMethod;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
+use App\Filament\Widgets\ReconciliationStatsOverview;
 use App\Jobs\ReconcileImportedFiles;
 use App\Models\ImportedFile;
 use App\Models\ReconciliationMatch;
@@ -21,6 +22,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 class Reconciliation extends Page implements HasTable
 {
@@ -35,6 +37,16 @@ class Reconciliation extends Page implements HasTable
     protected static ?int $navigationSort = 3;
 
     protected string $view = 'filament.pages.reconciliation';
+
+    /**
+     * @return array<class-string>
+     */
+    public function getHeaderWidgets(): array
+    {
+        return [
+            ReconciliationStatsOverview::class,
+        ];
+    }
 
     /**
      * @return array<Actions\Action>
@@ -87,12 +99,10 @@ class Reconciliation extends Page implements HasTable
                         ->label('Bank Transaction')
                         ->options(function () {
                             return Transaction::whereHas('importedFile', fn (Builder $q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]))
-                                ->where(fn (Builder $q) => $q
-                                    ->where('reconciliation_status', ReconciliationStatus::Unreconciled)
-                                    ->orWhere('reconciliation_status', ReconciliationStatus::Flagged))
+                                ->whereIn('reconciliation_status', [ReconciliationStatus::Unreconciled, ReconciliationStatus::Flagged])
                                 ->get()
                                 ->mapWithKeys(fn (Transaction $t) => [
-                                    $t->id => \Illuminate\Support\Carbon::parse($t->date)->format('d M Y').' - '.$t->description.' ('.$t->debit.')',
+                                    $t->id => Carbon::parse($t->date)->format('d M Y').' - '.$t->description.' ('.$t->debit.')',
                                 ]);
                         })
                         ->searchable()
@@ -102,12 +112,10 @@ class Reconciliation extends Page implements HasTable
                         ->label('Invoice Transaction')
                         ->options(function () {
                             return Transaction::whereHas('importedFile', fn (Builder $q) => $q->where('statement_type', StatementType::Invoice))
-                                ->where(fn (Builder $q) => $q
-                                    ->where('reconciliation_status', ReconciliationStatus::Unreconciled)
-                                    ->orWhere('reconciliation_status', ReconciliationStatus::Flagged))
+                                ->whereIn('reconciliation_status', [ReconciliationStatus::Unreconciled, ReconciliationStatus::Flagged])
                                 ->get()
                                 ->mapWithKeys(fn (Transaction $t) => [
-                                    $t->id => \Illuminate\Support\Carbon::parse($t->date)->format('d M Y').' - '.$t->description.' ('.$t->debit.')',
+                                    $t->id => Carbon::parse($t->date)->format('d M Y').' - '.$t->description.' ('.$t->debit.')',
                                 ]);
                         })
                         ->searchable()
@@ -127,10 +135,9 @@ class Reconciliation extends Page implements HasTable
                     $bankTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
                     $invoiceTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
 
-                    // Enrich the bank transaction
-                    /** @var \App\Models\ImportedFile $importedFile */
+                    /** @var ImportedFile $importedFile */
                     $importedFile = $bankTxn->importedFile;
-                    (new ReconciliationService)->enrichMatchedTransactions($importedFile);
+                    app(ReconciliationService::class)->enrichMatchedTransactions($importedFile);
 
                     Notification::make()
                         ->title('Manual match created')
@@ -143,100 +150,49 @@ class Reconciliation extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(ReconciliationMatch::query()->with(['bankTransaction', 'invoiceTransaction']))
+            ->query(
+                Transaction::query()
+                    ->with(['importedFile', 'accountHead'])
+                    ->whereHas('importedFile', fn (Builder $q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]))
+            )
             ->columns([
-                Tables\Columns\TextColumn::make('bankTransaction.date')
-                    ->label('Bank Date')
+                Tables\Columns\TextColumn::make('date')
+                    ->label('Date')
                     ->date('d M Y')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('bankTransaction.description')
-                    ->label('Bank Description')
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Description')
                     ->limit(40)
-                    ->tooltip(function (ReconciliationMatch $record): ?string {
-                        /** @var Transaction|null $bankTxn */
-                        $bankTxn = $record->bankTransaction;
+                    ->tooltip(fn (Transaction $record): string => $record->description),
 
-                        return $bankTxn?->description;
-                    }),
-
-                Tables\Columns\TextColumn::make('bankTransaction.debit')
-                    ->label('Bank Amount')
+                Tables\Columns\TextColumn::make('debit')
+                    ->label('Debit')
                     ->numeric(decimalPlaces: 2)
                     ->color('danger'),
 
-                Tables\Columns\TextColumn::make('invoiceTransaction.description')
-                    ->label('Invoice')
-                    ->limit(40)
-                    ->tooltip(function (ReconciliationMatch $record): ?string {
-                        /** @var Transaction|null $invoiceTxn */
-                        $invoiceTxn = $record->invoiceTransaction;
-
-                        return $invoiceTxn?->description;
-                    }),
-
-                Tables\Columns\TextColumn::make('invoiceTransaction.debit')
-                    ->label('Invoice Amount')
+                Tables\Columns\TextColumn::make('credit')
+                    ->label('Credit')
                     ->numeric(decimalPlaces: 2)
-                    ->color('info'),
+                    ->color('success'),
 
-                Tables\Columns\TextColumn::make('match_method')
-                    ->label('Method')
+                Tables\Columns\TextColumn::make('reconciliation_status')
+                    ->label('Status')
+                    ->badge(),
+
+                Tables\Columns\TextColumn::make('accountHead.name')
+                    ->label('Account Head')
+                    ->placeholder('—'),
+
+                Tables\Columns\TextColumn::make('mapping_type')
+                    ->label('Mapping')
                     ->badge()
-                    ->formatStateUsing(fn (MatchMethod $state) => $state->getLabel()),
-
-                Tables\Columns\TextColumn::make('confidence')
-                    ->label('Confidence')
-                    ->numeric(decimalPlaces: 2)
-                    ->color(fn (float $state) => match (true) {
-                        $state >= 0.9 => 'success',
-                        $state >= 0.7 => 'warning',
-                        default => 'danger',
-                    }),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Matched At')
-                    ->dateTime('d M Y H:i')
-                    ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('date', 'desc')
             ->filters([
-                Tables\Filters\SelectFilter::make('match_method')
-                    ->options(MatchMethod::class),
-            ])
-            ->actions([
-                Actions\Action::make('unmatch')
-                    ->label('Unmatch')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->action(function (ReconciliationMatch $record) {
-                        $record->bankTransaction?->update([
-                            'reconciliation_status' => ReconciliationStatus::Unreconciled,
-                        ]);
-                        $record->invoiceTransaction?->update([
-                            'reconciliation_status' => ReconciliationStatus::Unreconciled,
-                        ]);
-                        $record->delete();
-
-                        Notification::make()
-                            ->title('Match removed')
-                            ->success()
-                            ->send();
-                    }),
+                Tables\Filters\SelectFilter::make('reconciliation_status')
+                    ->options(ReconciliationStatus::class),
             ]);
-    }
-
-    public function getViewData(): array
-    {
-        return [
-            'stats' => [
-                'matched' => Transaction::where('reconciliation_status', ReconciliationStatus::Matched)->count(),
-                'flagged' => Transaction::where('reconciliation_status', ReconciliationStatus::Flagged)->count(),
-                'unreconciled' => Transaction::where('reconciliation_status', ReconciliationStatus::Unreconciled)->count(),
-                'total_matches' => ReconciliationMatch::count(),
-            ],
-        ];
     }
 }
