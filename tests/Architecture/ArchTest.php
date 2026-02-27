@@ -22,6 +22,8 @@ describe('Enums', function () {
 
     it('are string-backed', function () {
         $enums = [
+            \App\Enums\ConnectorProvider::class,
+            \App\Enums\ImportSource::class,
             \App\Enums\ImportStatus::class,
             \App\Enums\MappingType::class,
             \App\Enums\MatchType::class,
