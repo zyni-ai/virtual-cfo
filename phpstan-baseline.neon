@@ -372,29 +372,6 @@ parameters:
 			count: 1
 			path: app/Services/HeadMatcher/RuleBasedMatcher.php
 
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/TallyExport/TallyExportService.php
-
-		-
-			message: '#^Cannot call method format\(\) on string\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: app/Services/TallyExport/TallyExportService.php
-
-		-
-			message: '#^Method App\\Services\\TallyExport\\TallyExportService\:\:generateXml\(\) has parameter \$transactions with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Services/TallyExport/TallyExportService.php
-
-		-
-			message: '#^Parameter \#2 \$importedFile of method App\\Services\\TallyExport\\TallyExportService\:\:generateXml\(\) expects App\\Models\\ImportedFile\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/TallyExport/TallyExportService.php
 
 		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:reject\(\) expects bool\|\(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|Illuminate\\Database\\Eloquent\\Model, Closure\(App\\Models\\Transaction\)\: bool given\.$#'
