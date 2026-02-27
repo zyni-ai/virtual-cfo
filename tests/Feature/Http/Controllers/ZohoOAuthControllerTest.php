@@ -10,7 +10,7 @@ describe('ZohoOAuthRedirectController', function () {
         asUser();
         $company = tenant();
 
-        $response = $this->get(route('connectors.zoho.redirect'));
+        $response = $this->get(route('connectors.zoho.redirect', ['company' => $company]));
 
         $response->assertRedirect();
 
@@ -29,7 +29,7 @@ describe('ZohoOAuthRedirectController', function () {
         asUser();
         $company = tenant();
 
-        $response = $this->get(route('connectors.zoho.redirect'));
+        $response = $this->get(route('connectors.zoho.redirect', ['company' => $company]));
         $redirectUrl = $response->headers->get('Location');
 
         parse_str(parse_url($redirectUrl, PHP_URL_QUERY), $queryParams);
@@ -39,10 +39,21 @@ describe('ZohoOAuthRedirectController', function () {
     });
 
     it('rejects unauthenticated access', function () {
-        $response = $this->get(route('connectors.zoho.redirect'));
+        $company = \App\Models\Company::factory()->create();
+
+        $response = $this->get(route('connectors.zoho.redirect', ['company' => $company]));
 
         $response->assertRedirect();
         expect($response->headers->get('Location'))->toContain('login');
+    });
+
+    it('rejects access to a company the user does not belong to', function () {
+        asUser();
+        $otherCompany = \App\Models\Company::factory()->create();
+
+        $response = $this->get(route('connectors.zoho.redirect', ['company' => $otherCompany]));
+
+        $response->assertForbidden();
     });
 });
 

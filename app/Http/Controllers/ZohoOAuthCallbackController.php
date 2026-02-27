@@ -31,26 +31,23 @@ class ZohoOAuthCallbackController
             'grant_type' => 'authorization_code',
         ]);
 
-        if (! $response->successful()) {
+        $data = $response->json();
+
+        if (! $response->successful() || ! isset($data['access_token'])) {
             Log::error('Failed to exchange Zoho authorization code', [
                 'company_id' => $companyId,
                 'status' => $response->status(),
-                'body' => $response->body(),
+                'body' => $data,
             ]);
 
-            return $this->redirectToSettings($companyId, 'Failed to connect to Zoho. Please try again.');
-        }
+            $zohoError = $data['error'] ?? 'unknown_error';
 
-        $data = $response->json();
+            return $this->redirectToSettings($companyId, "Failed to connect to Zoho: {$zohoError}. Please try again.");
+        }
 
         $this->upsertConnector($companyId, $data);
 
-        session()->flash('notification', [
-            'title' => 'Zoho Invoice connected successfully.',
-            'status' => 'success',
-        ]);
-
-        return $this->redirectToSettings($companyId);
+        return $this->redirectToSettings($companyId, status: 'connected');
     }
 
     /**
@@ -90,15 +87,22 @@ class ZohoOAuthCallbackController
         ]);
     }
 
-    protected function redirectToSettings(int $companyId, ?string $error = null): RedirectResponse
+    protected function redirectToSettings(int $companyId, ?string $error = null, ?string $status = null): RedirectResponse
     {
         $url = route('filament.admin.tenant.profile', ['tenant' => $companyId]);
 
+        $query = [];
+
         if ($error) {
-            session()->flash('notification', [
-                'title' => $error,
-                'status' => 'danger',
-            ]);
+            $query['zoho_error'] = $error;
+        }
+
+        if ($status) {
+            $query['zoho_status'] = $status;
+        }
+
+        if ($query) {
+            $url .= '?'.http_build_query($query);
         }
 
         return redirect()->to($url);
