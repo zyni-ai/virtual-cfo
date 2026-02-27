@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use App\Models\Company;
@@ -29,6 +30,8 @@ class ImportedFileFactory extends Factory
             'original_filename' => $bank.'_statement_'.fake()->date('Y_m').'.pdf',
             'file_hash' => fake()->unique()->sha256(),
             'status' => ImportStatus::Pending,
+            'source' => ImportSource::ManualUpload,
+            'source_metadata' => null,
             'total_rows' => 0,
             'mapped_rows' => 0,
             'error_message' => null,
@@ -99,6 +102,31 @@ class ImportedFileFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'bank_name' => $bank,
+        ]);
+    }
+
+    public function fromEmail(?string $messageId = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'source' => ImportSource::Email,
+            'source_metadata' => [
+                'message_id' => $messageId ?? '<'.fake()->uuid().'@mail.example.com>',
+                'from' => fake()->email(),
+                'subject' => 'Invoice '.fake()->date('M Y'),
+                'received_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function fromZoho(?string $invoiceId = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'source' => ImportSource::Zoho,
+            'source_metadata' => [
+                'zoho_invoice_id' => $invoiceId ?? fake()->numerify('##########'),
+                'zoho_org_id' => fake()->numerify('##########'),
+                'synced_at' => now()->toIso8601String(),
+            ],
         ]);
     }
 }

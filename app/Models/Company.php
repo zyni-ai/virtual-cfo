@@ -23,6 +23,7 @@ class Company extends Model
         'gst_registration_type',
         'financial_year',
         'currency',
+        'inbox_address',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -67,5 +68,11 @@ class Company extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    /** @return HasMany<Connector, $this> */
+    public function connectors(): HasMany
+    {
+        return $this->hasMany(Connector::class);
     }
 }

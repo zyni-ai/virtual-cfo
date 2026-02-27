@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,9 @@ use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property array<string, mixed>|null $source_metadata
+ */
 class ImportedFile extends Model
 {
     use HasFactory;
@@ -49,6 +53,8 @@ class ImportedFile extends Model
         'original_filename',
         'file_hash',
         'status',
+        'source',
+        'source_metadata',
         'total_rows',
         'mapped_rows',
         'error_message',
@@ -67,6 +73,7 @@ class ImportedFile extends Model
                 'original_filename',
                 'file_hash',
                 'status',
+                'source',
                 'total_rows',
                 'mapped_rows',
                 'error_message',
@@ -82,6 +89,8 @@ class ImportedFile extends Model
         return [
             'status' => ImportStatus::class,
             'statement_type' => StatementType::class,
+            'source' => ImportSource::class,
+            'source_metadata' => 'encrypted:array',
             'account_number' => 'encrypted',
             'processed_at' => 'datetime',
             'total_rows' => 'integer',

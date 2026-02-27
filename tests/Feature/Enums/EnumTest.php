@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\ConnectorProvider;
+use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
 use App\Enums\MatchMethod;
@@ -92,5 +94,34 @@ describe('MatchMethod', function () {
             ->and(MatchMethod::AmountDateParty->getLabel())->toBe('Amount + Date + Party')
             ->and(MatchMethod::Ai->getLabel())->toBe('AI Matched')
             ->and(MatchMethod::Manual->getLabel())->toBe('Manual');
+    });
+});
+
+describe('ImportSource', function () {
+    it('has correct labels', function () {
+        expect(ImportSource::ManualUpload->getLabel())->toBe('Manual Upload')
+            ->and(ImportSource::Email->getLabel())->toBe('Email')
+            ->and(ImportSource::Zoho->getLabel())->toBe('Zoho')
+            ->and(ImportSource::Api->getLabel())->toBe('API');
+    });
+
+    it('has colors', function () {
+        expect(ImportSource::ManualUpload->getColor())->toBeString()
+            ->and(ImportSource::Email->getColor())->toBeString()
+            ->and(ImportSource::Zoho->getColor())->toBeString()
+            ->and(ImportSource::Api->getColor())->toBeString();
+    });
+
+    it('has icons', function () {
+        expect(ImportSource::ManualUpload->getIcon())->toBeString()
+            ->and(ImportSource::Email->getIcon())->toBeString()
+            ->and(ImportSource::Zoho->getIcon())->toBeString()
+            ->and(ImportSource::Api->getIcon())->toBeString();
+    });
+});
+
+describe('ConnectorProvider', function () {
+    it('has correct labels', function () {
+        expect(ConnectorProvider::Zoho->getLabel())->toBe('Zoho Invoice');
     });
 });

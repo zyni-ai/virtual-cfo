@@ -42,6 +42,8 @@ class ViewImportedFile extends ViewRecord
                             ->badge(),
                         Infolists\Components\TextEntry::make('status')
                             ->badge(),
+                        Infolists\Components\TextEntry::make('source')
+                            ->badge(),
                         Infolists\Components\TextEntry::make('total_rows')
                             ->label('Total Transactions'),
                         Infolists\Components\TextEntry::make('mapped_rows')

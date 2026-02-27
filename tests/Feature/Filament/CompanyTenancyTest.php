@@ -126,6 +126,24 @@ describe('Register Company page', function () {
             ->and($company->users->pluck('id'))->toContain($this->user->id);
     });
 
+    it('generates an inbox_address on company registration', function () {
+        livewire(RegisterCompany::class)
+            ->fillForm([
+                'name' => 'Test Inbox Corp',
+                'gst_registration_type' => 'Regular',
+                'currency' => 'INR',
+            ])
+            ->call('register')
+            ->assertHasNoFormErrors();
+
+        $company = Company::where('name', 'Test Inbox Corp')->first();
+        $domain = config('services.mailgun.inbox_domain');
+
+        expect($company->inbox_address)->not->toBeNull()
+            ->and($company->inbox_address)->toContain('test-inbox-corp')
+            ->and($company->inbox_address)->toEndWith('@'.$domain);
+    });
+
     it('requires company name', function () {
         livewire(RegisterCompany::class)
             ->fillForm([
@@ -175,5 +193,13 @@ describe('Edit Company Settings page', function () {
             ])
             ->call('save')
             ->assertHasFormErrors(['gstin']);
+    });
+
+    it('shows inbox_address as disabled field', function () {
+        tenant()->update(['inbox_address' => 'test-abc123@inbox.example.com']);
+
+        livewire(EditCompanySettings::class)
+            ->assertFormFieldIsDisabled('inbox_address')
+            ->assertSuccessful();
     });
 });
