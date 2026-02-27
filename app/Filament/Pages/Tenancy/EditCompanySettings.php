@@ -19,7 +19,7 @@ use Filament\Schemas\Schema;
 class EditCompanySettings extends EditTenantProfile
 {
     /**
-     * @var array<string, string>
+     * @var array<string, array<string, string>>
      */
     protected $queryString = [
         'zohoStatus' => ['as' => 'zoho_status', 'except' => ''],
