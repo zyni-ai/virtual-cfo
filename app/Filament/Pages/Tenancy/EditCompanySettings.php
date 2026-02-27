@@ -2,9 +2,16 @@
 
 namespace App\Filament\Pages\Tenancy;
 
+use App\Enums\ConnectorProvider;
+use App\Models\Connector;
+use App\Services\Connectors\ZohoInvoiceService;
 use App\Support\GstinValidator;
+use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Pages\Tenancy\EditTenantProfile;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -93,6 +100,113 @@ class EditCompanySettings extends EditTenantProfile
                             ->disabled()
                             ->placeholder('Generated on company registration'),
                     ]),
+
+                Section::make('Integrations')
+                    ->schema(fn () => $this->getIntegrationsSchema()),
             ]);
+    }
+
+    /**
+     * @return array<int, Action>
+     */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('connectZoho')
+                ->label('Connect Zoho Invoice')
+                ->url(route('connectors.zoho.redirect'))
+                ->color('primary')
+                ->visible(fn () => $this->getZohoConnector() === null),
+
+            Action::make('syncZoho')
+                ->label('Sync Now')
+                ->color('primary')
+                ->requiresConfirmation()
+                ->modalDescription('This will sync invoices from Zoho Invoice. This may take a moment.')
+                ->visible(fn () => $this->getZohoConnector() !== null)
+                ->action(function (): void {
+                    $connector = $this->getZohoConnector();
+
+                    if (! $connector) {
+                        return;
+                    }
+
+                    try {
+                        $service = app(ZohoInvoiceService::class);
+                        $count = $service->syncForCompany($connector);
+
+                        Notification::make()
+                            ->title("Synced {$count} invoices from Zoho.")
+                            ->success()
+                            ->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()
+                            ->title('Sync failed: '.$e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
+
+            Action::make('disconnectZoho')
+                ->label('Disconnect Zoho')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Disconnect Zoho Invoice')
+                ->modalDescription('This will revoke access to your Zoho Invoice account. Previously imported invoices will not be affected.')
+                ->visible(fn () => $this->getZohoConnector() !== null)
+                ->action(function (): void {
+                    $connector = $this->getZohoConnector();
+
+                    if (! $connector) {
+                        return;
+                    }
+
+                    $connector->update(['is_active' => false]);
+                    $connector->delete();
+
+                    Notification::make()
+                        ->title('Zoho Invoice disconnected.')
+                        ->success()
+                        ->send();
+                }),
+        ];
+    }
+
+    /**
+     * @return array<int, \Filament\Schemas\Components\Component>
+     */
+    protected function getIntegrationsSchema(): array
+    {
+        $connector = $this->getZohoConnector();
+
+        if (! $connector) {
+            return [
+                TextEntry::make('zoho_status')
+                    ->label('Zoho Invoice')
+                    ->state('Not connected')
+                    ->badge()
+                    ->color('gray'),
+            ];
+        }
+
+        return [
+            TextEntry::make('zoho_status')
+                ->label('Zoho Invoice')
+                ->state('Connected')
+                ->badge()
+                ->color('success'),
+            TextEntry::make('zoho_last_synced')
+                ->label('Last Synced')
+                ->state(fn () => $connector->last_synced_at?->diffForHumans() ?? 'Never'),
+        ];
+    }
+
+    protected function getZohoConnector(): ?Connector
+    {
+        return Filament::getTenant()
+            ?->connectors()
+            ->where('provider', ConnectorProvider::Zoho)
+            ->where('is_active', true)
+            ->first();
     }
 }
