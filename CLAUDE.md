@@ -17,8 +17,20 @@ php artisan migrate:fresh --seed              # Reset database
 - `database-query` - Run queries to verify data/relationships
 - `tinker` - Test code snippets and verify implementations
 - `list-routes` - Check existing routes
+- `last-error` - Check last Laravel error when debugging failures
+- `browser-logs` - Read browser console errors when debugging Filament UI
 
 Use `search-docs` before implementing non-trivial Laravel features.
+
+### On-Demand Boost Guidelines (activate when relevant)
+
+| Guideline | Activate With | When to Load |
+|-----------|--------------|-------------|
+| **Filament v5** | `/mcp__laravel-boost__filament/filament` | Building resources, forms, tables, actions, testing CRUD |
+| **Laravel AI SDK** | `/mcp__laravel-boost__laravel/ai` | Working on agents, structured output, tools, providers |
+| **Code Simplifier** | `/mcp__laravel-boost__laravel-code-simplifier` | TDD refactor step — after tests pass, before commit |
+
+Pest, Livewire, Pint, and core Laravel guidelines are always-on (embedded via Boost).
 
 ## Workflow
 
@@ -27,7 +39,8 @@ Use `search-docs` before implementing non-trivial Laravel features.
 1. **Explore** - Read relevant files, understand context. Don't write code yet.
 2. **Plan** - Use Plan Mode for non-trivial work. Create issue via `gh issue create`.
 3. **Code** - TDD: Write failing tests → Implement → Refactor. Be explicit about TDD to avoid mock implementations.
-4. **Verify** - Tests are the verification. Run `php artisan test --filter=<related>` and ensure all pass before committing.
+4. **Simplify** - Activate `/mcp__laravel-boost__laravel-code-simplifier` on modified files during the REFACTOR step.
+5. **Verify** - Tests are the verification. Run `php artisan test --filter=<related>` and ensure all pass before committing.
 5. **Commit** - At natural breakpoints: after tests written, after tests pass, after PR ready.
 
 **Branch:** `<type>/<issue#>-<description>` (e.g., `feat/42-import-parser`)
@@ -35,7 +48,7 @@ Use `search-docs` before implementing non-trivial Laravel features.
 **Types:** `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 **PR:** `gh pr create` — must include "Closes #XX"
 
-**TDD (IMPORTANT):** RED → GREEN → REFACTOR. Don't skip the refactor step — clean up code, remove duplication, improve naming after tests pass.
+**TDD (IMPORTANT):** RED → GREEN → REFACTOR. Don't skip the refactor step. Activate the Laravel Code Simplifier (`/mcp__laravel-boost__laravel-code-simplifier`) during REFACTOR to enforce Laravel conventions, PSR-12 standards, and project patterns on modified code. Re-run tests after simplification.
 
 **Context:** Use `/clear` between unrelated tasks to avoid context pollution.
 
@@ -58,7 +71,7 @@ feature/* → master (squash merge) → CD → staging/QA → tag vX.Y.Z → pro
 
 These patterns have caused issues — don't repeat them:
 
-- **Don't skip REFACTOR in TDD** - After tests pass, clean up code, remove duplication, improve naming
+- **Don't skip REFACTOR in TDD** - After tests pass, activate Laravel Code Simplifier to clean up modified code, then re-run tests
 - **Don't use inline validation** - Always use Form Request classes, never `$request->validate()`
 - **Don't create mock implementations** - During TDD, write real code that passes tests
 - **Don't use complex bash commands** - Pipes/loops stall on Windows; use built-in tools instead
@@ -115,6 +128,9 @@ Two-pass approach:
 
 ### Encryption
 All sensitive financial data encrypted at rest using Laravel's built-in encryption (AES-256-CBC via APP_KEY). Encrypted fields: account_number, description, debit, credit, balance, raw_data.
+
+### Data Privacy: Hybrid LLM Strategy
+HeadMatcher agent uses pseudonymization (mask party names, account numbers before sending to LLM). OCR and parsing agents require unmasked data — protected by provider DPAs and zero-retention APIs. All LLM calls are audit-logged (metadata only, never content). See [Data Privacy Strategy](docs/architecture/data-privacy-strategy.md).
 
 ### Queue: Database driver (not Redis + Horizon)
 Removed `laravel/horizon` and Redis dependency. Using PostgreSQL-backed database queue instead because:
@@ -194,7 +210,7 @@ The agents use the `model()` method (laravel/ai convention) to resolve the model
 
 | Folder | Purpose | When to Read |
 |--------|---------|--------------|
-| `docs/architecture/` | Architecture decisions (pipeline, agents, data model, Tally XML) | Before implementing #40–#43, #15 |
+| `docs/architecture/` | Architecture decisions (pipeline, agents, data model, Tally XML, data privacy) | Before implementing #40–#43, #15, #54–#55 |
 | `docs/guides/` | How-to guides (AI workflow, testing) | For step-by-step workflows |
 | `docs/PLAN.md` | Project setup plan and implementation order | For project context |
 
@@ -222,6 +238,8 @@ The full pipeline is documented in `docs/architecture/`:
 - [Reconciliation Pipeline](docs/architecture/reconciliation-pipeline.md) — overview and dependency graph
 - [AI Agent Design](docs/architecture/ai-agent-design.md) — why focused agents behind one service
 - [Data Model: JSONB Strategy](docs/architecture/data-model-jsonb.md) — raw_data flow through stages
+- [Data Privacy Strategy](docs/architecture/data-privacy-strategy.md) — LLM data exposure, pseudonymization, provider DPAs
+- [Connectors Architecture](docs/architecture/connectors.md) — pluggable invoice sources (email, Zoho, API)
 - [Tally XML Format](docs/architecture/tally-xml-format.md) — field reference and examples from real Tally export
 
 ## Development Notes
@@ -244,7 +262,6 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - php - 8.4.16
 - filament/filament (FILAMENT) - v5
 - laravel/framework (LARAVEL) - v12
-- laravel/horizon (HORIZON) - v5
 - laravel/prompts (PROMPTS) - v0
 - livewire/livewire (LIVEWIRE) - v4
 - larastan/larastan (LARASTAN) - v3
@@ -570,4 +587,146 @@ $pages = visit(['/', '/about', '/contact']);
 
 $pages->assertNoJavascriptErrors()->assertNoConsoleLogs();
 </code-snippet>
+
+=== filament/filament rules ===
+
+## Filament
+
+- Filament is used by this application. Follow existing conventions for how and where it's implemented.
+- Filament is a Server-Driven UI (SDUI) framework for Laravel that lets you define user interfaces in PHP using structured configuration objects. Built on Livewire, Alpine.js, and Tailwind CSS.
+- Use the `search-docs` tool for official documentation on Artisan commands, code examples, testing, relationships, and idiomatic practices.
+
+### Artisan
+
+- Use Filament-specific Artisan commands to create files. Find them with `list-artisan-commands` or `php artisan --help`.
+- Inspect required options and always pass `--no-interaction`.
+
+### Patterns
+
+Use static `make()` methods to initialize components. Most configuration methods accept a `Closure` for dynamic values.
+
+Use `Get $get` to read other form field values for conditional logic:
+
+<code-snippet name="Conditional form field" lang="php">
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
+
+Select::make('type')
+    ->options(CompanyType::class)
+    ->required()
+    ->live(),
+
+TextInput::make('company_name')
+    ->required()
+    ->visible(fn (Get $get): bool => $get('type') === 'business'),
+
+</code-snippet>
+
+Use `state()` with a `Closure` to compute derived column values:
+
+<code-snippet name="Computed table column" lang="php">
+use Filament\Tables\Columns\TextColumn;
+
+TextColumn::make('full_name')
+    ->state(fn (User $record): string => "{$record->first_name} {$record->last_name}"),
+
+</code-snippet>
+
+Actions encapsulate a button with optional modal form and logic:
+
+<code-snippet name="Action with modal form" lang="php">
+use Filament\Actions\Action;
+use Filament\Forms\Components\TextInput;
+
+Action::make('updateEmail')
+    ->form([
+        TextInput::make('email')->email()->required(),
+    ])
+    ->action(fn (array $data, User $record): void => $record->update($data)),
+
+</code-snippet>
+
+### Testing
+
+Authenticate before testing panel functionality. Filament uses Livewire, so use `livewire()` or `Livewire::test()`:
+
+<code-snippet name="Filament Table Test" lang="php">
+    livewire(ListUsers::class)
+        ->assertCanSeeTableRecords($users)
+        ->searchTable($users->first()->name)
+        ->assertCanSeeTableRecords($users->take(1))
+        ->assertCanNotSeeTableRecords($users->skip(1));
+
+</code-snippet>
+
+<code-snippet name="Filament Create Resource Test" lang="php">
+    livewire(CreateUser::class)
+        ->fillForm([
+            'name' => 'Test',
+            'email' => 'test@example.com',
+        ])
+        ->call('create')
+        ->assertNotified()
+        ->assertRedirect();
+
+    assertDatabaseHas(User::class, [
+        'name' => 'Test',
+        'email' => 'test@example.com',
+    ]);
+
+</code-snippet>
+
+<code-snippet name="Testing Validation" lang="php">
+    livewire(CreateUser::class)
+        ->fillForm([
+            'name' => null,
+            'email' => 'invalid-email',
+        ])
+        ->call('create')
+        ->assertHasFormErrors([
+            'name' => 'required',
+            'email' => 'email',
+        ])
+        ->assertNotNotified();
+
+</code-snippet>
+
+<code-snippet name="Calling Actions" lang="php">
+    use Filament\Actions\DeleteAction;
+    use Filament\Actions\Testing\TestAction;
+
+    livewire(EditUser::class, ['record' => $user->id])
+        ->callAction(DeleteAction::class)
+        ->assertNotified()
+        ->assertRedirect();
+
+    livewire(ListUsers::class)
+        ->callAction(TestAction::make('promote')->table($user), [
+            'role' => 'admin',
+        ])
+        ->assertNotified();
+
+</code-snippet>
+
+### Common Mistakes
+
+**Commonly Incorrect Namespaces:**
+- Form fields (TextInput, Select, etc.): `Filament\Forms\Components\`
+- Infolist entries (for read-only views) (TextEntry, IconEntry, etc.): `Filament\Infolists\Components\`
+- Layout components (Grid, Section, Fieldset, Tabs, Wizard, etc.): `Filament\Schemas\Components\`
+- Schema utilities (Get, Set, etc.): `Filament\Schemas\Components\Utilities\`
+- Actions: `Filament\Actions\` (no `Filament\Tables\Actions\` etc.)
+- Icons: `Filament\Support\Icons\Heroicon` enum (e.g., `Heroicon::PencilSquare`)
+
+**Recent breaking changes to Filament:**
+- File visibility is `private` by default. Use `->visibility('public')` for public access.
+- `Grid`, `Section`, and `Fieldset` no longer span all columns by default.
+
+=== laravel/ai rules ===
+
+## Laravel AI SDK
+
+- This application uses the Laravel AI SDK (`laravel/ai`) for all AI functionality.
+- Activate the `developing-with-ai-sdk` skill when building, editing, updating, debugging, or testing AI agents, text generation, chat, streaming, structured output, tools, image generation, audio, transcription, embeddings, reranking, vector stores, files, conversation memory, or any AI provider integration (OpenAI, Anthropic, Gemini, Cohere, Groq, xAI, ElevenLabs, Jina, OpenRouter).
 </laravel-boost-guidelines>

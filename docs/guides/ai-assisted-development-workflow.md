@@ -1,6 +1,6 @@
 # AI-Assisted Development Workflow
 
-**Last Updated:** 2026-02-24
+**Last Updated:** 2026-02-27
 **Audience:** Developers
 
 ---
@@ -60,8 +60,10 @@ Follow the workflow based on task type (classified in Step 1):
 
 1. **RED:** Write a failing test → run it → confirm it fails
 2. **GREEN:** Write minimal code to pass → run it → confirm it passes
-3. **REFACTOR:** Clean up → run tests → confirm still green
+3. **REFACTOR:** Activate the Laravel Code Simplifier (`/mcp__laravel-boost__laravel-code-simplifier`) on modified files → run tests → confirm still green
 4. Repeat the cycle for each behavior/requirement in the issue
+
+> **When to run the simplifier:** Not after every single test cycle. Run it after a **logical chunk** is complete — e.g., after implementing a full service with its tests, or after all tests for a feature pass. This keeps the cycle efficient without skipping the refactor step.
 
 #### For `refactor` tasks — tests-first safety net
 
@@ -165,6 +167,7 @@ gh issue comment <#> --body "## Implementation Summary
 - **Classify first** — Every task gets a type in Step 1; the type determines the workflow
 - **Use MCP tools** — Always use `search-docs`, `database-schema`, `database-query`, `tinker`, and `list-routes` to build context and verify work. Do not rely on assumptions when a tool can give you the answer
 - **Scope discipline** — Never fix unrelated issues in the current task. ALWAYS create a GitHub issue for them — no exceptions
+- **Simplify after GREEN** — Activate the Laravel Code Simplifier during the TDD refactor step to enforce Laravel conventions and PSR-12 standards on modified code. Always re-run tests after simplification
 - **Quality gates** — Never skip CI checks or the review & test loop before committing
 - **Commit = verified** — Every commit represents code that passes all checks, review, and tests
 - **Traceability** — Every GitHub issue gets a structured comment with what was done
@@ -220,3 +223,4 @@ gh issue comment <#> --body "## Implementation Summary
 | Date | Author | Changes |
 |------|--------|---------|
 | 2026-02-24 | Team | Initial guide — adapted from TMS for Virtual CFO project |
+| 2026-02-27 | Team | Added Laravel Code Simplifier to TDD refactor step |
