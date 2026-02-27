@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ENVELOPE>
+    <HEADER>
+        <TALLYREQUEST>Export Data</TALLYREQUEST>
+    </HEADER>
+    <BODY>
+        <IMPORTDATA>
+            <REQUESTDESC>
+                <REPORTNAME>All Masters</REPORTNAME>
+                <STATICVARIABLES>
+                    <SVCURRENTCOMPANY>Zysk Technologies Private Limited</SVCURRENTCOMPANY>
+                </STATICVARIABLES>
+            </REQUESTDESC>
+            <REQUESTDATA>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                    <GROUP NAME="Sundry Debtors" RESERVEDNAME="">
+                        <GUID>e5f6a7b8-c9d0-1234-5678-9abcdef01234</GUID>
+                        <NAME>Sundry Debtors</NAME>
+                        <PARENT>Current Assets</PARENT>
+                        <ISSUBLEDGER>Yes</ISSUBLEDGER>
+                        <ISREVENUE>No</ISREVENUE>
+                    </GROUP>
+                </TALLYMESSAGE>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                    <GROUP NAME="Bank Accounts" RESERVEDNAME="">
+                        <GUID>a1b2c3d4-e5f6-7890-abcd-ef0123456789</GUID>
+                        <NAME>Bank Accounts</NAME>
+                        <PARENT>Current Assets</PARENT>
+                        <ISSUBLEDGER>Yes</ISSUBLEDGER>
+                        <ISREVENUE>No</ISREVENUE>
+                    </GROUP>
+                </TALLYMESSAGE>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                    <LEDGER NAME="Acme Corp" RESERVEDNAME="">
+                        <GUID>11111111-1111-1111-1111-111111111111</GUID>
+                        <NAME>Acme Corp</NAME>
+                        <PARENT>Sundry Debtors</PARENT>
+                        <ISBILLWISEON>Yes</ISBILLWISEON>
+                        <OPENINGBALANCE>-50000.00</OPENINGBALANCE>
+                        <MAILINGNAME>Acme Corp Pvt Ltd</MAILINGNAME>
+                        <COUNTRYOFRESIDENCE>India</COUNTRYOFRESIDENCE>
+                    </LEDGER>
+                </TALLYMESSAGE>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                    <LEDGER NAME="Office Rent" RESERVEDNAME="">
+                        <GUID>22222222-2222-2222-2222-222222222222</GUID>
+                        <NAME>Office Rent</NAME>
+                        <PARENT>Indirect Expenses</PARENT>
+                        <OPENINGBALANCE>0.00</OPENINGBALANCE>
+                    </LEDGER>
+                </TALLYMESSAGE>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                    <LEDGER NAME="ICICI Bank - Current A/c" RESERVEDNAME="">
+                        <GUID>33333333-3333-3333-3333-333333333333</GUID>
+                        <NAME>ICICI Bank - Current A/c</NAME>
+                        <PARENT>Bank Accounts</PARENT>
+                        <OPENINGBALANCE>-250000.00</OPENINGBALANCE>
+                        <BANKDETAILS.LIST>
+                            <BANKACNAME>ICICI Bank - Current A/c</BANKACNAME>
+                            <BANKACCOUNTNUMBER>012345678901</BANKACCOUNTNUMBER>
+                            <IFSCODE>ICIC0001234</IFSCODE>
+                            <BRANCHNAME>MG Road, Bangalore</BRANCHNAME>
+                            <BANKINGCONFIGBANK>ICICI Bank</BANKINGCONFIGBANK>
+                        </BANKDETAILS.LIST>
+                    </LEDGER>
+                </TALLYMESSAGE>
+            </REQUESTDATA>
+        </IMPORTDATA>
+    </BODY>
+</ENVELOPE>
