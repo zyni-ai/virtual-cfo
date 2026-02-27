@@ -120,6 +120,78 @@ describe('HeadMatcherService AI matching with Agent::fake()', function () {
     });
 });
 
+describe('HeadMatcherService pseudonymization', function () {
+    it('masks PII in AI prompts before sending to LLM', function () {
+        $head = AccountHead::factory()->create(['name' => 'UPI Payment', 'is_active' => true]);
+
+        $file = ImportedFile::factory()->create();
+        $transaction = Transaction::factory()->unmapped()->for($file)->create([
+            'description' => 'UPI/9876543210@okicici/PAYMENT',
+            'debit' => '5000',
+        ]);
+
+        HeadMatcher::fake([
+            [
+                'matches' => [
+                    [
+                        'transaction_id' => $transaction->id,
+                        'suggested_head_id' => $head->id,
+                        'suggested_head_name' => 'UPI Payment',
+                        'confidence' => 0.90,
+                        'reasoning' => 'UPI transaction',
+                    ],
+                ],
+            ],
+        ]);
+
+        $service = app(HeadMatcherService::class);
+        $service->matchForFile($file);
+
+        HeadMatcher::assertPrompted(function ($prompt) {
+            $text = $prompt->prompt;
+
+            return str_contains($text, '[UPI_1]')
+                && ! str_contains($text, '9876543210@okicici')
+                && str_contains($text, 'UPI')
+                && str_contains($text, 'PAYMENT');
+        });
+    });
+
+    it('preserves amounts in AI prompts (not pseudonymized)', function () {
+        $head = AccountHead::factory()->create(['name' => 'Transfer', 'is_active' => true]);
+
+        $file = ImportedFile::factory()->create();
+        $transaction = Transaction::factory()->unmapped()->for($file)->create([
+            'description' => 'NEFT TO 50100123456789',
+            'debit' => '25000',
+        ]);
+
+        HeadMatcher::fake([
+            [
+                'matches' => [
+                    [
+                        'transaction_id' => $transaction->id,
+                        'suggested_head_id' => $head->id,
+                        'suggested_head_name' => 'Transfer',
+                        'confidence' => 0.85,
+                        'reasoning' => 'NEFT transfer',
+                    ],
+                ],
+            ],
+        ]);
+
+        $service = app(HeadMatcherService::class);
+        $service->matchForFile($file);
+
+        HeadMatcher::assertPrompted(function ($prompt) {
+            $text = $prompt->prompt;
+
+            return str_contains($text, 'Debit: 25000')
+                && ! str_contains($text, '50100123456789');
+        });
+    });
+});
+
 describe('HeadMatcherService::matchForFile()', function () {
     it('returns zeros when no unmapped transactions', function () {
         $file = ImportedFile::factory()->create();

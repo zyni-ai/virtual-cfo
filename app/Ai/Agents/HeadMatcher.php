@@ -8,6 +8,7 @@ use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Attributes\Timeout;
 use Laravel\Ai\Contracts\Agent;
+use Laravel\Ai\Contracts\HasMiddleware;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Promptable;
 use Stringable;
@@ -16,11 +17,21 @@ use Stringable;
 #[MaxTokens(4096)]
 #[Temperature(0.2)]
 #[Timeout(120)]
-class HeadMatcher implements Agent, HasStructuredOutput
+class HeadMatcher implements Agent, HasMiddleware, HasStructuredOutput
 {
     use Promptable;
 
     protected string $chartOfAccounts = '';
+
+    /**
+     * @return array<int, \App\Ai\Middleware\AuditLlmCalls>
+     */
+    public function middleware(): array
+    {
+        return [
+            new \App\Ai\Middleware\AuditLlmCalls,
+        ];
+    }
 
     /**
      * Get the model to use for head matching.

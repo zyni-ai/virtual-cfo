@@ -7,6 +7,7 @@ use App\Enums\MappingType;
 use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use App\Services\DataPrivacy\Pseudonymizer;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -20,6 +21,7 @@ class HeadMatcherService
 
     public function __construct(
         protected RuleBasedMatcher $ruleBasedMatcher,
+        protected Pseudonymizer $pseudonymizer = new Pseudonymizer,
     ) {}
 
     public function setConfidenceThreshold(float $threshold): static
@@ -133,8 +135,11 @@ class HeadMatcherService
             $prompt .= "ID {$desc['id']}: {$desc['description']} ({$amount})\n";
         }
 
+        $maskedPrompt = $this->pseudonymizer->mask($prompt);
+        $this->pseudonymizer->reset();
+
         $agent = HeadMatcher::make()->withChartOfAccounts($chartOfAccounts);
-        $response = $agent->prompt($prompt);
+        $response = $agent->prompt($maskedPrompt);
 
         $matched = 0;
 

@@ -52,7 +52,37 @@ describe('Jobs', function () {
     it('implements ShouldQueue', function () {
         expect('App\Jobs')
             ->classes()
-            ->toImplement('Illuminate\Contracts\Queue\ShouldQueue');
+            ->toImplement('Illuminate\Contracts\Queue\ShouldQueue')
+            ->ignoring('App\Jobs\Middleware');
+    });
+})->group('architecture');
+
+describe('AI Agents', function () {
+    it('implements HasMiddleware', function () {
+        expect('App\Ai\Agents')
+            ->classes()
+            ->toImplement('Laravel\Ai\Contracts\HasMiddleware');
+    });
+
+    it('includes AuditLlmCalls in middleware', function () {
+        $agents = [
+            new \App\Ai\Agents\HeadMatcher,
+            new \App\Ai\Agents\StatementParser,
+            new \App\Ai\Agents\InvoiceParser,
+        ];
+
+        foreach ($agents as $agent) {
+            $middleware = $agent->middleware();
+            $hasAudit = false;
+
+            foreach ($middleware as $mw) {
+                if ($mw instanceof \App\Ai\Middleware\AuditLlmCalls) {
+                    $hasAudit = true;
+                }
+            }
+
+            expect($hasAudit)->toBeTrue(class_basename($agent).' missing AuditLlmCalls middleware');
+        }
     });
 })->group('architecture');
 

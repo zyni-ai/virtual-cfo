@@ -25,6 +25,16 @@ class MatchTransactionHeads implements ShouldQueue
     ) {}
 
     /**
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            new Middleware\SetTenantForJob,
+        ];
+    }
+
+    /**
      * Exponential backoff intervals in seconds.
      *
      * @return array<int, int>
