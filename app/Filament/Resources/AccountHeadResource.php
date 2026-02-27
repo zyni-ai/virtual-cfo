@@ -125,12 +125,47 @@ class AccountHeadResource extends Resource
                     ->label('Import from Tally XML')
                     ->icon('heroicon-o-arrow-up-tray')
                     ->color('info')
-                    ->action(function () {
-                        // Placeholder: Tally XML import to be implemented
-                        // when Tally XML reference file is provided
-                    })
-                    ->disabled()
-                    ->tooltip('Coming soon — awaiting Tally XML reference format'),
+                    ->form([
+                        Forms\Components\FileUpload::make('xml_file')
+                            ->label('Tally XML File')
+                            ->acceptedFileTypes(['text/xml', 'application/xml', '.xml'])
+                            ->required()
+                            ->disk('local')
+                            ->directory('tally-imports')
+                            ->visibility('private'),
+                    ])
+                    ->action(function (array $data) {
+                        $filePath = $data['xml_file'];
+                        $xmlContent = \Illuminate\Support\Facades\Storage::disk('local')->get($filePath);
+                        /** @var \App\Models\Company $company */
+                        $company = \Filament\Facades\Filament::getTenant();
+
+                        $service = new \App\Services\TallyImport\TallyMasterImportService;
+                        $result = $service->import($xmlContent, $company);
+
+                        \Illuminate\Support\Facades\Storage::disk('local')->delete($filePath);
+
+                        if ($result->hasErrors()) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Import failed')
+                                ->body($result->errors[0])
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Tally masters imported')
+                            ->body(sprintf(
+                                'Created %d, updated %d account heads. %d bank accounts created.',
+                                $result->totalCreated(),
+                                $result->totalUpdated(),
+                                $result->bankAccountsCreated,
+                            ))
+                            ->success()
+                            ->send();
+                    }),
             ]);
     }
 
