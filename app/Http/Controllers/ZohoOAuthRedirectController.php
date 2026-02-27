@@ -3,16 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
-use Filament\Facades\Filament;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Crypt;
 
 class ZohoOAuthRedirectController
 {
-    public function __invoke(): RedirectResponse
+    public function __invoke(Company $company): RedirectResponse
     {
-        /** @var Company $company */
-        $company = Filament::getTenant();
+        $this->authorize($company);
 
         $params = http_build_query([
             'response_type' => 'code',
@@ -27,5 +25,13 @@ class ZohoOAuthRedirectController
         $accountsUrl = config('services.zoho.accounts_url');
 
         return redirect()->away("{$accountsUrl}/oauth/v2/auth?{$params}");
+    }
+
+    private function authorize(Company $company): void
+    {
+        abort_unless(
+            auth()->user()->companies()->where('companies.id', $company->id)->exists(),
+            403,
+        );
     }
 }

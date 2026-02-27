@@ -16,7 +16,7 @@ Route::get('/admin/imported-files/{importedFile}/download', ImportedFileDownload
     ->middleware('auth')
     ->name('imported-files.download');
 
-Route::get('/connectors/zoho/redirect', ZohoOAuthRedirectController::class)
+Route::get('/connectors/zoho/{company}/redirect', ZohoOAuthRedirectController::class)
     ->middleware('auth')
     ->name('connectors.zoho.redirect');
 

@@ -18,6 +18,37 @@ use Filament\Schemas\Schema;
 
 class EditCompanySettings extends EditTenantProfile
 {
+    /**
+     * @var array<string, string>
+     */
+    protected $queryString = [
+        'zohoStatus' => ['as' => 'zoho_status', 'except' => ''],
+        'zohoError' => ['as' => 'zoho_error', 'except' => ''],
+    ];
+
+    public string $zohoStatus = '';
+
+    public string $zohoError = '';
+
+    public function mount(): void
+    {
+        parent::mount();
+
+        if ($this->zohoStatus === 'connected') {
+            Notification::make()
+                ->title('Zoho Invoice connected successfully.')
+                ->success()
+                ->send();
+        }
+
+        if ($this->zohoError !== '') {
+            Notification::make()
+                ->title($this->zohoError)
+                ->danger()
+                ->send();
+        }
+    }
+
     public static function getLabel(): string
     {
         return 'Company settings';
@@ -114,7 +145,7 @@ class EditCompanySettings extends EditTenantProfile
         return [
             Action::make('connectZoho')
                 ->label('Connect Zoho Invoice')
-                ->url(route('connectors.zoho.redirect'))
+                ->url(fn () => route('connectors.zoho.redirect', ['company' => Filament::getTenant()]))
                 ->color('primary')
                 ->visible(fn () => $this->getZohoConnector() === null),
 
