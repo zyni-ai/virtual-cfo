@@ -13,19 +13,23 @@ use App\Models\Transaction;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Laravel\Ai\Files\Document;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DocumentProcessor
 {
-    public function __construct(
-        protected OcrService $ocrService = new OcrService,
-    ) {}
-
     /**
      * Process an imported file by detecting its format and routing to the appropriate parser.
      */
     public function process(ImportedFile $file): void
     {
+        /** @var ImportStatus $status */
+        $status = $file->status;
+
+        if ($status === ImportStatus::Skipped) {
+            return;
+        }
+
         $file->update(['status' => ImportStatus::Processing]);
 
         $format = $this->detectFormat($file);
@@ -181,14 +185,13 @@ class DocumentProcessor
     }
 
     /**
-     * Parse a PDF bank/credit card statement via OCR + StatementParser agent.
+     * Parse a PDF bank/credit card statement via StatementParser agent with document attachment.
      */
     protected function parsePdfStatement(ImportedFile $file): void
     {
-        $extractedText = $this->ocrService->extractText($file->file_path);
-
         $response = StatementParser::make()->prompt(
-            "Parse all transactions from this bank statement. Extract every single transaction row.\n\n--- STATEMENT TEXT ---\n{$extractedText}"
+            'Parse all transactions from this bank statement. Extract every single transaction row.',
+            attachments: [Document::fromStorage($file->file_path, disk: 'local')],
         );
 
         if (! isset($response['transactions']) || ! is_array($response['transactions'])) {
@@ -269,18 +272,16 @@ class DocumentProcessor
     }
 
     /**
-     * Parse a PDF invoice via OCR + InvoiceParser agent.
+     * Parse a PDF invoice via InvoiceParser agent with document attachment.
      */
     protected function parsePdfInvoice(ImportedFile $file): void
     {
-        $extractedText = $this->ocrService->extractText($file->file_path);
-
         $response = InvoiceParser::make()->prompt(
-            "Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.\n\n--- INVOICE TEXT ---\n{$extractedText}"
+            'Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.',
+            attachments: [Document::fromStorage($file->file_path, disk: 'local')],
         );
 
-        if (! isset($response['invoice_number']) || ! isset($response['vendor_name'])
-            || ! $response['invoice_number'] || ! $response['vendor_name']) {
+        if (empty($response['invoice_number']) || empty($response['vendor_name'])) {
             Log::warning('InvoiceParser returned invalid response', [
                 'file_id' => $file->id,
                 'response' => $response,
@@ -295,11 +296,12 @@ class DocumentProcessor
         $invoiceNumber = $response['invoice_number'];
         $invoiceDate = $response['invoice_date'] ?? null;
         $totalAmount = $response['total_amount'] ?? null;
+        $currency = $response['currency'] ?? null;
 
         /** @var \Laravel\Ai\Responses\StructuredAgentResponse $response */
         $rawData = $response->toArray();
 
-        DB::transaction(function () use ($file, $rawData, $vendorName, $invoiceNumber, $invoiceDate, $totalAmount) {
+        DB::transaction(function () use ($file, $rawData, $vendorName, $invoiceNumber, $invoiceDate, $totalAmount, $currency) {
             $file->update(['bank_name' => $vendorName]);
 
             Transaction::create([
@@ -311,6 +313,7 @@ class DocumentProcessor
                 'debit' => $totalAmount !== null ? (string) (int) $totalAmount : null,
                 'credit' => null,
                 'balance' => null,
+                'currency' => $currency,
                 'mapping_type' => MappingType::Unmapped,
                 'raw_data' => $rawData,
                 'bank_format' => $vendorName,

@@ -18,7 +18,8 @@ describe('InvoiceParser agent', function () {
 
         expect((string) $instructions)->toContain('invoice')
             ->and((string) $instructions)->toContain('GST')
-            ->and((string) $instructions)->toContain('vendor');
+            ->and((string) $instructions)->toContain('vendor')
+            ->and((string) $instructions)->toContain('currency');
     });
 
     it('has schema method for structured output', function () {
@@ -97,6 +98,7 @@ describe('InvoiceParser with Agent::fake()', function () {
                 'igst_amount' => null,
                 'tds_amount' => 550.00,
                 'total_amount' => 31900.00,
+                'currency' => 'INR',
                 'amount_in_words' => 'Thirty One Thousand Nine Hundred Only',
             ],
         ]);
@@ -113,7 +115,8 @@ describe('InvoiceParser with Agent::fake()', function () {
             ->and($response['sgst_amount'])->toBe(2475.00)
             ->and($response['igst_amount'])->toBeNull()
             ->and($response['tds_amount'])->toBe(550.00)
-            ->and($response['total_amount'])->toBe(31900.00);
+            ->and($response['total_amount'])->toBe(31900.00)
+            ->and($response['currency'])->toBe('INR');
     });
 
     it('returns structured response with inter-state invoice data', function () {
@@ -146,6 +149,7 @@ describe('InvoiceParser with Agent::fake()', function () {
                 'igst_amount' => 9000.00,
                 'tds_amount' => null,
                 'total_amount' => 59000.00,
+                'currency' => 'INR',
                 'amount_in_words' => 'Fifty Nine Thousand Only',
             ],
         ]);
@@ -206,6 +210,7 @@ describe('InvoiceParser with Agent::fake()', function () {
                 'igst_amount' => null,
                 'tds_amount' => null,
                 'total_amount' => 14160.00,
+                'currency' => 'INR',
                 'amount_in_words' => 'Fourteen Thousand One Hundred and Sixty Only',
             ],
         ]);

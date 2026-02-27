@@ -51,8 +51,14 @@ class InboundEmailController
             $importedFile = $this->storeAttachment($attachment, $company, $metadata);
 
             if ($importedFile) {
-                ProcessImportedFile::dispatch($importedFile);
                 $filesProcessed++;
+
+                /** @var ImportStatus $status */
+                $status = $importedFile->status;
+
+                if ($status !== ImportStatus::Skipped) {
+                    ProcessImportedFile::dispatch($importedFile);
+                }
             }
         }
 
@@ -122,15 +128,54 @@ class InboundEmailController
 
         Storage::disk('local')->put($storagePath, $contents);
 
-        return ImportedFile::create([
+        $filename = $file->getClientOriginalName();
+        $classification = $this->classifyByFilename($filename);
+
+        $attributes = [
             'company_id' => $company->id,
-            'statement_type' => StatementType::Invoice,
             'file_path' => $storagePath,
-            'original_filename' => $file->getClientOriginalName(),
+            'original_filename' => $filename,
             'file_hash' => $fileHash,
-            'status' => ImportStatus::Pending,
             'source' => ImportSource::Email,
             'source_metadata' => $metadata,
+        ];
+
+        if ($classification === null) {
+            return ImportedFile::create($attributes + [
+                'statement_type' => StatementType::Invoice,
+                'status' => ImportStatus::Skipped,
+                'error_message' => "Filename does not appear to be an invoice or statement: {$filename}",
+            ]);
+        }
+
+        return ImportedFile::create($attributes + [
+            'statement_type' => $classification,
+            'status' => ImportStatus::Pending,
         ]);
+    }
+
+    /**
+     * Classify an attachment by its filename to determine the statement type.
+     * Returns null if the filename doesn't match any known invoice or statement pattern.
+     */
+    private function classifyByFilename(string $filename): ?StatementType
+    {
+        $name = strtolower(pathinfo($filename, PATHINFO_FILENAME));
+
+        $invoicePatterns = ['inv', 'invoice', 'tax[_\-\s]?invoice', 'bill', 'debit[_\-\s]?note', 'credit[_\-\s]?note'];
+        foreach ($invoicePatterns as $pattern) {
+            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_])/', $name)) {
+                return StatementType::Invoice;
+            }
+        }
+
+        $statementPatterns = ['statement', 'bank[_\-\s]?statement', 'account[_\-\s]?statement'];
+        foreach ($statementPatterns as $pattern) {
+            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_])/', $name)) {
+                return StatementType::Bank;
+            }
+        }
+
+        return null;
     }
 }

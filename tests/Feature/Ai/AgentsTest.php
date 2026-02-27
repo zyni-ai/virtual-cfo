@@ -13,9 +13,9 @@ describe('AI provider configuration', function () {
             ->and($config)->toHaveKey('url');
     });
 
-    it('keeps mistral provider for OCR', function () {
-        expect(config('ai.providers.mistral'))->not->toBeNull()
-            ->and(config('ai.providers.mistral.driver'))->toBe('mistral');
+    it('uses openrouter as the sole provider', function () {
+        expect(config('ai.providers.mistral'))->toBeNull()
+            ->and(config('ai.providers.openrouter'))->not->toBeNull();
     });
 });
 

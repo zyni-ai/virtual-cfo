@@ -80,8 +80,8 @@ describe('InboundEmailController attachment processing', function () {
     it('creates ImportedFile records for multiple attachments', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
-        $img1 = UploadedFile::fake()->image('receipt1.png', 100, 100);
-        $img2 = UploadedFile::fake()->image('receipt2.png', 200, 200);
+        $img1 = UploadedFile::fake()->image('invoice_scan1.png', 100, 100);
+        $img2 = UploadedFile::fake()->image('invoice_scan2.png', 200, 200);
 
         $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
             inboundPayload(['attachment-count' => '2']),
@@ -97,7 +97,7 @@ describe('InboundEmailController attachment processing', function () {
     it('accepts PNG attachments', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
-        $png = UploadedFile::fake()->image('receipt.png');
+        $png = UploadedFile::fake()->image('invoice_receipt.png');
 
         $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
             inboundPayload(['attachment-count' => '1']),
@@ -111,7 +111,7 @@ describe('InboundEmailController attachment processing', function () {
     it('accepts JPEG attachments', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
-        $jpeg = UploadedFile::fake()->image('receipt.jpg');
+        $jpeg = UploadedFile::fake()->image('bill_scan.jpg');
 
         $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
             inboundPayload(['attachment-count' => '1']),
@@ -162,6 +162,139 @@ describe('InboundEmailController attachment processing', function () {
     });
 });
 
+describe('InboundEmailController filename classification', function () {
+    it('classifies invoice filenames as Invoice type', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->statement_type)->toBe(StatementType::Invoice)
+            ->and($importedFile->status)->toBe(ImportStatus::Pending);
+    });
+
+    it('classifies statement filenames as Bank type', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('bank_statement_jan.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->statement_type)->toBe(StatementType::Bank)
+            ->and($importedFile->status)->toBe(ImportStatus::Pending);
+    });
+
+    it('marks unrecognized filenames as Skipped', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('monthly_report.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->status)->toBe(ImportStatus::Skipped)
+            ->and($importedFile->error_message)->toContain('monthly_report.pdf');
+    });
+
+    it('recognizes bill filenames as Invoice type', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('electricity_bill_feb.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->statement_type)->toBe(StatementType::Invoice);
+    });
+
+    it('recognizes tax invoice filenames as Invoice type', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('tax_invoice_march.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->statement_type)->toBe(StatementType::Invoice);
+    });
+
+    it('recognizes debit note filenames as Invoice type', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('debit_note_001.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->statement_type)->toBe(StatementType::Invoice);
+    });
+
+    it('is case-insensitive for filename classification', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('TAX_INVOICE_2026.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->statement_type)->toBe(StatementType::Invoice);
+    });
+
+    it('does not dispatch ProcessImportedFile for skipped files', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('balance_sheet.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        Queue::assertNotPushed(ProcessImportedFile::class);
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->status)->toBe(ImportStatus::Skipped);
+    });
+
+    it('counts skipped files in files_processed', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('summary_report.pdf', 100, 'application/pdf');
+
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $response->assertSuccessful()
+            ->assertJson(['files_processed' => 1]);
+    });
+});
+
 describe('InboundEmailController source metadata', function () {
     it('stores email metadata on the ImportedFile', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
@@ -181,20 +314,6 @@ describe('InboundEmailController source metadata', function () {
             ->and($metadata['from'])->toBe('Vendor Inc <vendor@example.com>')
             ->and($metadata['subject'])->toBe('Invoice for January 2026')
             ->and($metadata['received_at'])->not->toBeNull();
-    });
-
-    it('defaults statement_type to Invoice for email source', function () {
-        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
-
-        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
-
-        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-            inboundPayload(['attachment-count' => '1']),
-            ['attachment-1' => $pdf],
-        ));
-
-        $importedFile = ImportedFile::first();
-        expect($importedFile->statement_type)->toBe(StatementType::Invoice);
     });
 });
 
@@ -243,11 +362,11 @@ describe('InboundEmailController deduplication', function () {
 });
 
 describe('InboundEmailController job dispatch', function () {
-    it('dispatches ProcessImportedFile job for each attachment', function () {
+    it('dispatches ProcessImportedFile job for each classified attachment', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
-        $img1 = UploadedFile::fake()->image('receipt1.png', 100, 100);
-        $img2 = UploadedFile::fake()->image('receipt2.png', 200, 200);
+        $img1 = UploadedFile::fake()->image('invoice_scan1.png', 100, 100);
+        $img2 = UploadedFile::fake()->image('invoice_scan2.png', 200, 200);
 
         $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
             inboundPayload(['attachment-count' => '2']),
