@@ -159,3 +159,36 @@ describe('ImportedFile encryption', function () {
         expect($fresh->account_number)->toBe('1234567890');
     });
 });
+
+describe('ImportedFile source tracking', function () {
+    it('defaults to ManualUpload source', function () {
+        $file = ImportedFile::factory()->create();
+
+        expect($file->source)->toBe(\App\Enums\ImportSource::ManualUpload)
+            ->and($file->source_metadata)->toBeNull();
+    });
+
+    it('creates from email with metadata', function () {
+        $file = ImportedFile::factory()->fromEmail('<msg-123@example.com>')->create();
+
+        expect($file->source)->toBe(\App\Enums\ImportSource::Email)
+            ->and($file->source_metadata)->toBeArray()
+            ->and($file->source_metadata['message_id'])->toBe('<msg-123@example.com>');
+    });
+
+    it('creates from zoho with metadata', function () {
+        $file = ImportedFile::factory()->fromZoho('INV-001')->create();
+
+        expect($file->source)->toBe(\App\Enums\ImportSource::Zoho)
+            ->and($file->source_metadata)->toBeArray()
+            ->and($file->source_metadata['zoho_invoice_id'])->toBe('INV-001');
+    });
+
+    it('encrypts and decrypts source_metadata', function () {
+        $metadata = ['message_id' => '<test@example.com>', 'from' => 'vendor@example.com'];
+        $file = ImportedFile::factory()->create(['source_metadata' => $metadata]);
+
+        $fresh = ImportedFile::find($file->id);
+        expect($fresh->source_metadata)->toBe($metadata);
+    });
+});

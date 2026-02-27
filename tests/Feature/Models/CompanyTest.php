@@ -75,6 +75,29 @@ describe('Company relationships', function () {
     });
 });
 
+describe('Company connectors relationship', function () {
+    it('has many connectors', function () {
+        $company = Company::factory()->create();
+        \App\Models\Connector::factory()->create(['company_id' => $company->id]);
+
+        expect($company->connectors)->toHaveCount(1);
+    });
+});
+
+describe('Company inbox_address', function () {
+    it('can store an inbox address', function () {
+        $company = Company::factory()->create(['inbox_address' => 'acme-abc123@inbox.example.com']);
+
+        expect($company->inbox_address)->toBe('acme-abc123@inbox.example.com');
+    });
+
+    it('defaults inbox_address to null', function () {
+        $company = Company::factory()->create();
+
+        expect($company->inbox_address)->toBeNull();
+    });
+});
+
 describe('Company activity log', function () {
     it('logs creation', function () {
         $company = Company::factory()->create();
