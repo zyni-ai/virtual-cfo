@@ -120,6 +120,15 @@ class Transaction extends Model
         return $query->where('reconciliation_status', ReconciliationStatus::Flagged);
     }
 
+    /**
+     * @param  Builder<Transaction>  $query
+     * @return Builder<Transaction>
+     */
+    public function scopeMatched(Builder $query): Builder
+    {
+        return $query->where('reconciliation_status', ReconciliationStatus::Matched);
+    }
+
     public function getDecryptedDebitAttribute(): ?float
     {
         return $this->debit !== null ? (float) $this->debit : null;
