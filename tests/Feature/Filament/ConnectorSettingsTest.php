@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\ConnectorProvider;
+use App\Enums\ZohoDataCenter;
 use App\Filament\Pages\Tenancy\EditCompanySettings;
 use App\Models\Connector;
 use App\Services\Connectors\ZohoInvoiceService;
@@ -23,7 +25,6 @@ describe('Connector settings in EditCompanySettings', function () {
     it('hides connect button when Zoho is connected', function () {
         Connector::factory()->zohoConnected()->create([
             'company_id' => tenant()->id,
-            'settings' => ['organization_id' => '12345'],
         ]);
 
         livewire(EditCompanySettings::class)
@@ -33,7 +34,6 @@ describe('Connector settings in EditCompanySettings', function () {
     it('shows disconnect and sync actions when Zoho is connected', function () {
         Connector::factory()->zohoConnected()->create([
             'company_id' => tenant()->id,
-            'settings' => ['organization_id' => '12345'],
         ]);
 
         livewire(EditCompanySettings::class)
@@ -48,10 +48,45 @@ describe('Connector settings in EditCompanySettings', function () {
             ->assertActionHidden('disconnectZoho');
     });
 
+    it('creates connector with credentials and data center when connecting Zoho', function () {
+        livewire(EditCompanySettings::class)
+            ->callAction('connectZoho', data: [
+                'data_center' => ZohoDataCenter::Us->value,
+                'client_id' => 'test-client-id',
+                'client_secret' => 'test-client-secret',
+            ])
+            ->assertHasNoActionErrors();
+
+        $connector = Connector::where('company_id', tenant()->id)
+            ->where('provider', ConnectorProvider::Zoho)
+            ->first();
+
+        expect($connector)->not->toBeNull()
+            ->and($connector->settings['data_center'])->toBe(ZohoDataCenter::Us->value)
+            ->and($connector->settings['client_id'])->toBe('test-client-id')
+            ->and($connector->settings['client_secret'])->toBe('test-client-secret')
+            ->and($connector->is_active)->toBeFalse();
+    });
+
+    it('validates required fields when connecting Zoho', function () {
+        livewire(EditCompanySettings::class)
+            ->callAction('connectZoho', data: [
+                'data_center' => '',
+                'client_id' => '',
+                'client_secret' => '',
+            ])
+            ->assertHasActionErrors([
+                'data_center' => 'required',
+                'client_id' => 'required',
+                'client_secret' => 'required',
+            ]);
+
+        expect(Connector::where('company_id', tenant()->id)->count())->toBe(0);
+    });
+
     it('can disconnect Zoho connector', function () {
         $connector = Connector::factory()->zohoConnected()->create([
             'company_id' => tenant()->id,
-            'settings' => ['organization_id' => '12345'],
         ]);
 
         livewire(EditCompanySettings::class)
@@ -69,7 +104,6 @@ describe('Connector settings in EditCompanySettings', function () {
 
         Connector::factory()->zohoConnected()->create([
             'company_id' => tenant()->id,
-            'settings' => ['organization_id' => '12345'],
         ]);
 
         Http::fake([
@@ -84,7 +118,6 @@ describe('Connector settings in EditCompanySettings', function () {
     it('shows error notification when sync fails', function () {
         Connector::factory()->zohoConnected()->create([
             'company_id' => tenant()->id,
-            'settings' => ['organization_id' => '12345'],
         ]);
 
         $this->mock(ZohoInvoiceService::class, function ($mock) {

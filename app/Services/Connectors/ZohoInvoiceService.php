@@ -5,6 +5,7 @@ namespace App\Services\Connectors;
 use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
+use App\Enums\ZohoDataCenter;
 use App\Jobs\ProcessImportedFile;
 use App\Models\Connector;
 use App\Models\ImportedFile;
@@ -80,12 +81,12 @@ class ZohoInvoiceService
             return;
         }
 
-        $accountsUrl = config('services.zoho.accounts_url');
+        $dataCenter = $this->dataCenter($connector);
 
-        $response = Http::asForm()->post("{$accountsUrl}/oauth/v2/token", [
+        $response = Http::asForm()->post("{$dataCenter->accountsUrl()}/oauth/v2/token", [
             'refresh_token' => $connector->refresh_token,
-            'client_id' => config('services.zoho.client_id'),
-            'client_secret' => config('services.zoho.client_secret'),
+            'client_id' => $connector->settings['client_id'],
+            'client_secret' => $connector->settings['client_secret'],
             'grant_type' => 'refresh_token',
         ]);
 
@@ -114,7 +115,7 @@ class ZohoInvoiceService
      */
     protected function fetchInvoices(Connector $connector): array
     {
-        $apiUrl = config('services.zoho.api_url');
+        $apiUrl = $this->dataCenter($connector)->apiUrl();
         $query = [];
 
         if ($connector->last_synced_at) {
@@ -147,7 +148,7 @@ class ZohoInvoiceService
      */
     protected function downloadInvoicePdf(Connector $connector, string $invoiceId): ?string
     {
-        $apiUrl = config('services.zoho.api_url');
+        $apiUrl = $this->dataCenter($connector)->apiUrl();
         $orgId = $connector->settings['organization_id'] ?? null;
 
         $response = Http::withToken($connector->access_token)
@@ -167,6 +168,11 @@ class ZohoInvoiceService
         Storage::disk('local')->put($filePath, $response->body());
 
         return $filePath;
+    }
+
+    private function dataCenter(Connector $connector): ZohoDataCenter
+    {
+        return ZohoDataCenter::from($connector->settings['data_center']);
     }
 
     /**

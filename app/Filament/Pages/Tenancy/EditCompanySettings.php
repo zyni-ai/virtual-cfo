@@ -3,6 +3,7 @@
 namespace App\Filament\Pages\Tenancy;
 
 use App\Enums\ConnectorProvider;
+use App\Enums\ZohoDataCenter;
 use App\Models\Connector;
 use App\Services\Connectors\ZohoInvoiceService;
 use App\Support\GstinValidator;
@@ -145,9 +146,48 @@ class EditCompanySettings extends EditTenantProfile
         return [
             Action::make('connectZoho')
                 ->label('Connect Zoho Invoice')
-                ->url(fn () => route('connectors.zoho.redirect', ['company' => Filament::getTenant()]))
                 ->color('primary')
-                ->visible(fn () => $this->getZohoConnector() === null),
+                ->visible(fn () => $this->getZohoConnector() === null)
+                ->modalHeading('Connect Zoho Invoice')
+                ->modalDescription('Enter your Zoho OAuth app credentials. You can find these in the Zoho API Console.')
+                ->schema([
+                    Select::make('data_center')
+                        ->label('Data Center')
+                        ->options(ZohoDataCenter::class)
+                        ->required()
+                        ->default(ZohoDataCenter::India->value),
+                    TextInput::make('client_id')
+                        ->label('Client ID')
+                        ->required()
+                        ->placeholder('1000.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'),
+                    TextInput::make('client_secret')
+                        ->label('Client Secret')
+                        ->required()
+                        ->password()
+                        ->revealable(),
+                ])
+                ->modalSubmitActionLabel('Connect')
+                ->action(function (array $data): void {
+                    /** @var \App\Models\Company $company */
+                    $company = Filament::getTenant();
+
+                    Connector::updateOrCreate(
+                        [
+                            'company_id' => $company->id,
+                            'provider' => ConnectorProvider::Zoho,
+                        ],
+                        [
+                            'settings' => [
+                                'data_center' => $data['data_center'],
+                                'client_id' => $data['client_id'],
+                                'client_secret' => $data['client_secret'],
+                            ],
+                            'is_active' => false,
+                        ],
+                    );
+
+                    $this->redirect(route('connectors.zoho.redirect', ['company' => $company]));
+                }),
 
             Action::make('syncZoho')
                 ->label('Sync Now')
