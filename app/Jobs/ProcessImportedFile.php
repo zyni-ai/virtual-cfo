@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\ImportStatus;
+use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Services\DocumentProcessor\DocumentProcessor;
 use Illuminate\Bus\Queueable;
@@ -56,7 +57,13 @@ class ProcessImportedFile implements ShouldQueue
             $status = $this->importedFile->status;
 
             if ($status === ImportStatus::Completed) {
-                MatchTransactionHeads::dispatch($this->importedFile);
+                $hasHeads = AccountHead::where('company_id', $this->importedFile->company_id)
+                    ->where('is_active', true)
+                    ->exists();
+
+                if ($hasHeads) {
+                    MatchTransactionHeads::dispatch($this->importedFile);
+                }
             }
 
         } catch (\Throwable $e) {

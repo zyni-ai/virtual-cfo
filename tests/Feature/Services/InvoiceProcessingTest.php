@@ -5,6 +5,7 @@ use App\Enums\ImportStatus;
 use App\Enums\MappingType;
 use App\Jobs\MatchTransactionHeads;
 use App\Jobs\ProcessImportedFile;
+use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\DocumentProcessor\DocumentProcessor;
@@ -384,6 +385,11 @@ describe('ProcessImportedFile job with InvoiceParser', function () {
         $file = ImportedFile::factory()->invoice()->create([
             'status' => ImportStatus::Pending,
             'file_path' => 'statements/invoice.pdf',
+        ]);
+
+        AccountHead::factory()->create([
+            'company_id' => $file->company_id,
+            'is_active' => true,
         ]);
 
         $job = new ProcessImportedFile($file);

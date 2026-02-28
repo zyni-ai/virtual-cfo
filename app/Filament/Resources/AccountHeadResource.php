@@ -4,9 +4,14 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AccountHeadResource\Pages;
 use App\Models\AccountHead;
+use App\Models\Company;
+use App\Services\TallyImport\TallyMasterImportService;
 use BackedEnum;
+use Closure;
 use Filament\Actions;
+use Filament\Facades\Filament;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -15,6 +20,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Storage;
 use UnitEnum;
 
 class AccountHeadResource extends Resource
@@ -121,51 +127,15 @@ class AccountHeadResource extends Resource
                 ]),
             ])
             ->headerActions([
-                Actions\Action::make('import_tally')
-                    ->label('Import from Tally XML')
-                    ->icon('heroicon-o-arrow-up-tray')
-                    ->color('info')
-                    ->form([
-                        Forms\Components\FileUpload::make('xml_file')
-                            ->label('Tally XML File')
-                            ->acceptedFileTypes(['text/xml', 'application/xml', '.xml'])
-                            ->required()
-                            ->disk('local')
-                            ->directory('tally-imports')
-                            ->visibility('private'),
-                    ])
-                    ->action(function (array $data) {
-                        $filePath = $data['xml_file'];
-                        $xmlContent = \Illuminate\Support\Facades\Storage::disk('local')->get($filePath);
-                        /** @var \App\Models\Company $company */
-                        $company = \Filament\Facades\Filament::getTenant();
-
-                        $service = new \App\Services\TallyImport\TallyMasterImportService;
-                        $result = $service->import($xmlContent, $company);
-
-                        \Illuminate\Support\Facades\Storage::disk('local')->delete($filePath);
-
-                        if ($result->hasErrors()) {
-                            \Filament\Notifications\Notification::make()
-                                ->title('Import failed')
-                                ->body($result->errors[0])
-                                ->danger()
-                                ->send();
-
-                            return;
-                        }
-
-                        \Filament\Notifications\Notification::make()
-                            ->title('Tally masters imported')
-                            ->body(sprintf(
-                                'Created %d, updated %d account heads. %d bank accounts created.',
-                                $result->totalCreated(),
-                                $result->totalUpdated(),
-                                $result->bankAccountsCreated,
-                            ))
-                            ->success()
-                            ->send();
-                    }),
+                self::makeTallyImportAction('import_tally')
+                    ->color('info'),
+            ])
+            ->emptyStateHeading('No account heads yet')
+            ->emptyStateDescription('Import your chart of accounts from Tally to get started. This enables automatic transaction matching.')
+            ->emptyStateIcon('heroicon-o-rectangle-stack')
+            ->emptyStateActions([
+                self::makeTallyImportAction('import_tally_empty')
+                    ->color('primary'),
             ]);
     }
 
@@ -190,5 +160,66 @@ class AccountHeadResource extends Resource
             'create' => Pages\CreateAccountHead::route('/create'),
             'edit' => Pages\EditAccountHead::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * @return array<Actions\Action|\Filament\Schemas\Components\Component>
+     */
+    private static function tallyImportForm(): array
+    {
+        return [
+            Forms\Components\FileUpload::make('xml_file')
+                ->label('Tally XML File')
+                ->acceptedFileTypes(['text/xml', 'application/xml', '.xml'])
+                ->required()
+                ->disk('local')
+                ->directory('tally-imports')
+                ->visibility('private'),
+        ];
+    }
+
+    private static function tallyImportAction(): Closure
+    {
+        return function (array $data): void {
+            $filePath = $data['xml_file'];
+            $xmlContent = Storage::disk('local')->get($filePath);
+            /** @var Company $company */
+            $company = Filament::getTenant();
+
+            $service = new TallyMasterImportService;
+            $result = $service->import($xmlContent, $company);
+
+            Storage::disk('local')->delete($filePath);
+
+            if ($result->hasErrors()) {
+                Notification::make()
+                    ->title('Import failed')
+                    ->body($result->errors[0])
+                    ->danger()
+                    ->send();
+
+                return;
+            }
+
+            Notification::make()
+                ->title('Tally masters imported')
+                ->body(sprintf(
+                    'Created %d, updated %d account heads. %d bank accounts created.',
+                    $result->totalCreated(),
+                    $result->totalUpdated(),
+                    $result->bankAccountsCreated,
+                ))
+                ->success()
+                ->send();
+        };
+    }
+
+    private static function makeTallyImportAction(string $name): Actions\Action
+    {
+        return Actions\Action::make($name)
+            ->label('Import from Tally XML')
+            ->icon('heroicon-o-arrow-up-tray')
+            ->form(self::tallyImportForm())
+            ->action(self::tallyImportAction());
     }
 }
