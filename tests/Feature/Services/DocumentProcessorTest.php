@@ -1,5 +1,6 @@
 <?php
 
+use App\Ai\Agents\InvoiceParser;
 use App\Ai\Agents\StatementParser;
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
@@ -7,15 +8,13 @@ use App\Enums\StatementType;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\DocumentProcessor\DocumentProcessor;
-use App\Services\DocumentProcessor\OcrService;
 use Illuminate\Support\Facades\Storage;
 
 describe('DocumentProcessor', function () {
     beforeEach(function () {
         Storage::fake('local');
 
-        $this->mockOcr = Mockery::mock(OcrService::class);
-        $this->processor = new DocumentProcessor($this->mockOcr);
+        $this->processor = new DocumentProcessor;
     });
 
     describe('detectFormat', function () {
@@ -206,11 +205,6 @@ describe('DocumentProcessor', function () {
         it('routes bank statement PDFs to StatementParser agent', function () {
             Storage::put('statements/bank.pdf', 'fake-pdf-content');
 
-            $this->mockOcr->shouldReceive('extractText')
-                ->once()
-                ->with('statements/bank.pdf')
-                ->andReturn('HDFC Bank Statement - Jan 2024');
-
             StatementParser::fake([
                 [
                     'bank_name' => 'HDFC Bank',
@@ -242,11 +236,6 @@ describe('DocumentProcessor', function () {
         it('routes credit card statement PDFs to StatementParser agent', function () {
             Storage::put('statements/cc.pdf', 'fake-pdf-content');
 
-            $this->mockOcr->shouldReceive('extractText')
-                ->once()
-                ->with('statements/cc.pdf')
-                ->andReturn('ICICI Credit Card Statement - Jan 2024');
-
             StatementParser::fake([
                 [
                     'bank_name' => 'ICICI CC',
@@ -273,12 +262,7 @@ describe('DocumentProcessor', function () {
         it('routes invoice PDFs to InvoiceParser agent', function () {
             Storage::put('statements/invoice.pdf', 'fake-pdf-content');
 
-            $this->mockOcr->shouldReceive('extractText')
-                ->once()
-                ->with('statements/invoice.pdf')
-                ->andReturn('Invoice TV/001 - Test Vendor - Total: 5900.00');
-
-            \App\Ai\Agents\InvoiceParser::fake([
+            InvoiceParser::fake([
                 [
                     'vendor_name' => 'Test Vendor',
                     'vendor_gstin' => '29AABCT1234A1Z5',
@@ -298,6 +282,7 @@ describe('DocumentProcessor', function () {
                     'igst_amount' => null,
                     'tds_amount' => null,
                     'total_amount' => 5900.00,
+                    'currency' => 'INR',
                     'amount_in_words' => null,
                 ],
             ]);
@@ -310,20 +295,56 @@ describe('DocumentProcessor', function () {
 
             $this->processor->process($file);
 
-            \App\Ai\Agents\InvoiceParser::assertPrompted(fn ($prompt) => $prompt->contains('Parse all data from this vendor invoice'));
+            InvoiceParser::assertPrompted(fn ($prompt) => $prompt->contains('Parse all data from this vendor invoice'));
 
             $file->refresh();
             expect($file->status)->toBe(ImportStatus::Completed)
                 ->and($file->total_rows)->toBe(1);
         });
 
+        it('stores currency from InvoiceParser response on transaction', function () {
+            Storage::put('statements/usd_invoice.pdf', 'fake-pdf-content');
+
+            InvoiceParser::fake([
+                [
+                    'vendor_name' => 'Anthropic Inc',
+                    'vendor_gstin' => null,
+                    'invoice_number' => 'ANT/2026/001',
+                    'invoice_date' => '2026-02-15',
+                    'due_date' => null,
+                    'place_of_supply' => null,
+                    'line_items' => [
+                        ['description' => 'Claude Code Subscription', 'hsn_sac' => null, 'quantity' => 1, 'rate' => 200.00, 'amount' => 200.00],
+                    ],
+                    'base_amount' => 200.00,
+                    'cgst_rate' => null,
+                    'cgst_amount' => null,
+                    'sgst_rate' => null,
+                    'sgst_amount' => null,
+                    'igst_rate' => null,
+                    'igst_amount' => null,
+                    'tds_amount' => null,
+                    'total_amount' => 200.00,
+                    'currency' => 'USD',
+                    'amount_in_words' => null,
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->invoice()->create([
+                'file_path' => 'statements/usd_invoice.pdf',
+                'original_filename' => 'usd_invoice.pdf',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $transaction = Transaction::where('imported_file_id', $file->id)->first();
+            expect($transaction->currency)->toBe('USD')
+                ->and($transaction->debit)->toBe('200');
+        });
+
         it('marks file as failed when PDF has no transactions', function () {
             Storage::put('statements/empty.pdf', 'fake-pdf-content');
-
-            $this->mockOcr->shouldReceive('extractText')
-                ->once()
-                ->with('statements/empty.pdf')
-                ->andReturn('SBI Bank Statement - No transactions');
 
             StatementParser::fake([
                 [
@@ -347,14 +368,26 @@ describe('DocumentProcessor', function () {
         });
     });
 
+    describe('skipped files', function () {
+        it('returns early for files with Skipped status', function () {
+            Storage::put('statements/report.pdf', 'fake-pdf-content');
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/report.pdf',
+                'original_filename' => 'report.pdf',
+                'status' => ImportStatus::Skipped,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->status)->toBe(ImportStatus::Skipped);
+        });
+    });
+
     describe('bank account auto-matching', function () {
         it('auto-sets bank_account_id when AI-detected bank_name matches a BankAccount', function () {
             Storage::put('statements/bank.pdf', 'fake-pdf-content');
-
-            $this->mockOcr->shouldReceive('extractText')
-                ->once()
-                ->with('statements/bank.pdf')
-                ->andReturn('HDFC Bank Statement');
 
             $company = \App\Models\Company::factory()->create();
             $bankAccount = \App\Models\BankAccount::factory()->create([
@@ -389,11 +422,6 @@ describe('DocumentProcessor', function () {
 
         it('does not set bank_account_id when no matching BankAccount exists', function () {
             Storage::put('statements/bank2.pdf', 'fake-pdf-content');
-
-            $this->mockOcr->shouldReceive('extractText')
-                ->once()
-                ->with('statements/bank2.pdf')
-                ->andReturn('Unknown Bank Statement');
 
             StatementParser::fake([
                 [

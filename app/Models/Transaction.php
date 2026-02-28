@@ -28,6 +28,7 @@ class Transaction extends Model
         'debit',
         'credit',
         'balance',
+        'currency',
         'account_head_id',
         'mapping_type',
         'ai_confidence',

@@ -12,6 +12,7 @@ enum ImportStatus: string implements HasColor, HasIcon, HasLabel
     case Processing = 'processing';
     case Completed = 'completed';
     case Failed = 'failed';
+    case Skipped = 'skipped';
 
     public function getLabel(): string
     {
@@ -20,6 +21,7 @@ enum ImportStatus: string implements HasColor, HasIcon, HasLabel
             self::Processing => 'Processing',
             self::Completed => 'Completed',
             self::Failed => 'Failed',
+            self::Skipped => 'Skipped',
         };
     }
 
@@ -30,6 +32,7 @@ enum ImportStatus: string implements HasColor, HasIcon, HasLabel
             self::Processing => 'warning',
             self::Completed => 'success',
             self::Failed => 'danger',
+            self::Skipped => 'info',
         };
     }
 
@@ -40,6 +43,7 @@ enum ImportStatus: string implements HasColor, HasIcon, HasLabel
             self::Processing => 'heroicon-m-arrow-path',
             self::Completed => 'heroicon-m-check-circle',
             self::Failed => 'heroicon-m-x-circle',
+            self::Skipped => 'heroicon-m-forward',
         };
     }
 }

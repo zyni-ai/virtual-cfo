@@ -53,6 +53,8 @@ class InvoiceParser implements Agent, HasMiddleware, HasStructuredOutput
         - Parse ALL line items with description, HSN/SAC code, quantity, rate, and amount
         - Dates should be in YYYY-MM-DD format
         - Amounts should be numeric (no currency symbols or commas)
+        - Detect the invoice currency from the document (currency symbols, text like "USD", "EUR", etc.)
+        - If no currency symbol or indicator is present, default to "INR"
         - If a field is not present, use null
         - Calculate and verify: base_amount + GST - TDS should approximately equal total_amount
 
@@ -60,9 +62,7 @@ class InvoiceParser implements Agent, HasMiddleware, HasStructuredOutput
         INSTRUCTIONS;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function schema(JsonSchema $schema): array
     {
         return [
@@ -88,6 +88,7 @@ class InvoiceParser implements Agent, HasMiddleware, HasStructuredOutput
             'igst_amount' => $schema->number(),
             'tds_amount' => $schema->number(),
             'total_amount' => $schema->number()->required(),
+            'currency' => $schema->string()->required(),
             'amount_in_words' => $schema->string(),
         ];
     }

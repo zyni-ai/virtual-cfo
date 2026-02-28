@@ -8,7 +8,6 @@ use App\Jobs\ProcessImportedFile;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\DocumentProcessor\DocumentProcessor;
-use App\Services\DocumentProcessor\OcrService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -17,9 +16,7 @@ describe('DocumentProcessor invoice routing', function () {
     beforeEach(function () {
         Storage::fake('local');
 
-        $this->mockOcr = Mockery::mock(OcrService::class);
-        $this->mockOcr->shouldReceive('extractText')->andReturn('Extracted invoice text content');
-        $this->processor = new DocumentProcessor($this->mockOcr);
+        $this->processor = new DocumentProcessor;
     });
 
     it('routes invoice PDFs to InvoiceParser agent', function () {
@@ -51,6 +48,7 @@ describe('DocumentProcessor invoice routing', function () {
                 'igst_amount' => null,
                 'tds_amount' => 550.00,
                 'total_amount' => 31900.00,
+                'currency' => 'INR',
                 'amount_in_words' => 'Thirty One Thousand Nine Hundred Only',
             ],
         ]);
@@ -101,6 +99,7 @@ describe('DocumentProcessor invoice routing', function () {
                 'igst_amount' => null,
                 'tds_amount' => 550.00,
                 'total_amount' => 31900.00,
+                'currency' => 'INR',
                 'amount_in_words' => 'Thirty One Thousand Nine Hundred Only',
             ],
         ]);
@@ -121,6 +120,7 @@ describe('DocumentProcessor invoice routing', function () {
             ->and($transaction->reference_number)->toBe('ASPL/2439')
             ->and($transaction->debit)->toBe('31900')
             ->and($transaction->credit)->toBeNull()
+            ->and($transaction->currency)->toBe('INR')
             ->and($transaction->mapping_type)->toBe(MappingType::Unmapped)
             ->and($transaction->raw_data)->toBeArray()
             ->and($transaction->raw_data['vendor_name'])->toBe('Assetpro Solution Pvt Ltd')
@@ -154,6 +154,7 @@ describe('DocumentProcessor invoice routing', function () {
                 'igst_amount' => null,
                 'tds_amount' => null,
                 'total_amount' => 11800.00,
+                'currency' => 'INR',
                 'amount_in_words' => 'Eleven Thousand Eight Hundred Only',
             ],
         ]);
@@ -192,6 +193,7 @@ describe('DocumentProcessor invoice routing', function () {
                 'igst_amount' => 7200.00,
                 'tds_amount' => null,
                 'total_amount' => 47200.00,
+                'currency' => 'INR',
                 'amount_in_words' => 'Forty Seven Thousand Two Hundred Only',
             ],
         ]);
@@ -234,6 +236,7 @@ describe('DocumentProcessor invoice routing', function () {
                 'igst_amount' => null,
                 'tds_amount' => 10000.00,
                 'total_amount' => 108000.00,
+                'currency' => 'INR',
                 'amount_in_words' => 'One Lakh Eight Thousand Only',
             ],
         ]);
@@ -290,6 +293,7 @@ describe('DocumentProcessor invoice routing', function () {
                 'igst_amount' => null,
                 'tds_amount' => null,
                 'total_amount' => 1000.00,
+                'currency' => 'INR',
                 'amount_in_words' => null,
             ],
         ]);
@@ -328,6 +332,7 @@ describe('DocumentProcessor invoice routing', function () {
                 'igst_amount' => null,
                 'tds_amount' => null,
                 'total_amount' => 1180.00,
+                'currency' => 'INR',
                 'amount_in_words' => null,
             ],
         ]);
@@ -345,14 +350,6 @@ describe('DocumentProcessor invoice routing', function () {
 });
 
 describe('ProcessImportedFile job with InvoiceParser', function () {
-    beforeEach(function () {
-        $mockOcr = Mockery::mock(OcrService::class);
-        $mockOcr->shouldReceive('extractText')->andReturn('Extracted invoice text');
-        app()->bind(DocumentProcessor::class, function () use ($mockOcr) {
-            return new DocumentProcessor($mockOcr);
-        });
-    });
-
     it('processes invoice and dispatches MatchTransactionHeads on success', function () {
         Storage::fake('local');
         Storage::put('statements/invoice.pdf', 'fake-pdf-content');
@@ -377,6 +374,7 @@ describe('ProcessImportedFile job with InvoiceParser', function () {
                 'igst_amount' => null,
                 'tds_amount' => null,
                 'total_amount' => 23600.00,
+                'currency' => 'INR',
                 'amount_in_words' => 'Twenty Three Thousand Six Hundred Only',
             ],
         ]);
