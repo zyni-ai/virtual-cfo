@@ -57,8 +57,16 @@ class CreateImportedFile extends CreateRecord
             }
         }
 
-        // Remove force_reimport from data — it's not a database column
-        unset($data['force_reimport']);
+        // Store pdf_password in source_metadata if provided
+        if (! empty($data['pdf_password'])) {
+            $data['source_metadata'] = array_merge(
+                $data['source_metadata'] ?? [],
+                ['manual_password' => $data['pdf_password']],
+            );
+        }
+
+        // Remove non-database fields
+        unset($data['force_reimport'], $data['pdf_password']);
 
         return $data;
     }

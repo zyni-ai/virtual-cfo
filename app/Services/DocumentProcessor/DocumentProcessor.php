@@ -8,6 +8,7 @@ use App\Enums\ImportStatus;
 use App\Enums\MappingType;
 use App\Enums\StatementType;
 use App\Models\BankAccount;
+use App\Models\CreditCard;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use Illuminate\Support\Carbon;
@@ -18,6 +19,10 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DocumentProcessor
 {
+    public function __construct(
+        private PdfDecryptionService $decryptionService,
+    ) {}
+
     /**
      * Process an imported file by detecting its format and routing to the appropriate parser.
      */
@@ -171,27 +176,183 @@ class DocumentProcessor
     }
 
     /**
-     * Parse PDF files by routing to the appropriate AI agent based on statement type.
+     * Parse PDF files — decrypt if needed, then route to the appropriate AI agent.
      */
     protected function parsePdf(ImportedFile $file): void
     {
+        $filePath = $file->file_path;
+
+        if ($this->decryptionService->isAvailable()
+            && $this->decryptionService->isPasswordProtected($filePath)) {
+            $filePath = $this->decryptPasswordProtectedPdf($file);
+
+            if ($filePath === null) {
+                return;
+            }
+        }
+
         /** @var StatementType $statementType */
         $statementType = $file->statement_type;
 
         match ($statementType) {
-            StatementType::Bank, StatementType::CreditCard => $this->parsePdfStatement($file),
-            StatementType::Invoice => $this->parsePdfInvoice($file),
+            StatementType::Bank, StatementType::CreditCard => $this->parsePdfStatement($file, $filePath),
+            StatementType::Invoice => $this->parsePdfInvoice($file, $filePath),
         };
+    }
+
+    /**
+     * Attempt to decrypt a password-protected PDF using gathered passwords.
+     *
+     * Returns the decrypted file path on success, or null if no passwords work
+     * (sets status to NeedsPassword).
+     */
+    protected function decryptPasswordProtectedPdf(ImportedFile $file): ?string
+    {
+        $passwords = $this->gatherPasswords($file);
+
+        foreach ($passwords as $password) {
+            try {
+                return $this->decryptionService->decrypt($file->file_path, $password);
+            } catch (\RuntimeException) {
+                continue;
+            }
+        }
+
+        $file->update([
+            'status' => ImportStatus::NeedsPassword,
+            'error_message' => 'This PDF is password-protected. Please set the PDF password on the linked bank account or credit card, then re-process.',
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Gather password candidates in priority order:
+     * 1. Manual password from source_metadata
+     * 2. Stored password from linked BankAccount/CreditCard
+     * 3. Stored password from email-context matched BankAccount/CreditCard
+     *
+     * @return array<int, string>
+     */
+    protected function gatherPasswords(ImportedFile $file): array
+    {
+        $passwords = [];
+
+        /** @var array<string, mixed>|null $metadata */
+        $metadata = $file->source_metadata;
+        if (! empty($metadata['manual_password'])) {
+            $passwords[] = $metadata['manual_password'];
+        }
+
+        $storedPassword = $this->resolveStoredPassword($file);
+        if ($storedPassword !== null) {
+            $passwords[] = $storedPassword;
+        }
+
+        return array_values(array_unique(array_filter($passwords)));
+    }
+
+    /**
+     * Resolve stored password from linked account first, then try email context matching.
+     */
+    protected function resolveStoredPassword(ImportedFile $file): ?string
+    {
+        $linkedPassword = $this->getLinkedAccountPassword($file);
+        if ($linkedPassword) {
+            return $linkedPassword;
+        }
+
+        $matched = $this->matchAccountFromEmailContext($file);
+        if ($matched instanceof BankAccount) {
+            $file->update(['bank_account_id' => $matched->id]);
+
+            return $matched->pdf_password;
+        }
+
+        if ($matched instanceof CreditCard) {
+            $file->update(['credit_card_id' => $matched->id]);
+
+            return $matched->pdf_password;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get password from an already-linked BankAccount or CreditCard.
+     */
+    protected function getLinkedAccountPassword(ImportedFile $file): ?string
+    {
+        if ($file->bank_account_id) {
+            $file->loadMissing('bankAccount');
+            $password = $file->bankAccount?->pdf_password;
+            if ($password) {
+                return $password;
+            }
+        }
+
+        if ($file->credit_card_id) {
+            $file->loadMissing('creditCard');
+            $password = $file->creditCard?->pdf_password;
+            if ($password) {
+                return $password;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Try to match a BankAccount or CreditCard from email subject/body context.
+     */
+    protected function matchAccountFromEmailContext(ImportedFile $file): BankAccount|CreditCard|null
+    {
+        /** @var array<string, mixed>|null $metadata */
+        $metadata = $file->source_metadata;
+
+        $searchText = trim(($metadata['subject'] ?? '').' '.($metadata['body_text'] ?? ''));
+
+        if ($searchText === '') {
+            return null;
+        }
+
+        $searchTextLower = strtolower($searchText);
+
+        $bankAccounts = BankAccount::where('company_id', $file->company_id)
+            ->whereNotNull('pdf_password')
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($bankAccounts as $account) {
+            if (str_contains($searchTextLower, strtolower($account->name))) {
+                return $account;
+            }
+        }
+
+        $creditCards = CreditCard::where('company_id', $file->company_id)
+            ->whereNotNull('pdf_password')
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($creditCards as $card) {
+            if (str_contains($searchTextLower, strtolower($card->name))) {
+                return $card;
+            }
+        }
+
+        return null;
     }
 
     /**
      * Parse a PDF bank/credit card statement via StatementParser agent with document attachment.
      */
-    protected function parsePdfStatement(ImportedFile $file): void
+    protected function parsePdfStatement(ImportedFile $file, ?string $filePath = null): void
     {
+        $filePath ??= $file->file_path;
+
         $response = StatementParser::make()->prompt(
             'Parse all transactions from this bank statement. Extract every single transaction row.',
-            attachments: [Document::fromStorage($file->file_path, disk: 'local')],
+            attachments: [Document::fromStorage($filePath, disk: 'local')],
         );
 
         if (! isset($response['transactions']) || ! is_array($response['transactions'])) {
@@ -221,7 +382,15 @@ class DocumentProcessor
         DB::transaction(function () use ($file, $bankName, $accountNumber, $transactions) {
             if ($bankName) {
                 $file->update(['bank_name' => $bankName]);
-                $this->autoMatchBankAccount($file, $bankName);
+
+                /** @var StatementType $statementType */
+                $statementType = $file->statement_type;
+
+                if ($statementType === StatementType::CreditCard) {
+                    $this->autoMatchCreditCard($file, $bankName);
+                } else {
+                    $this->autoMatchBankAccount($file, $bankName);
+                }
             }
 
             if ($accountNumber) {
@@ -272,13 +441,33 @@ class DocumentProcessor
     }
 
     /**
+     * Attempt to match an AI-detected bank name to an existing CreditCard for the file's company.
+     */
+    protected function autoMatchCreditCard(ImportedFile $file, string $bankName): void
+    {
+        if ($file->credit_card_id) {
+            return;
+        }
+
+        $creditCard = CreditCard::where('company_id', $file->company_id)
+            ->where('name', $bankName)
+            ->first();
+
+        if ($creditCard) {
+            $file->update(['credit_card_id' => $creditCard->id]);
+        }
+    }
+
+    /**
      * Parse a PDF invoice via InvoiceParser agent with document attachment.
      */
-    protected function parsePdfInvoice(ImportedFile $file): void
+    protected function parsePdfInvoice(ImportedFile $file, ?string $filePath = null): void
     {
+        $filePath ??= $file->file_path;
+
         $response = InvoiceParser::make()->prompt(
             'Parse all data from this vendor invoice. Extract every field including line items, GST breakup, and TDS if present.',
-            attachments: [Document::fromStorage($file->file_path, disk: 'local')],
+            attachments: [Document::fromStorage($filePath, disk: 'local')],
         );
 
         if (empty($response['invoice_number']) || empty($response['vendor_name'])) {

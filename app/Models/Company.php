@@ -24,7 +24,21 @@ class Company extends Model
         'financial_year',
         'currency',
         'inbox_address',
+        'account_holder_name',
+        'date_of_birth',
+        'pan_number',
+        'mobile_number',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'account_holder_name' => 'encrypted',
+            'date_of_birth' => 'encrypted',
+            'pan_number' => 'encrypted',
+            'mobile_number' => 'encrypted',
+        ];
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

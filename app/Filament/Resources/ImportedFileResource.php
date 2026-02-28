@@ -67,6 +67,13 @@ class ImportedFileResource extends Resource
                             ->label('Bank Name (optional, auto-detected)')
                             ->maxLength(255),
 
+                        Forms\Components\TextInput::make('pdf_password')
+                            ->label('PDF Password (optional)')
+                            ->password()
+                            ->revealable()
+                            ->helperText('If the PDF is password-protected, enter the password here.')
+                            ->columnSpanFull(),
+
                         Forms\Components\Toggle::make('force_reimport')
                             ->label('Force re-import')
                             ->helperText('If this file was already imported, delete the previous import and re-import.')
@@ -174,6 +181,7 @@ class ImportedFileResource extends Resource
                     ->visible(fn (ImportedFile $record) => in_array($record->status, [
                         ImportStatus::Completed,
                         ImportStatus::Failed,
+                        ImportStatus::NeedsPassword,
                     ])),
 
                 Actions\DeleteAction::make(),

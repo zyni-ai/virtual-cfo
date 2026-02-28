@@ -42,6 +42,7 @@ class InboundEmailController
             'from' => $request->input('from', $request->input('sender')),
             'subject' => $request->input('subject'),
             'received_at' => now()->toIso8601String(),
+            'body_text' => $this->extractBodyText($request),
         ];
 
         $filesProcessed = 0;
@@ -66,6 +67,17 @@ class InboundEmailController
             'status' => 'ok',
             'files_processed' => $filesProcessed,
         ]);
+    }
+
+    private function extractBodyText(Request $request): ?string
+    {
+        $body = $request->input('stripped-text') ?? $request->input('body-plain');
+
+        if ($body === null) {
+            return null;
+        }
+
+        return mb_substr((string) $body, 0, 2000);
     }
 
     private function isDuplicate(string $messageId): bool

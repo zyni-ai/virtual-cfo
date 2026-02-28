@@ -85,7 +85,7 @@ parameters:
 			path: app/Filament/Resources/HeadMappingResource.php
 
 		-
-			message: '#^Call to function in_array\(\) with string and array\{App\\Enums\\ImportStatus\:\:Completed, App\\Enums\\ImportStatus\:\:Failed\} will always evaluate to false\.$#'
+			message: '#^Call to function in_array\(\) with string and array\{App\\Enums\\ImportStatus\:\:Completed, App\\Enums\\ImportStatus\:\:Failed, App\\Enums\\ImportStatus\:\:NeedsPassword\} will always evaluate to false\.$#'
 			identifier: function.impossibleType
 			count: 1
 			path: app/Filament/Resources/ImportedFileResource.php

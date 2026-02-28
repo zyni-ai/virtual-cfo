@@ -26,6 +26,16 @@ class CompanyFactory extends Factory
         ];
     }
 
+    public function withIdentity(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'account_holder_name' => fake()->name(),
+            'date_of_birth' => fake()->date('d/m/Y', '2000-01-01'),
+            'pan_number' => strtoupper(fake()->bothify('?????####?')),
+            'mobile_number' => fake()->numerify('98########'),
+        ]);
+    }
+
     public function zysk(): static
     {
         return $this->state(fn (array $attributes) => [

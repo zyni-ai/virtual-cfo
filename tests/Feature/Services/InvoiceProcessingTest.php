@@ -17,7 +17,7 @@ describe('DocumentProcessor invoice routing', function () {
     beforeEach(function () {
         Storage::fake('local');
 
-        $this->processor = new DocumentProcessor;
+        $this->processor = app(DocumentProcessor::class);
     });
 
     it('routes invoice PDFs to InvoiceParser agent', function () {

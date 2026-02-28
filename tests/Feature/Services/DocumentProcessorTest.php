@@ -14,7 +14,7 @@ describe('DocumentProcessor', function () {
     beforeEach(function () {
         Storage::fake('local');
 
-        $this->processor = new DocumentProcessor;
+        $this->processor = app(DocumentProcessor::class);
     });
 
     describe('detectFormat', function () {

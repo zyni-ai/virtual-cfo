@@ -81,11 +81,7 @@ describe('ProcessImportedFile job', function () {
 
 describe('ProcessImportedFile with Agent::fake()', function () {
     beforeEach(function () {
-        $mockOcr = Mockery::mock(\App\Services\DocumentProcessor\OcrService::class);
-        $mockOcr->shouldReceive('extractText')->andReturn('Extracted bank statement text');
-        app()->bind(\App\Services\DocumentProcessor\DocumentProcessor::class, function () use ($mockOcr) {
-            return new \App\Services\DocumentProcessor\DocumentProcessor($mockOcr);
-        });
+        //
     });
 
     it('creates transactions and completes file on successful parse', function () {

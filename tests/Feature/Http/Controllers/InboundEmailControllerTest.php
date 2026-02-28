@@ -317,6 +317,82 @@ describe('InboundEmailController source metadata', function () {
     });
 });
 
+describe('InboundEmailController email body capture', function () {
+    it('captures stripped-text as body_text in source metadata', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload([
+                'attachment-count' => '1',
+                'stripped-text' => 'Password: First 4 letters of PAN + DOB in DDMMYYYY',
+            ]),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        $metadata = $importedFile->source_metadata;
+
+        expect($metadata['body_text'])->toBe('Password: First 4 letters of PAN + DOB in DDMMYYYY');
+    });
+
+    it('falls back to body-plain when stripped-text is absent', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload([
+                'attachment-count' => '1',
+                'body-plain' => 'Please find attached statement. Password is your DOB.',
+            ]),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        $metadata = $importedFile->source_metadata;
+
+        expect($metadata['body_text'])->toBe('Please find attached statement. Password is your DOB.');
+    });
+
+    it('stores null body_text when no body fields are present', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        $metadata = $importedFile->source_metadata;
+
+        expect($metadata['body_text'])->toBeNull();
+    });
+
+    it('truncates body_text to 2000 characters', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+        $longBody = str_repeat('A', 3000);
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload([
+                'attachment-count' => '1',
+                'stripped-text' => $longBody,
+            ]),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        $metadata = $importedFile->source_metadata;
+
+        expect(strlen($metadata['body_text']))->toBe(2000);
+    });
+});
+
 describe('InboundEmailController deduplication', function () {
     it('skips processing when message_id already exists', function () {
         $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);

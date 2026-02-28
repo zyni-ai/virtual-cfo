@@ -2,9 +2,8 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\AccountType;
-use App\Filament\Resources\BankAccountResource\Pages;
-use App\Models\BankAccount;
+use App\Filament\Resources\CreditCardResource\Pages;
+use App\Models\CreditCard;
 use BackedEnum;
 use Filament\Actions;
 use Filament\Forms;
@@ -18,17 +17,17 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use UnitEnum;
 
-class BankAccountResource extends Resource
+class CreditCardResource extends Resource
 {
-    protected static ?string $model = BankAccount::class;
+    protected static ?string $model = CreditCard::class;
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-library';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-credit-card';
 
-    protected static ?string $navigationLabel = 'Bank Accounts';
+    protected static ?string $navigationLabel = 'Credit Cards';
 
     protected static string|UnitEnum|null $navigationGroup = 'Settings';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 6;
 
     public static function form(Schema $schema): Schema
     {
@@ -37,33 +36,19 @@ class BankAccountResource extends Resource
                 Section::make()
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->label('Bank Name')
+                            ->label('Card Name')
                             ->required()
                             ->maxLength(255),
 
-                        Forms\Components\TextInput::make('account_number')
-                            ->label('Account Number')
+                        Forms\Components\TextInput::make('card_number')
+                            ->label('Card Number')
                             ->maxLength(255),
-
-                        Forms\Components\TextInput::make('ifsc_code')
-                            ->label('IFSC Code')
-                            ->maxLength(255),
-
-                        Forms\Components\TextInput::make('branch')
-                            ->label('Branch')
-                            ->maxLength(255),
-
-                        Forms\Components\Select::make('account_type')
-                            ->label('Account Type')
-                            ->options(AccountType::class)
-                            ->default(AccountType::Current)
-                            ->required(),
 
                         Forms\Components\TextInput::make('pdf_password')
                             ->label('PDF Password')
                             ->password()
                             ->revealable()
-                            ->helperText('Used to auto-decrypt password-protected statements from this account.'),
+                            ->helperText('Used to auto-decrypt password-protected statements from this card.'),
 
                         Forms\Components\Toggle::make('is_active')
                             ->label('Active')
@@ -78,16 +63,12 @@ class BankAccountResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Bank')
+                    ->label('Card')
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('masked_account_number')
-                    ->label('Account Number'),
-
-                Tables\Columns\TextColumn::make('account_type')
-                    ->label('Type')
-                    ->badge(),
+                Tables\Columns\TextColumn::make('masked_card_number')
+                    ->label('Card Number'),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Active')
@@ -105,9 +86,6 @@ class BankAccountResource extends Resource
             ->defaultSort('name')
             ->filters([
                 TrashedFilter::make(),
-
-                Tables\Filters\SelectFilter::make('account_type')
-                    ->options(AccountType::class),
 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Active'),
@@ -127,7 +105,7 @@ class BankAccountResource extends Resource
             ]);
     }
 
-    /** @return Builder<BankAccount> */
+    /** @return Builder<CreditCard> */
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
@@ -144,9 +122,9 @@ class BankAccountResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListBankAccounts::route('/'),
-            'create' => Pages\CreateBankAccount::route('/create'),
-            'edit' => Pages\EditBankAccount::route('/{record}/edit'),
+            'index' => Pages\ListCreditCards::route('/'),
+            'create' => Pages\CreateCreditCard::route('/create'),
+            'edit' => Pages\EditCreditCard::route('/{record}/edit'),
         ];
     }
 }
