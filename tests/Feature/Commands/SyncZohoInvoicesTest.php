@@ -22,11 +22,11 @@ describe('SyncZohoInvoices command', function () {
 
         Connector::factory()->zohoConnected()->create([
             'company_id' => $company1->id,
-            'settings' => ['organization_id' => '111'],
+            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '111'],
         ]);
         Connector::factory()->zohoConnected()->create([
             'company_id' => $company2->id,
-            'settings' => ['organization_id' => '222'],
+            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '222'],
         ]);
 
         $this->artisan('connectors:sync-zoho')
@@ -39,7 +39,7 @@ describe('SyncZohoInvoices command', function () {
 
         Connector::factory()->zohoConnected()->inactive()->create([
             'company_id' => $company->id,
-            'settings' => ['organization_id' => '111'],
+            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '111'],
         ]);
 
         $this->artisan('connectors:sync-zoho')
@@ -53,11 +53,11 @@ describe('SyncZohoInvoices command', function () {
 
         Connector::factory()->zohoConnected()->create([
             'company_id' => $company1->id,
-            'settings' => ['organization_id' => '111'],
+            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '111'],
         ]);
         Connector::factory()->zohoConnected()->create([
             'company_id' => $company2->id,
-            'settings' => ['organization_id' => '222'],
+            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '222'],
         ]);
 
         $this->artisan("connectors:sync-zoho --company={$company1->id}")
@@ -71,11 +71,11 @@ describe('SyncZohoInvoices command', function () {
 
         Connector::factory()->zohoConnected()->create([
             'company_id' => $company1->id,
-            'settings' => ['organization_id' => '111'],
+            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '111'],
         ]);
         Connector::factory()->zohoConnected()->create([
             'company_id' => $company2->id,
-            'settings' => ['organization_id' => '222'],
+            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '222'],
         ]);
 
         $this->partialMock(ZohoInvoiceService::class, function ($mock) {

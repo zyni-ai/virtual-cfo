@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\ConnectorProvider;
+use App\Enums\ZohoDataCenter;
 use App\Models\Company;
 use App\Models\Connector;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,7 +23,12 @@ class ConnectorFactory extends Factory
             'access_token' => fake()->sha256(),
             'refresh_token' => fake()->sha256(),
             'token_expires_at' => now()->addHour(),
-            'settings' => ['organization_id' => fake()->numerify('##########')],
+            'settings' => [
+                'data_center' => ZohoDataCenter::India->value,
+                'client_id' => fake()->regexify('[0-9]{19}\.[A-Z0-9]{32}'),
+                'client_secret' => fake()->sha256(),
+                'organization_id' => fake()->numerify('##########'),
+            ],
             'last_synced_at' => null,
             'is_active' => true,
         ];
@@ -35,6 +41,12 @@ class ConnectorFactory extends Factory
             'access_token' => fake()->sha256(),
             'refresh_token' => fake()->sha256(),
             'token_expires_at' => now()->addHour(),
+            'settings' => [
+                'data_center' => ZohoDataCenter::India->value,
+                'client_id' => fake()->regexify('[0-9]{19}\.[A-Z0-9]{32}'),
+                'client_secret' => fake()->sha256(),
+                'organization_id' => fake()->numerify('##########'),
+            ],
             'is_active' => true,
             'last_synced_at' => now()->subHours(2),
         ]);
