@@ -21,8 +21,6 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
-        (new AccountHeadSeeder)->run($company);
-
         if (app()->environment('local', 'testing')) {
             $user = User::factory()->create([
                 'name' => 'Admin',

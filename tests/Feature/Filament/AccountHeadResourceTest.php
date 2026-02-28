@@ -117,4 +117,11 @@ describe('AccountHeadResource', function () {
             ->assertCanSeeTableRecords([$active])
             ->assertCanNotSeeTableRecords([$inactive]);
     });
+
+    it('shows empty state with import guidance when no heads exist', function () {
+        livewire(ListAccountHeads::class)
+            ->assertSee('No account heads yet')
+            ->assertSee('Import your chart of accounts from Tally to get started.')
+            ->assertTableActionExists('import_tally_empty');
+    });
 });
