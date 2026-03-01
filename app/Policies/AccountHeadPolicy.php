@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\AccountHead;
 use App\Models\User;
 
@@ -20,16 +19,16 @@ class AccountHeadPolicy
 
     public function create(User $user): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->currentRole()?->canWrite() ?? false;
     }
 
     public function update(User $user, AccountHead $accountHead): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->currentRole()?->canWrite() ?? false;
     }
 
     public function delete(User $user, AccountHead $accountHead): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->currentRole()?->canWrite() ?? false;
     }
 }

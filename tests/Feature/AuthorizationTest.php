@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\AccountHead;
 use App\Models\User;
 use App\Policies\AccountHeadPolicy;
@@ -9,15 +10,19 @@ use App\Policies\TransactionPolicy;
 
 describe('Authorization Policies', function () {
     describe('Admin role', function () {
+        beforeEach(function () {
+            asUser(role: UserRole::Admin);
+        });
+
         it('can view resources', function () {
-            $admin = User::factory()->admin()->create();
+            $admin = auth()->user();
             $policy = new AccountHeadPolicy;
 
             expect($policy->viewAny($admin))->toBeTrue();
         });
 
         it('can create resources', function () {
-            $admin = User::factory()->admin()->create();
+            $admin = auth()->user();
 
             expect((new AccountHeadPolicy)->create($admin))->toBeTrue()
                 ->and((new ImportedFilePolicy)->create($admin))->toBeTrue()
@@ -26,7 +31,7 @@ describe('Authorization Policies', function () {
         });
 
         it('can delete resources', function () {
-            $admin = User::factory()->admin()->create();
+            $admin = auth()->user();
             $head = AccountHead::factory()->create();
             $policy = new AccountHeadPolicy;
 
@@ -34,9 +39,50 @@ describe('Authorization Policies', function () {
         });
     });
 
-    describe('Viewer role', function () {
+    describe('Accountant role', function () {
+        beforeEach(function () {
+            asUser(User::factory()->accountant()->create(), UserRole::Accountant);
+        });
+
         it('can view resources', function () {
-            $viewer = User::factory()->viewer()->create();
+            $accountant = auth()->user();
+            $policy = new AccountHeadPolicy;
+
+            expect($policy->viewAny($accountant))->toBeTrue()
+                ->and($policy->view($accountant, AccountHead::factory()->create()))->toBeTrue();
+        });
+
+        it('can create resources', function () {
+            $accountant = auth()->user();
+
+            expect((new AccountHeadPolicy)->create($accountant))->toBeTrue()
+                ->and((new ImportedFilePolicy)->create($accountant))->toBeTrue()
+                ->and((new TransactionPolicy)->create($accountant))->toBeTrue()
+                ->and((new HeadMappingPolicy)->create($accountant))->toBeTrue();
+        });
+
+        it('can update resources', function () {
+            $accountant = auth()->user();
+            $head = AccountHead::factory()->create();
+
+            expect((new AccountHeadPolicy)->update($accountant, $head))->toBeTrue();
+        });
+
+        it('can delete resources', function () {
+            $accountant = auth()->user();
+            $head = AccountHead::factory()->create();
+
+            expect((new AccountHeadPolicy)->delete($accountant, $head))->toBeTrue();
+        });
+    });
+
+    describe('Viewer role', function () {
+        beforeEach(function () {
+            asUser(User::factory()->viewer()->create(), UserRole::Viewer);
+        });
+
+        it('can view resources', function () {
+            $viewer = auth()->user();
             $policy = new AccountHeadPolicy;
 
             expect($policy->viewAny($viewer))->toBeTrue()
@@ -44,7 +90,7 @@ describe('Authorization Policies', function () {
         });
 
         it('cannot create resources', function () {
-            $viewer = User::factory()->viewer()->create();
+            $viewer = auth()->user();
 
             expect((new AccountHeadPolicy)->create($viewer))->toBeFalse()
                 ->and((new ImportedFilePolicy)->create($viewer))->toBeFalse()
@@ -53,14 +99,14 @@ describe('Authorization Policies', function () {
         });
 
         it('cannot update resources', function () {
-            $viewer = User::factory()->viewer()->create();
+            $viewer = auth()->user();
             $head = AccountHead::factory()->create();
 
             expect((new AccountHeadPolicy)->update($viewer, $head))->toBeFalse();
         });
 
         it('cannot delete resources', function () {
-            $viewer = User::factory()->viewer()->create();
+            $viewer = auth()->user();
             $head = AccountHead::factory()->create();
 
             expect((new AccountHeadPolicy)->delete($viewer, $head))->toBeFalse();

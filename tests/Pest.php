@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\Company;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -15,12 +16,12 @@ pest()->extend(Tests\TestCase::class)
 /**
  * Authenticate as a user for Filament tests and set up tenant context.
  */
-function asUser(?User $user = null): User
+function asUser(?User $user = null, UserRole $role = UserRole::Admin): User
 {
     $user ??= User::factory()->admin()->create();
 
     $company = Company::factory()->create();
-    $company->users()->attach($user);
+    $company->users()->attach($user, ['role' => $role->value]);
 
     test()->actingAs($user);
 

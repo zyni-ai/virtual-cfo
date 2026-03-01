@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use Filament\Facades\Filament;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasDefaultTenant;
 use Filament\Models\Contracts\HasTenants;
@@ -51,7 +52,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     /** @return BelongsToMany<Company, $this> */
     public function companies(): BelongsToMany
     {
-        return $this->belongsToMany(Company::class)->withTimestamps();
+        return $this->belongsToMany(Company::class)->withPivot('role')->withTimestamps();
     }
 
     /** @return Collection<int, Company> */
@@ -68,6 +69,24 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     public function getDefaultTenant(Panel $panel): ?Model
     {
         return $this->companies->first();
+    }
+
+    public function roleForCompany(Company $company): ?UserRole
+    {
+        $pivot = $this->companies()->where('company_id', $company->id)->first();
+
+        return $pivot ? UserRole::tryFrom($pivot->pivot->role) : null;
+    }
+
+    public function currentRole(): ?UserRole
+    {
+        $tenant = Filament::getTenant();
+
+        if (! $tenant instanceof Company) {
+            return null;
+        }
+
+        return $this->roleForCompany($tenant);
     }
 
     public function importedFiles(): HasMany
