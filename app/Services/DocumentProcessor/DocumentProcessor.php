@@ -182,8 +182,7 @@ class DocumentProcessor
     {
         $filePath = $file->file_path;
 
-        if ($this->decryptionService->isAvailable()
-            && $this->decryptionService->isPasswordProtected($filePath)) {
+        if ($this->decryptionService->isPasswordProtected($filePath)) {
             $filePath = $this->decryptPasswordProtectedPdf($file);
 
             if ($filePath === null) {
@@ -208,6 +207,15 @@ class DocumentProcessor
      */
     protected function decryptPasswordProtectedPdf(ImportedFile $file): ?string
     {
+        if (! $this->decryptionService->isQpdfAvailable()) {
+            $file->update([
+                'status' => ImportStatus::NeedsPassword,
+                'error_message' => 'This PDF is password-protected but the decryption tool (qpdf) is not installed on the server.',
+            ]);
+
+            return null;
+        }
+
         $passwords = $this->gatherPasswords($file);
 
         foreach ($passwords as $password) {

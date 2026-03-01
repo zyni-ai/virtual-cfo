@@ -10,13 +10,13 @@ beforeEach(function () {
     $this->service = new PdfDecryptionService;
 });
 
-describe('PdfDecryptionService isAvailable', function () {
+describe('PdfDecryptionService isQpdfAvailable', function () {
     it('returns true when qpdf is installed', function () {
         Process::fake([
             'qpdf --version' => Process::result(output: 'qpdf version 11.9.0'),
         ]);
 
-        expect($this->service->isAvailable())->toBeTrue();
+        expect($this->service->isQpdfAvailable())->toBeTrue();
     });
 
     it('returns false when qpdf is not installed', function () {
@@ -24,29 +24,25 @@ describe('PdfDecryptionService isAvailable', function () {
             'qpdf --version' => Process::result(exitCode: 1, errorOutput: 'command not found'),
         ]);
 
-        expect($this->service->isAvailable())->toBeFalse();
+        expect($this->service->isQpdfAvailable())->toBeFalse();
     });
 });
 
 describe('PdfDecryptionService isPasswordProtected', function () {
-    it('returns true when qpdf reports the file is encrypted', function () {
-        Storage::put('statements/test.pdf', 'fake-pdf-content');
-
-        Process::fake([
-            '*qpdf --check*' => Process::result(exitCode: 2, errorOutput: 'encrypted'),
-        ]);
+    it('returns true when PDF contains /Encrypt marker', function () {
+        Storage::put('statements/test.pdf', '%PDF-1.4 some content /Encrypt some more content');
 
         expect($this->service->isPasswordProtected('statements/test.pdf'))->toBeTrue();
     });
 
-    it('returns false when qpdf reports the file is not encrypted', function () {
-        Storage::put('statements/test.pdf', 'fake-pdf-content');
-
-        Process::fake([
-            '*qpdf --check*' => Process::result(exitCode: 0, output: 'No errors found'),
-        ]);
+    it('returns false when PDF does not contain /Encrypt marker', function () {
+        Storage::put('statements/test.pdf', '%PDF-1.4 normal unencrypted content');
 
         expect($this->service->isPasswordProtected('statements/test.pdf'))->toBeFalse();
+    });
+
+    it('returns false when file does not exist', function () {
+        expect($this->service->isPasswordProtected('statements/nonexistent.pdf'))->toBeFalse();
     });
 });
 

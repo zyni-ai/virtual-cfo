@@ -22,14 +22,11 @@ beforeEach(function () {
  *
  * @return Mockery\MockInterface&PdfDecryptionService
  */
-function mockDecryptionService(bool $available = true, bool $passwordProtected = false): Mockery\MockInterface
+function mockDecryptionService(bool $qpdfAvailable = true, bool $passwordProtected = false): Mockery\MockInterface
 {
     $mock = Mockery::mock(PdfDecryptionService::class);
-    $mock->shouldReceive('isAvailable')->andReturn($available);
-
-    if ($available) {
-        $mock->shouldReceive('isPasswordProtected')->andReturn($passwordProtected);
-    }
+    $mock->shouldReceive('isPasswordProtected')->andReturn($passwordProtected);
+    $mock->shouldReceive('isQpdfAvailable')->andReturn($qpdfAvailable);
 
     app()->instance(PdfDecryptionService::class, $mock);
 
@@ -55,7 +52,7 @@ describe('DocumentProcessor PDF decryption', function () {
     it('passes unprotected PDFs through without decryption', function () {
         Storage::put('statements/bank.pdf', 'fake-pdf-content');
 
-        $mock = mockDecryptionService(available: true, passwordProtected: false);
+        $mock = mockDecryptionService(passwordProtected: false);
         $mock->shouldNotReceive('decrypt');
 
         fakeStatementParser();
@@ -77,7 +74,7 @@ describe('DocumentProcessor PDF decryption', function () {
         Storage::put('statements/bank.pdf', 'encrypted-pdf-content');
         Storage::put('statements/bank_decrypted.pdf', 'decrypted-pdf-content');
 
-        $mock = mockDecryptionService(available: true, passwordProtected: true);
+        $mock = mockDecryptionService(passwordProtected: true);
         $mock->shouldReceive('decrypt')
             ->with('statements/bank.pdf', 'manual123')
             ->andReturn('statements/bank_decrypted.pdf');
@@ -103,7 +100,7 @@ describe('DocumentProcessor PDF decryption', function () {
         Storage::put('statements/bank.pdf', 'encrypted-pdf-content');
         Storage::put('statements/bank_decrypted.pdf', 'decrypted-pdf-content');
 
-        $mock = mockDecryptionService(available: true, passwordProtected: true);
+        $mock = mockDecryptionService(passwordProtected: true);
         $mock->shouldReceive('decrypt')
             ->with('statements/bank.pdf', 'bankpass123')
             ->andReturn('statements/bank_decrypted.pdf');
@@ -131,7 +128,7 @@ describe('DocumentProcessor PDF decryption', function () {
         Storage::put('statements/cc.pdf', 'encrypted-pdf-content');
         Storage::put('statements/cc_decrypted.pdf', 'decrypted-pdf-content');
 
-        $mock = mockDecryptionService(available: true, passwordProtected: true);
+        $mock = mockDecryptionService(passwordProtected: true);
         $mock->shouldReceive('decrypt')
             ->with('statements/cc.pdf', 'ccpass456')
             ->andReturn('statements/cc_decrypted.pdf');
@@ -159,7 +156,7 @@ describe('DocumentProcessor PDF decryption', function () {
         Storage::put('statements/bank.pdf', 'encrypted-pdf-content');
         Storage::put('statements/bank_decrypted.pdf', 'decrypted-pdf-content');
 
-        $mock = mockDecryptionService(available: true, passwordProtected: true);
+        $mock = mockDecryptionService(passwordProtected: true);
         $mock->shouldReceive('decrypt')
             ->with('statements/bank.pdf', 'hdfc_pass')
             ->andReturn('statements/bank_decrypted.pdf');
@@ -194,7 +191,7 @@ describe('DocumentProcessor PDF decryption', function () {
         Storage::put('statements/cc.pdf', 'encrypted-pdf-content');
         Storage::put('statements/cc_decrypted.pdf', 'decrypted-pdf-content');
 
-        $mock = mockDecryptionService(available: true, passwordProtected: true);
+        $mock = mockDecryptionService(passwordProtected: true);
         $mock->shouldReceive('decrypt')
             ->with('statements/cc.pdf', 'icici_cc_pass')
             ->andReturn('statements/cc_decrypted.pdf');
@@ -228,7 +225,7 @@ describe('DocumentProcessor PDF decryption', function () {
     it('sets NeedsPassword status when all passwords fail', function () {
         Storage::put('statements/bank.pdf', 'encrypted-pdf-content');
 
-        $mock = mockDecryptionService(available: true, passwordProtected: true);
+        $mock = mockDecryptionService(passwordProtected: true);
         $mock->shouldReceive('decrypt')
             ->andThrow(new RuntimeException('Failed to decrypt PDF: wrong password'));
 
@@ -249,7 +246,7 @@ describe('DocumentProcessor PDF decryption', function () {
     it('sets NeedsPassword when no stored password exists for linked account', function () {
         Storage::put('statements/bank.pdf', 'encrypted-pdf-content');
 
-        $mock = mockDecryptionService(available: true, passwordProtected: true);
+        $mock = mockDecryptionService(passwordProtected: true);
         $mock->shouldNotReceive('decrypt');
 
         $bankAccount = BankAccount::factory()->create();
@@ -269,12 +266,10 @@ describe('DocumentProcessor PDF decryption', function () {
         expect($file->status)->toBe(ImportStatus::NeedsPassword);
     });
 
-    it('skips decryption when qpdf is not available', function () {
-        Storage::put('statements/bank.pdf', 'fake-pdf-content');
+    it('sets NeedsPassword when qpdf is not available for encrypted PDF', function () {
+        Storage::put('statements/bank.pdf', 'encrypted-pdf-content');
 
-        mockDecryptionService(available: false);
-
-        fakeStatementParser();
+        mockDecryptionService(qpdfAvailable: false, passwordProtected: true);
 
         $file = ImportedFile::factory()->create([
             'file_path' => 'statements/bank.pdf',
@@ -286,14 +281,15 @@ describe('DocumentProcessor PDF decryption', function () {
         app(DocumentProcessor::class)->process($file);
 
         $file->refresh();
-        expect($file->status)->toBe(ImportStatus::Completed);
+        expect($file->status)->toBe(ImportStatus::NeedsPassword)
+            ->and($file->error_message)->toContain('qpdf');
     });
 
     it('prefers manual password over stored password', function () {
         Storage::put('statements/bank.pdf', 'encrypted-pdf-content');
         Storage::put('statements/bank_decrypted.pdf', 'decrypted-pdf-content');
 
-        $mock = mockDecryptionService(available: true, passwordProtected: true);
+        $mock = mockDecryptionService(passwordProtected: true);
         $mock->shouldReceive('decrypt')
             ->with('statements/bank.pdf', 'manual_override')
             ->once()
@@ -379,7 +375,7 @@ describe('DocumentProcessor PDF decryption', function () {
     it('auto-matches credit card when statement type is credit_card', function () {
         Storage::put('statements/cc.pdf', 'fake-pdf-content');
 
-        mockDecryptionService(available: true, passwordProtected: false);
+        mockDecryptionService(passwordProtected: false);
 
         $creditCard = CreditCard::factory()->create(['name' => 'HDFC Credit Card']);
 

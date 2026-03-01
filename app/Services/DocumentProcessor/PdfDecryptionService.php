@@ -7,19 +7,36 @@ use Illuminate\Support\Facades\Storage;
 
 class PdfDecryptionService
 {
-    public function isAvailable(): bool
+    /**
+     * Check if the qpdf CLI tool is available for decryption.
+     */
+    public function isQpdfAvailable(): bool
     {
         $result = Process::run('qpdf --version');
 
         return $result->successful();
     }
 
+    /**
+     * Detect if a PDF is password-protected by checking for /Encrypt in the raw bytes.
+     *
+     * This is a PHP-native check that does not require qpdf.
+     */
     public function isPasswordProtected(string $storagePath): bool
     {
         $absolutePath = Storage::disk('local')->path($storagePath);
-        $result = Process::timeout(60)->run("qpdf --check {$this->escapePath($absolutePath)}");
 
-        return $result->exitCode() === 2;
+        if (! file_exists($absolutePath)) {
+            return false;
+        }
+
+        $content = file_get_contents($absolutePath);
+
+        if ($content === false) {
+            return false;
+        }
+
+        return str_contains($content, '/Encrypt');
     }
 
     /**
