@@ -164,6 +164,69 @@ class TeamMembers extends Page implements HasTable
                     ->dateTime('d M Y')
                     ->sortable(),
             ])
+            ->actions([
+                Actions\Action::make('change_role')
+                    ->label('Change Role')
+                    ->icon('heroicon-o-pencil-square')
+                    ->visible(fn (User $record): bool => $record->id !== auth()->id())
+                    ->form([
+                        Forms\Components\Select::make('role')
+                            ->options(UserRole::class)
+                            ->default(fn (User $record): string => $record->getAttribute('pivot_role') ?? UserRole::Viewer->value)
+                            ->required(),
+                    ])
+                    ->action(function (array $data, User $record) use ($company): void {
+                        /** @var string $oldRole */
+                        $oldRole = $record->getAttribute('pivot_role');
+                        $newRole = $data['role'] instanceof UserRole ? $data['role']->value : $data['role'];
+
+                        $company->users()->updateExistingPivot($record->id, [
+                            'role' => $newRole,
+                        ]);
+
+                        activity('team')
+                            ->performedOn($company)
+                            ->withProperties([
+                                'user_id' => $record->id,
+                                'email' => $record->email,
+                                'old_role' => $oldRole,
+                                'new_role' => $newRole,
+                            ])
+                            ->log('role_changed');
+
+                        $roleLabel = UserRole::tryFrom($newRole)?->getLabel() ?? ucfirst($newRole);
+
+                        Notification::make()
+                            ->title('Role updated')
+                            ->body("{$record->name}'s role changed to {$roleLabel}.")
+                            ->success()
+                            ->send();
+                    }),
+
+                Actions\Action::make('remove')
+                    ->label('Remove')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->visible(fn (User $record): bool => $record->id !== auth()->id())
+                    ->action(function (User $record) use ($company): void {
+                        $company->users()->detach($record->id);
+
+                        activity('team')
+                            ->performedOn($company)
+                            ->withProperties([
+                                'user_id' => $record->id,
+                                'email' => $record->email,
+                            ])
+                            ->log('member_removed');
+
+                        Notification::make()
+                            ->title('Member removed')
+                            ->body("{$record->name} has been removed from the team.")
+                            ->success()
+                            ->send();
+                    }),
+            ])
             ->defaultSort('name');
     }
 }
