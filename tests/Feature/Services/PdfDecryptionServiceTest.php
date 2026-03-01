@@ -64,6 +64,21 @@ describe('PdfDecryptionService decrypt', function () {
         });
     });
 
+    it('succeeds with warnings when qpdf returns exit code 3', function () {
+        Storage::put('statements/test.pdf', 'encrypted-pdf-content');
+
+        Process::fake([
+            '*qpdf --password=*--decrypt*' => Process::result(
+                exitCode: 3,
+                errorOutput: '/Perms field in encryption dictionary doesn\'t match expected value',
+            ),
+        ]);
+
+        $result = $this->service->decrypt('statements/test.pdf', 'secret123');
+
+        expect($result)->toBe('statements/test_decrypted.pdf');
+    });
+
     it('throws RuntimeException on wrong password', function () {
         Storage::put('statements/test.pdf', 'encrypted-pdf-content');
 

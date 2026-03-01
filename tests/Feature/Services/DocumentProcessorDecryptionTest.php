@@ -395,4 +395,29 @@ describe('DocumentProcessor PDF decryption', function () {
         expect($file->status)->toBe(ImportStatus::Completed)
             ->and($file->credit_card_id)->toBe($creditCard->id);
     });
+
+    it('auto-creates credit card when no matching one exists', function () {
+        Storage::put('statements/cc.pdf', 'fake-pdf-content');
+
+        mockDecryptionService(passwordProtected: false);
+
+        fakeStatementParser('SBI Credit Card', 'AMAZON');
+
+        $file = ImportedFile::factory()->create([
+            'file_path' => 'statements/cc.pdf',
+            'original_filename' => 'cc_statement.pdf',
+            'statement_type' => StatementType::CreditCard,
+            'status' => ImportStatus::Pending,
+        ]);
+
+        app(DocumentProcessor::class)->process($file);
+
+        $file->refresh();
+        expect($file->status)->toBe(ImportStatus::Completed)
+            ->and($file->credit_card_id)->not->toBeNull();
+
+        $creditCard = CreditCard::find($file->credit_card_id);
+        expect($creditCard->name)->toBe('SBI Credit Card')
+            ->and($creditCard->company_id)->toBe($file->company_id);
+    });
 });

@@ -54,7 +54,8 @@ class PdfDecryptionService
             "qpdf --password={$this->escapeArgument($password)} --decrypt {$this->escapePath($absolutePath)} {$this->escapePath($absoluteDecryptedPath)}"
         );
 
-        if ($result->failed()) {
+        // qpdf exit codes: 0 = success, 2 = errors, 3 = warnings (file is valid)
+        if (! in_array($result->exitCode(), [0, 3], true)) {
             throw new \RuntimeException(
                 "Failed to decrypt PDF: {$result->errorOutput()}"
             );

@@ -8,6 +8,7 @@ use App\Filament\Resources\ImportedFileResource;
 use App\Jobs\ProcessImportedFile;
 use App\Models\ImportedFile;
 use Filament\Notifications\Notification;
+use Filament\Facades\Filament;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Support\Exceptions\Halt;
 use Illuminate\Support\Facades\Auth;
@@ -34,7 +35,12 @@ class CreateImportedFile extends CreateRecord
 
         // Check for duplicate file
         if (isset($data['file_hash'])) {
-            $existing = ImportedFile::where('file_hash', $data['file_hash'])->first();
+            /** @var \App\Models\Company $tenant */
+            $tenant = Filament::getTenant();
+
+            $existing = ImportedFile::where('company_id', $tenant->id)
+                ->where('file_hash', $data['file_hash'])
+                ->first();
 
             if ($existing) {
                 $forceReimport = $data['force_reimport'] ?? false;

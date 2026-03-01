@@ -37,6 +37,9 @@ class DocumentProcessor
 
         $file->update(['status' => ImportStatus::Processing]);
 
+        // Clear any transactions from a previous attempt to ensure idempotent retries
+        $file->transactions()->delete();
+
         $format = $this->detectFormat($file);
 
         match ($format) {
@@ -181,22 +184,31 @@ class DocumentProcessor
     protected function parsePdf(ImportedFile $file): void
     {
         $filePath = $file->file_path;
+        $decryptedPath = null;
 
         if ($this->decryptionService->isPasswordProtected($filePath)) {
-            $filePath = $this->decryptPasswordProtectedPdf($file);
+            $decryptedPath = $this->decryptPasswordProtectedPdf($file);
 
-            if ($filePath === null) {
+            if ($decryptedPath === null) {
                 return;
             }
+
+            $filePath = $decryptedPath;
         }
 
-        /** @var StatementType $statementType */
-        $statementType = $file->statement_type;
+        try {
+            /** @var StatementType $statementType */
+            $statementType = $file->statement_type;
 
-        match ($statementType) {
-            StatementType::Bank, StatementType::CreditCard => $this->parsePdfStatement($file, $filePath),
-            StatementType::Invoice => $this->parsePdfInvoice($file, $filePath),
-        };
+            match ($statementType) {
+                StatementType::Bank, StatementType::CreditCard => $this->parsePdfStatement($file, $filePath),
+                StatementType::Invoice => $this->parsePdfInvoice($file, $filePath),
+            };
+        } finally {
+            if ($decryptedPath) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($decryptedPath);
+            }
+        }
     }
 
     /**
@@ -431,7 +443,7 @@ class DocumentProcessor
     }
 
     /**
-     * Attempt to match an AI-detected bank name to an existing BankAccount for the file's company.
+     * Match or create a BankAccount from AI-detected bank name and link it to the file.
      */
     protected function autoMatchBankAccount(ImportedFile $file, string $bankName): void
     {
@@ -439,17 +451,15 @@ class DocumentProcessor
             return;
         }
 
-        $bankAccount = BankAccount::where('company_id', $file->company_id)
-            ->where('name', $bankName)
-            ->first();
+        $bankAccount = BankAccount::firstOrCreate(
+            ['company_id' => $file->company_id, 'name' => $bankName],
+        );
 
-        if ($bankAccount) {
-            $file->update(['bank_account_id' => $bankAccount->id]);
-        }
+        $file->update(['bank_account_id' => $bankAccount->id]);
     }
 
     /**
-     * Attempt to match an AI-detected bank name to an existing CreditCard for the file's company.
+     * Match or create a CreditCard from AI-detected bank name and link it to the file.
      */
     protected function autoMatchCreditCard(ImportedFile $file, string $bankName): void
     {
@@ -457,13 +467,11 @@ class DocumentProcessor
             return;
         }
 
-        $creditCard = CreditCard::where('company_id', $file->company_id)
-            ->where('name', $bankName)
-            ->first();
+        $creditCard = CreditCard::firstOrCreate(
+            ['company_id' => $file->company_id, 'name' => $bankName],
+        );
 
-        if ($creditCard) {
-            $file->update(['credit_card_id' => $creditCard->id]);
-        }
+        $file->update(['credit_card_id' => $creditCard->id]);
     }
 
     /**

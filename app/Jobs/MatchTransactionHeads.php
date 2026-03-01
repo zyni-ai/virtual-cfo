@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Enums\ImportStatus;
 use App\Models\ImportedFile;
 use App\Services\HeadMatcher\HeadMatcherService;
 use Illuminate\Bus\Queueable;
@@ -70,11 +69,6 @@ class MatchTransactionHeads implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        $this->importedFile->update([
-            'status' => ImportStatus::Failed,
-            'error_message' => 'Head matching permanently failed: '.mb_substr($exception->getMessage(), 0, 500),
-        ]);
-
         Log::error('MatchTransactionHeads permanently failed', [
             'file_id' => $this->importedFile->id,
             'exception' => $exception->getMessage(),
