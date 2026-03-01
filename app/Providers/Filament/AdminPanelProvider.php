@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Pages\Tenancy\EditCompanySettings;
 use App\Filament\Pages\Tenancy\RegisterCompany;
 use App\Http\Middleware\SetTenantDatabaseContext;
+use App\Http\Middleware\UpdateLastActiveAt;
 use App\Models\Company;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -61,6 +62,7 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 SetTenantDatabaseContext::class,
+                UpdateLastActiveAt::class,
             ]);
     }
 }

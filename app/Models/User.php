@@ -99,6 +99,12 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         return $this->roleForCompany($tenant);
     }
 
+    /** @return HasMany<LoginSession, $this> */
+    public function loginSessions(): HasMany
+    {
+        return $this->hasMany(LoginSession::class);
+    }
+
     public function importedFiles(): HasMany
     {
         return $this->hasMany(ImportedFile::class, 'uploaded_by');
