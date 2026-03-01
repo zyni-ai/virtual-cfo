@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Storage;
 
 class PdfDecryptionService
 {
+    public const STORAGE_DISK = 'local';
+
     /**
      * Check if the qpdf CLI tool is available for decryption.
      */
@@ -24,19 +26,22 @@ class PdfDecryptionService
      */
     public function isPasswordProtected(string $storagePath): bool
     {
-        $absolutePath = Storage::disk('local')->path($storagePath);
+        $absolutePath = Storage::disk(self::STORAGE_DISK)->path($storagePath);
 
         if (! file_exists($absolutePath)) {
             return false;
         }
 
-        $content = file_get_contents($absolutePath);
+        $handle = fopen($absolutePath, 'rb');
 
-        if ($content === false) {
+        if ($handle === false) {
             return false;
         }
 
-        return str_contains($content, '/Encrypt');
+        $header = fread($handle, 4096);
+        fclose($handle);
+
+        return $header !== false && str_contains($header, '/Encrypt');
     }
 
     /**
@@ -46,9 +51,9 @@ class PdfDecryptionService
      */
     public function decrypt(string $storagePath, string $password): string
     {
-        $absolutePath = Storage::disk('local')->path($storagePath);
+        $absolutePath = Storage::disk(self::STORAGE_DISK)->path($storagePath);
         $decryptedPath = $this->buildDecryptedPath($storagePath);
-        $absoluteDecryptedPath = Storage::disk('local')->path($decryptedPath);
+        $absoluteDecryptedPath = Storage::disk(self::STORAGE_DISK)->path($decryptedPath);
 
         $result = Process::timeout(60)->run(
             "qpdf --password={$this->escapeArgument($password)} --decrypt {$this->escapePath($absolutePath)} {$this->escapePath($absoluteDecryptedPath)}"

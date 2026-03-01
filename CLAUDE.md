@@ -28,7 +28,7 @@ Use `search-docs` before implementing non-trivial Laravel features.
 |-----------|--------------|-------------|
 | **Filament v5** | `/mcp__laravel-boost__filament/filament` | Building resources, forms, tables, actions, testing CRUD |
 | **Laravel AI SDK** | `/mcp__laravel-boost__laravel/ai` | Working on agents, structured output, tools, providers |
-| **Code Simplifier** | `/mcp__laravel-boost__laravel-code-simplifier` | TDD refactor step — after tests pass, before commit |
+| **Code Simplifier** | `/simplify` (laravel-simplifier plugin) | TDD refactor step — after tests pass, before commit |
 
 Pest, Livewire, Pint, and core Laravel guidelines are always-on (embedded via Boost).
 
@@ -39,7 +39,7 @@ Pest, Livewire, Pint, and core Laravel guidelines are always-on (embedded via Bo
 1. **Explore** - Read relevant files, understand context. Don't write code yet.
 2. **Plan** - Use Plan Mode for non-trivial work. Create issue via `gh issue create`.
 3. **Code** - TDD: Write failing tests → Implement → Refactor. Be explicit about TDD to avoid mock implementations.
-4. **Simplify** - Activate `/mcp__laravel-boost__laravel-code-simplifier` on modified files during the REFACTOR step.
+4. **Simplify** - Run `/simplify` on modified files during the REFACTOR step.
 5. **Verify** - Tests are the verification. Run `php artisan test --filter=<related>` and ensure all pass before committing.
 5. **Commit** - At natural breakpoints: after tests written, after tests pass, after PR ready.
 
@@ -48,7 +48,7 @@ Pest, Livewire, Pint, and core Laravel guidelines are always-on (embedded via Bo
 **Types:** `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 **PR:** `gh pr create` — must include "Closes #XX"
 
-**TDD (IMPORTANT):** RED → GREEN → REFACTOR. Don't skip the refactor step. Activate the Laravel Code Simplifier (`/mcp__laravel-boost__laravel-code-simplifier`) during REFACTOR to enforce Laravel conventions, PSR-12 standards, and project patterns on modified code. Re-run tests after simplification.
+**TDD (IMPORTANT):** RED → GREEN → REFACTOR. Don't skip the refactor step. Run `/simplify` (laravel-simplifier plugin) during REFACTOR to enforce Laravel conventions, PSR-12 standards, and project patterns on modified code. Re-run tests after simplification.
 
 **Context:** Use `/clear` between unrelated tasks to avoid context pollution.
 

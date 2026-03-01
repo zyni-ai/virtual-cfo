@@ -197,27 +197,32 @@ class InboundEmailController
      */
     private function classifyText(string $text): ?StatementType
     {
-        $invoicePatterns = ['inv', 'invoice', 'tax[_\-\s]?invoice', 'bill', 'debit[_\-\s]?note', 'credit[_\-\s]?note'];
-        foreach ($invoicePatterns as $pattern) {
-            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_\d])/', $text)) {
-                return StatementType::Invoice;
-            }
-        }
+        $patternMap = [
+            [StatementType::Invoice, ['inv', 'invoice', 'tax[_\-\s]?invoice', 'bill', 'debit[_\-\s]?note', 'credit[_\-\s]?note']],
+            [StatementType::CreditCard, ['credit[_\-\s]?card', 'cc[_\-\s]?statement']],
+            [StatementType::Bank, ['statement', 'bank[_\-\s]?statement', 'account[_\-\s]?statement']],
+        ];
 
-        $creditCardPatterns = ['credit[_\-\s]?card', 'cc[_\-\s]?statement'];
-        foreach ($creditCardPatterns as $pattern) {
-            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_\d])/', $text)) {
-                return StatementType::CreditCard;
-            }
-        }
-
-        $statementPatterns = ['statement', 'bank[_\-\s]?statement', 'account[_\-\s]?statement'];
-        foreach ($statementPatterns as $pattern) {
-            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_\d])/', $text)) {
-                return StatementType::Bank;
+        foreach ($patternMap as [$type, $patterns]) {
+            if ($this->matchesAny($text, $patterns)) {
+                return $type;
             }
         }
 
         return null;
+    }
+
+    /**
+     * @param  list<string>  $patterns
+     */
+    private function matchesAny(string $text, array $patterns): bool
+    {
+        foreach ($patterns as $pattern) {
+            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_\d])/', $text)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

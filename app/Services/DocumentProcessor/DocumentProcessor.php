@@ -14,6 +14,7 @@ use App\Models\Transaction;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Files\Document;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -38,7 +39,9 @@ class DocumentProcessor
         $file->update(['status' => ImportStatus::Processing]);
 
         // Clear any transactions from a previous attempt to ensure idempotent retries
-        $file->transactions()->delete();
+        if ($file->transactions()->exists()) {
+            $file->transactions()->delete();
+        }
 
         $format = $this->detectFormat($file);
 
@@ -205,8 +208,8 @@ class DocumentProcessor
                 StatementType::Invoice => $this->parsePdfInvoice($file, $filePath),
             };
         } finally {
-            if ($decryptedPath) {
-                \Illuminate\Support\Facades\Storage::disk('local')->delete($decryptedPath);
+            if ($decryptedPath !== null) {
+                Storage::disk(PdfDecryptionService::STORAGE_DISK)->delete($decryptedPath);
             }
         }
     }
@@ -400,21 +403,30 @@ class DocumentProcessor
         }
 
         DB::transaction(function () use ($file, $bankName, $accountNumber, $transactions) {
+            $fileUpdates = [
+                'status' => ImportStatus::Completed,
+                'total_rows' => count($transactions),
+                'mapped_rows' => 0,
+                'processed_at' => now(),
+            ];
+
             if ($bankName) {
-                $file->update(['bank_name' => $bankName]);
+                $fileUpdates['bank_name'] = $bankName;
 
                 /** @var StatementType $statementType */
                 $statementType = $file->statement_type;
 
-                if ($statementType === StatementType::CreditCard) {
-                    $this->autoMatchCreditCard($file, $bankName);
-                } else {
-                    $this->autoMatchBankAccount($file, $bankName);
+                $fkUpdate = $statementType === StatementType::CreditCard
+                    ? $this->autoMatchFinancialAccount($file, $bankName, CreditCard::class, 'credit_card_id')
+                    : $this->autoMatchFinancialAccount($file, $bankName, BankAccount::class, 'bank_account_id');
+
+                if ($fkUpdate !== null) {
+                    $fileUpdates = array_merge($fileUpdates, $fkUpdate);
                 }
             }
 
             if ($accountNumber) {
-                $file->update(['account_number' => $accountNumber]);
+                $fileUpdates['account_number'] = $accountNumber;
             }
 
             foreach ($transactions as $row) {
@@ -433,45 +445,27 @@ class DocumentProcessor
                 ]);
             }
 
-            $file->update([
-                'status' => ImportStatus::Completed,
-                'total_rows' => count($transactions),
-                'mapped_rows' => 0,
-                'processed_at' => now(),
-            ]);
+            $file->update($fileUpdates);
         });
     }
 
     /**
-     * Match or create a BankAccount from AI-detected bank name and link it to the file.
+     * Match or create a financial account (BankAccount or CreditCard) and return the FK update.
+     *
+     * @param  class-string<BankAccount|CreditCard>  $modelClass
+     * @return array<string, int>|null
      */
-    protected function autoMatchBankAccount(ImportedFile $file, string $bankName): void
+    protected function autoMatchFinancialAccount(ImportedFile $file, string $bankName, string $modelClass, string $fkColumn): ?array
     {
-        if ($file->bank_account_id) {
-            return;
+        if ($file->{$fkColumn}) {
+            return null;
         }
 
-        $bankAccount = BankAccount::firstOrCreate(
+        $account = $modelClass::firstOrCreate(
             ['company_id' => $file->company_id, 'name' => $bankName],
         );
 
-        $file->update(['bank_account_id' => $bankAccount->id]);
-    }
-
-    /**
-     * Match or create a CreditCard from AI-detected bank name and link it to the file.
-     */
-    protected function autoMatchCreditCard(ImportedFile $file, string $bankName): void
-    {
-        if ($file->credit_card_id) {
-            return;
-        }
-
-        $creditCard = CreditCard::firstOrCreate(
-            ['company_id' => $file->company_id, 'name' => $bankName],
-        );
-
-        $file->update(['credit_card_id' => $creditCard->id]);
+        return [$fkColumn => $account->id];
     }
 
     /**

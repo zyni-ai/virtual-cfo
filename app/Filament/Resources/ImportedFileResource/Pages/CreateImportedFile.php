@@ -26,8 +26,9 @@ class CreateImportedFile extends CreateRecord
 
         // Generate file hash for duplicate detection
         $filePath = $data['file_path'];
-        if (Storage::disk('local')->exists($filePath)) {
-            $data['file_hash'] = hash('sha256', Storage::disk('local')->get($filePath));
+        $contents = Storage::disk('local')->get($filePath);
+        if ($contents !== null) {
+            $data['file_hash'] = hash('sha256', $contents);
         }
 
         // Store original filename
