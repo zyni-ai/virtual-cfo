@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AcceptInvitationController;
 use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\ImportedFileDownloadController;
 use App\Http\Controllers\ZohoOAuthCallbackController;
@@ -11,6 +12,13 @@ Route::get('/health', HealthCheckController::class);
 Route::get('/', function () {
     return redirect('/admin');
 });
+
+Route::get('/invitations/{token}/accept', [AcceptInvitationController::class, 'show'])
+    ->name('invitations.accept');
+Route::post('/invitations/{token}/accept', [AcceptInvitationController::class, 'storeNewUser'])
+    ->name('invitations.accept.new');
+Route::post('/invitations/{token}/accept-existing', [AcceptInvitationController::class, 'storeExistingUser'])
+    ->name('invitations.accept.existing');
 
 Route::get('/admin/imported-files/{importedFile}/download', ImportedFileDownloadController::class)
     ->middleware('auth')
