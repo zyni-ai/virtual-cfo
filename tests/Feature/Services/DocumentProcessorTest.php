@@ -14,7 +14,7 @@ describe('DocumentProcessor', function () {
     beforeEach(function () {
         Storage::fake('local');
 
-        $this->processor = new DocumentProcessor;
+        $this->processor = app(DocumentProcessor::class);
     });
 
     describe('detectFormat', function () {
@@ -420,7 +420,7 @@ describe('DocumentProcessor', function () {
             expect($file->bank_account_id)->toBe($bankAccount->id);
         });
 
-        it('does not set bank_account_id when no matching BankAccount exists', function () {
+        it('auto-creates BankAccount when no matching one exists', function () {
             Storage::put('statements/bank2.pdf', 'fake-pdf-content');
 
             StatementParser::fake([
@@ -443,7 +443,11 @@ describe('DocumentProcessor', function () {
             $this->processor->process($file);
 
             $file->refresh();
-            expect($file->bank_account_id)->toBeNull();
+            expect($file->bank_account_id)->not->toBeNull();
+
+            $bankAccount = \App\Models\BankAccount::find($file->bank_account_id);
+            expect($bankAccount->name)->toBe('Unknown Bank')
+                ->and($bankAccount->company_id)->toBe($file->company_id);
         });
     });
 

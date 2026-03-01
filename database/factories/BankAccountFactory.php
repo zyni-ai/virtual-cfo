@@ -45,6 +45,13 @@ class BankAccountFactory extends Factory
         ]);
     }
 
+    public function withPassword(string $password = 'test1234'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'pdf_password' => $password,
+        ]);
+    }
+
     public function inactive(): static
     {
         return $this->state(fn (array $attributes) => [

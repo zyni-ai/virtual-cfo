@@ -81,11 +81,7 @@ describe('ProcessImportedFile job', function () {
 
 describe('ProcessImportedFile with Agent::fake()', function () {
     beforeEach(function () {
-        $mockOcr = Mockery::mock(\App\Services\DocumentProcessor\OcrService::class);
-        $mockOcr->shouldReceive('extractText')->andReturn('Extracted bank statement text');
-        app()->bind(\App\Services\DocumentProcessor\DocumentProcessor::class, function () use ($mockOcr) {
-            return new \App\Services\DocumentProcessor\DocumentProcessor($mockOcr);
-        });
+        //
     });
 
     it('creates transactions and completes file on successful parse', function () {
@@ -104,8 +100,6 @@ describe('ProcessImportedFile with Agent::fake()', function () {
                 ],
             ],
         ]);
-
-        Queue::fake([MatchTransactionHeads::class]);
 
         $file = ImportedFile::factory()->create([
             'status' => ImportStatus::Pending,
@@ -129,7 +123,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
             ->and($transactions->first()->mapping_type)->toBe(MappingType::Unmapped);
     });
 
-    it('dispatches MatchTransactionHeads when account heads exist', function () {
+    it('does not auto-dispatch MatchTransactionHeads after processing', function () {
         Storage::fake('local');
         Storage::put('statements/test.pdf', 'fake-pdf-content');
 
@@ -157,68 +151,6 @@ describe('ProcessImportedFile with Agent::fake()', function () {
         $job = new ProcessImportedFile($file);
         $job->handle(app(DocumentProcessor::class));
 
-        Queue::assertPushed(MatchTransactionHeads::class, function ($job) use ($file) {
-            return $job->importedFile->id === $file->id;
-        });
-    });
-
-    it('does not dispatch MatchTransactionHeads when no account heads exist', function () {
-        Storage::fake('local');
-        Storage::put('statements/test.pdf', 'fake-pdf-content');
-
-        StatementParser::fake([
-            [
-                'bank_name' => 'SBI',
-                'transactions' => [
-                    ['date' => '2024-01-05', 'description' => 'DEPOSIT', 'credit' => 10000, 'balance' => 10000],
-                ],
-            ],
-        ]);
-
-        Queue::fake([MatchTransactionHeads::class]);
-
-        $file = ImportedFile::factory()->create([
-            'status' => ImportStatus::Pending,
-            'file_path' => 'statements/test.pdf',
-        ]);
-
-        $job = new ProcessImportedFile($file);
-        $job->handle(app(DocumentProcessor::class));
-
-        $file->refresh();
-        expect($file->status)->toBe(ImportStatus::Completed);
-
-        Queue::assertNotPushed(MatchTransactionHeads::class);
-    });
-
-    it('does not dispatch MatchTransactionHeads when only inactive heads exist', function () {
-        Storage::fake('local');
-        Storage::put('statements/test.pdf', 'fake-pdf-content');
-
-        StatementParser::fake([
-            [
-                'bank_name' => 'SBI',
-                'transactions' => [
-                    ['date' => '2024-01-05', 'description' => 'DEPOSIT', 'credit' => 10000, 'balance' => 10000],
-                ],
-            ],
-        ]);
-
-        Queue::fake([MatchTransactionHeads::class]);
-
-        $file = ImportedFile::factory()->create([
-            'status' => ImportStatus::Pending,
-            'file_path' => 'statements/test.pdf',
-        ]);
-
-        AccountHead::factory()->create([
-            'company_id' => $file->company_id,
-            'is_active' => false,
-        ]);
-
-        $job = new ProcessImportedFile($file);
-        $job->handle(app(DocumentProcessor::class));
-
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Completed);
 
@@ -236,8 +168,6 @@ describe('ProcessImportedFile with Agent::fake()', function () {
             ],
         ]);
 
-        Queue::fake([MatchTransactionHeads::class]);
-
         $file = ImportedFile::factory()->create([
             'status' => ImportStatus::Pending,
             'file_path' => 'statements/empty.pdf',
@@ -249,8 +179,6 @@ describe('ProcessImportedFile with Agent::fake()', function () {
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Failed)
             ->and($file->error_message)->toContain('No transactions found');
-
-        Queue::assertNotPushed(MatchTransactionHeads::class);
     });
 
     it('marks file as failed when response is malformed', function () {

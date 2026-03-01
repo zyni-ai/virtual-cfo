@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\AccountType;
 use App\Enums\ImportStatus;
 use App\Jobs\ProcessImportedFile;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -14,9 +13,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
-class BankAccount extends Model
+class CreditCard extends Model
 {
-    /** @use HasFactory<\Database\Factories\BankAccountFactory> */
+    /** @use HasFactory<\Database\Factories\CreditCardFactory> */
     use HasFactory;
 
     use LogsActivity;
@@ -24,9 +23,9 @@ class BankAccount extends Model
 
     protected static function booted(): void
     {
-        static::updated(function (BankAccount $account) {
-            if ($account->wasChanged('pdf_password') && $account->pdf_password) {
-                $account->importedFiles()
+        static::updated(function (CreditCard $card) {
+            if ($card->wasChanged('pdf_password') && $card->pdf_password) {
+                $card->importedFiles()
                     ->where('status', ImportStatus::NeedsPassword)
                     ->each(fn (ImportedFile $file) => ProcessImportedFile::dispatch($file));
             }
@@ -36,10 +35,7 @@ class BankAccount extends Model
     protected $fillable = [
         'company_id',
         'name',
-        'account_number',
-        'ifsc_code',
-        'branch',
-        'account_type',
+        'card_number',
         'pdf_password',
         'is_active',
     ];
@@ -47,31 +43,30 @@ class BankAccount extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['company_id', 'name', 'ifsc_code', 'branch', 'account_type', 'is_active'])
+            ->logOnly(['company_id', 'name', 'is_active'])
             ->logOnlyDirty()
-            ->useLogName('bank-accounts');
+            ->useLogName('credit-cards');
     }
 
     protected function casts(): array
     {
         return [
-            'account_number' => 'encrypted',
+            'card_number' => 'encrypted',
             'pdf_password' => 'encrypted',
-            'account_type' => AccountType::class,
             'is_active' => 'boolean',
         ];
     }
 
     /** @return Attribute<string|null, never> */
-    protected function maskedAccountNumber(): Attribute
+    protected function maskedCardNumber(): Attribute
     {
         return Attribute::make(
             get: function (): ?string {
-                if (! $this->account_number) {
+                if (! $this->card_number) {
                     return null;
                 }
 
-                $number = $this->account_number;
+                $number = $this->card_number;
 
                 return str_repeat('•', max(0, strlen($number) - 4)).substr($number, -4);
             },

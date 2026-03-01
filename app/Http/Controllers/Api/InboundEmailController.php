@@ -33,7 +33,7 @@ class InboundEmailController
 
         $messageId = $request->input('Message-Id');
 
-        if ($messageId && $this->isDuplicate($messageId)) {
+        if ($messageId && $this->isDuplicate($company, $messageId)) {
             return response()->json(['status' => 'ok', 'files_processed' => 0]);
         }
 
@@ -42,6 +42,7 @@ class InboundEmailController
             'from' => $request->input('from', $request->input('sender')),
             'subject' => $request->input('subject'),
             'received_at' => now()->toIso8601String(),
+            'body_text' => $this->extractBodyText($request),
         ];
 
         $filesProcessed = 0;
@@ -68,18 +69,25 @@ class InboundEmailController
         ]);
     }
 
-    private function isDuplicate(string $messageId): bool
+    private function extractBodyText(Request $request): ?string
+    {
+        $body = $request->input('stripped-text') ?? $request->input('body-plain');
+
+        if ($body === null) {
+            return null;
+        }
+
+        return mb_substr((string) $body, 0, 2000);
+    }
+
+    private function isDuplicate(Company $company, string $messageId): bool
     {
         return ImportedFile::query()
+            ->where('company_id', $company->id)
             ->where('source', ImportSource::Email)
-            ->whereRaw("source_metadata IS NOT NULL AND source_metadata != ''")
-            ->get()
-            ->contains(function (ImportedFile $file) use ($messageId): bool {
-                /** @var array<string, mixed>|null $metadata */
-                $metadata = $file->source_metadata;
-
-                return ($metadata['message_id'] ?? null) === $messageId;
-            });
+            ->whereNotNull('source_metadata')
+            ->get(['id', 'source_metadata'])
+            ->contains(fn (ImportedFile $file): bool => ($file->source_metadata['message_id'] ?? null) === $messageId);
     }
 
     /**
@@ -119,7 +127,7 @@ class InboundEmailController
         $contents = $file->getContent();
         $fileHash = hash('sha256', $contents);
 
-        if (ImportedFile::query()->where('file_hash', $fileHash)->exists()) {
+        if (ImportedFile::query()->where('company_id', $company->id)->where('file_hash', $fileHash)->exists()) {
             return null;
         }
 
@@ -129,7 +137,7 @@ class InboundEmailController
         Storage::disk('local')->put($storagePath, $contents);
 
         $filename = $file->getClientOriginalName();
-        $classification = $this->classifyByFilename($filename);
+        $classification = $this->classifyByEmailContext($metadata) ?? $this->classifyByFilename($filename);
 
         $attributes = [
             'company_id' => $company->id,
@@ -155,27 +163,66 @@ class InboundEmailController
     }
 
     /**
+     * Classify using email subject and body text.
+     * Returns null if no classification signals are found in the email context.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    private function classifyByEmailContext(array $metadata): ?StatementType
+    {
+        $text = strtolower(trim(($metadata['subject'] ?? '').' '.($metadata['body_text'] ?? '')));
+
+        if ($text === '') {
+            return null;
+        }
+
+        return $this->classifyText($text);
+    }
+
+    /**
      * Classify an attachment by its filename to determine the statement type.
-     * Returns null if the filename doesn't match any known invoice or statement pattern.
+     * Returns null if the filename doesn't match any known pattern.
      */
     private function classifyByFilename(string $filename): ?StatementType
     {
         $name = strtolower(pathinfo($filename, PATHINFO_FILENAME));
 
-        $invoicePatterns = ['inv', 'invoice', 'tax[_\-\s]?invoice', 'bill', 'debit[_\-\s]?note', 'credit[_\-\s]?note'];
-        foreach ($invoicePatterns as $pattern) {
-            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_])/', $name)) {
-                return StatementType::Invoice;
-            }
-        }
+        return $this->classifyText($name);
+    }
 
-        $statementPatterns = ['statement', 'bank[_\-\s]?statement', 'account[_\-\s]?statement'];
-        foreach ($statementPatterns as $pattern) {
-            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_])/', $name)) {
-                return StatementType::Bank;
+    /**
+     * Classify text (email context or filename) into a statement type.
+     * Credit card patterns are checked before generic statement patterns
+     * so "Credit Card Statement" matches CreditCard, not Bank.
+     */
+    private function classifyText(string $text): ?StatementType
+    {
+        $patternMap = [
+            [StatementType::Invoice, ['inv', 'invoice', 'tax[_\-\s]?invoice', 'bill', 'debit[_\-\s]?note', 'credit[_\-\s]?note']],
+            [StatementType::CreditCard, ['credit[_\-\s]?card', 'cc[_\-\s]?statement']],
+            [StatementType::Bank, ['statement', 'bank[_\-\s]?statement', 'account[_\-\s]?statement']],
+        ];
+
+        foreach ($patternMap as [$type, $patterns]) {
+            if ($this->matchesAny($text, $patterns)) {
+                return $type;
             }
         }
 
         return null;
+    }
+
+    /**
+     * @param  list<string>  $patterns
+     */
+    private function matchesAny(string $text, array $patterns): bool
+    {
+        foreach ($patterns as $pattern) {
+            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_\d])/', $text)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

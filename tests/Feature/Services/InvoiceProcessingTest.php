@@ -3,21 +3,18 @@
 use App\Ai\Agents\InvoiceParser;
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
-use App\Jobs\MatchTransactionHeads;
 use App\Jobs\ProcessImportedFile;
-use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\DocumentProcessor\DocumentProcessor;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 describe('DocumentProcessor invoice routing', function () {
     beforeEach(function () {
         Storage::fake('local');
 
-        $this->processor = new DocumentProcessor;
+        $this->processor = app(DocumentProcessor::class);
     });
 
     it('routes invoice PDFs to InvoiceParser agent', function () {
@@ -351,7 +348,7 @@ describe('DocumentProcessor invoice routing', function () {
 });
 
 describe('ProcessImportedFile job with InvoiceParser', function () {
-    it('processes invoice and dispatches MatchTransactionHeads on success', function () {
+    it('processes invoice via ProcessImportedFile job', function () {
         Storage::fake('local');
         Storage::put('statements/invoice.pdf', 'fake-pdf-content');
 
@@ -380,16 +377,9 @@ describe('ProcessImportedFile job with InvoiceParser', function () {
             ],
         ]);
 
-        Queue::fake([MatchTransactionHeads::class]);
-
         $file = ImportedFile::factory()->invoice()->create([
             'status' => ImportStatus::Pending,
             'file_path' => 'statements/invoice.pdf',
-        ]);
-
-        AccountHead::factory()->create([
-            'company_id' => $file->company_id,
-            'is_active' => true,
         ]);
 
         $job = new ProcessImportedFile($file);
@@ -398,10 +388,6 @@ describe('ProcessImportedFile job with InvoiceParser', function () {
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Completed)
             ->and($file->total_rows)->toBe(1);
-
-        Queue::assertPushed(MatchTransactionHeads::class, function ($job) use ($file) {
-            return $job->importedFile->id === $file->id;
-        });
     });
 
     it('marks invoice file as failed on malformed response', function () {

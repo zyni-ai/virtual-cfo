@@ -115,4 +115,31 @@ describe('BankAccountResource', function () {
         expect(BankAccountResource::getNavigationLabel())->toBe('Bank Accounts')
             ->and(BankAccountResource::getNavigationSort())->toBe(5);
     });
+
+    it('can set pdf_password on a bank account', function () {
+        $account = BankAccount::factory()->create(['company_id' => tenant()->id]);
+
+        livewire(EditBankAccount::class, ['record' => $account->getRouteKey()])
+            ->fillForm([
+                'pdf_password' => 'myBankPass123',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        expect($account->fresh()->pdf_password)->toBe('myBankPass123');
+    });
+
+    it('stores pdf_password as encrypted', function () {
+        $account = BankAccount::factory()->withPassword('secretpass')->create([
+            'company_id' => tenant()->id,
+        ]);
+
+        expect($account->pdf_password)->toBe('secretpass');
+
+        $raw = \Illuminate\Support\Facades\DB::table('bank_accounts')
+            ->where('id', $account->id)
+            ->value('pdf_password');
+
+        expect($raw)->not->toBe('secretpass');
+    });
 });

@@ -124,6 +124,27 @@ class EditCompanySettings extends EditTenantProfile
                             ->default('INR'),
                     ]),
 
+                Section::make('Account Holder Identity')
+                    ->description('Account holder details for reference and verification.')
+                    ->schema([
+                        TextInput::make('account_holder_name')
+                            ->label('Account Holder Name')
+                            ->helperText('As registered with the bank.'),
+                        TextInput::make('date_of_birth')
+                            ->label('Date of Birth')
+                            ->type('date'),
+                        TextInput::make('pan_number')
+                            ->label('PAN Number')
+                            ->regex('/^[A-Z]{5}[0-9]{4}[A-Z]$/')
+                            ->helperText('10-character PAN (e.g., ABCDE1234F).'),
+                        TextInput::make('mobile_number')
+                            ->label('Mobile Number')
+                            ->tel(),
+                    ])
+                    ->collapsible()
+                    ->collapsed()
+                    ->columns(2),
+
                 Section::make('Email Forwarding')
                     ->schema([
                         TextInput::make('inbox_address')

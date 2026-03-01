@@ -99,12 +99,46 @@ describe('ImportedFileResource', function () {
         $failedFile = ImportedFile::factory()->failed()->create();
         $pendingFile = ImportedFile::factory()->create(['status' => ImportStatus::Pending]);
         $processingFile = ImportedFile::factory()->processing()->create();
+        $needsPasswordFile = ImportedFile::factory()->create(['status' => ImportStatus::NeedsPassword]);
 
         livewire(ListImportedFiles::class)
             ->assertTableActionVisible('reprocess', $completedFile)
             ->assertTableActionVisible('reprocess', $failedFile)
             ->assertTableActionHidden('reprocess', $pendingFile)
-            ->assertTableActionHidden('reprocess', $processingFile);
+            ->assertTableActionHidden('reprocess', $processingFile)
+            ->assertTableActionHidden('reprocess', $needsPasswordFile);
+    });
+
+    it('setPassword action is visible only for NeedsPassword files', function () {
+        $needsPasswordFile = ImportedFile::factory()->create(['status' => ImportStatus::NeedsPassword]);
+        $completedFile = ImportedFile::factory()->completed()->create();
+        $pendingFile = ImportedFile::factory()->create(['status' => ImportStatus::Pending]);
+
+        livewire(ListImportedFiles::class)
+            ->assertTableActionVisible('setPassword', $needsPasswordFile)
+            ->assertTableActionHidden('setPassword', $completedFile)
+            ->assertTableActionHidden('setPassword', $pendingFile);
+    });
+
+    it('setPassword action saves password and dispatches reprocessing', function () {
+        Queue::fake();
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::NeedsPassword,
+            'error_message' => 'This PDF is password-protected.',
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->callTableAction('setPassword', $file, data: [
+                'pdf_password' => 'mysecret123',
+            ]);
+
+        $file->refresh();
+        expect($file->status)->toBe(ImportStatus::Pending)
+            ->and($file->error_message)->toBeNull()
+            ->and($file->source_metadata['manual_password'])->toBe('mysecret123');
+
+        Queue::assertPushed(ProcessImportedFile::class, fn ($job) => $job->importedFile->id === $file->id);
     });
 
     it('shows linked bank account name in table', function () {

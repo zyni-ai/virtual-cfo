@@ -67,6 +67,13 @@ class ImportedFileResource extends Resource
                             ->label('Bank Name (optional, auto-detected)')
                             ->maxLength(255),
 
+                        Forms\Components\TextInput::make('pdf_password')
+                            ->label('PDF Password (optional)')
+                            ->password()
+                            ->revealable()
+                            ->helperText('If the PDF is password-protected, enter the password here.')
+                            ->columnSpanFull(),
+
                         Forms\Components\Toggle::make('force_reimport')
                             ->label('Force re-import')
                             ->helperText('If this file was already imported, delete the previous import and re-import.')
@@ -153,6 +160,39 @@ class ImportedFileResource extends Resource
                     ->color('gray')
                     ->url(fn (ImportedFile $record): string => route('imported-files.download', $record))
                     ->openUrlInNewTab(),
+
+                Actions\Action::make('setPassword')
+                    ->label('Set Password')
+                    ->icon('heroicon-o-key')
+                    ->color('warning')
+                    ->schema([
+                        Forms\Components\TextInput::make('pdf_password')
+                            ->label('PDF Password')
+                            ->password()
+                            ->revealable()
+                            ->required(),
+                    ])
+                    ->modalHeading('Set PDF Password')
+                    ->modalDescription('Enter the password for this PDF. The file will be re-processed automatically.')
+                    ->modalSubmitActionLabel('Decrypt & Process')
+                    ->action(function (ImportedFile $record, array $data) {
+                        $metadata = $record->source_metadata ?? [];
+                        $metadata['manual_password'] = $data['pdf_password'];
+
+                        \Illuminate\Support\Facades\DB::transaction(function () use ($record, $metadata) {
+                            $record->transactions()->delete();
+                            $record->update([
+                                'source_metadata' => $metadata,
+                                'status' => ImportStatus::Pending,
+                                'total_rows' => 0,
+                                'mapped_rows' => 0,
+                                'error_message' => null,
+                            ]);
+                        });
+
+                        ProcessImportedFile::dispatch($record);
+                    })
+                    ->visible(fn (ImportedFile $record) => $record->status === ImportStatus::NeedsPassword),
 
                 Actions\Action::make('reprocess')
                     ->label('Re-process')

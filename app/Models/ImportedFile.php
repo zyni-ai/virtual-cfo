@@ -61,6 +61,7 @@ class ImportedFile extends Model
         'uploaded_by',
         'processed_at',
         'bank_account_id',
+        'credit_card_id',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -113,6 +114,12 @@ class ImportedFile extends Model
     public function bankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class);
+    }
+
+    /** @return BelongsTo<CreditCard, $this> */
+    public function creditCard(): BelongsTo
+    {
+        return $this->belongsTo(CreditCard::class);
     }
 
     public function transactions(): HasMany

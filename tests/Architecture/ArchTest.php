@@ -44,6 +44,7 @@ describe('Filament Resources', function () {
             ->toExtend('Filament\Resources\Resource')
             ->ignoring('App\Filament\Resources\AccountHeadResource\Pages')
             ->ignoring('App\Filament\Resources\BankAccountResource\Pages')
+            ->ignoring('App\Filament\Resources\CreditCardResource\Pages')
             ->ignoring('App\Filament\Resources\HeadMappingResource\Pages')
             ->ignoring('App\Filament\Resources\ImportedFileResource\Pages')
             ->ignoring('App\Filament\Resources\TransactionResource\Pages');
