@@ -18,7 +18,7 @@ pest()->extend(Tests\TestCase::class)
  */
 function asUser(?User $user = null, UserRole $role = UserRole::Admin): User
 {
-    $user ??= User::factory()->admin()->create();
+    $user ??= User::factory()->state(['role' => $role])->create();
 
     $company = Company::factory()->create();
     $company->users()->attach($user, ['role' => $role->value]);

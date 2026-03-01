@@ -71,11 +71,21 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         return $this->companies->first();
     }
 
+    /** @var array<int, UserRole|null> */
+    protected array $roleCache = [];
+
     public function roleForCompany(Company $company): ?UserRole
     {
-        $pivot = $this->companies()->where('company_id', $company->id)->first();
+        if (array_key_exists($company->id, $this->roleCache)) {
+            return $this->roleCache[$company->id];
+        }
 
-        return $pivot ? UserRole::tryFrom($pivot->pivot->role) : null;
+        /** @var string|null $role */
+        $role = $this->companies()
+            ->where('company_id', $company->id)
+            ->value('company_user.role');
+
+        return $this->roleCache[$company->id] = $role ? UserRole::tryFrom($role) : null;
     }
 
     public function currentRole(): ?UserRole
