@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AcceptInvitationRequest;
 use App\Models\Invitation;
 use App\Models\User;
+use Filament\Notifications\Notification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
@@ -49,7 +50,7 @@ class AcceptInvitationController
 
     public function storeNewUser(AcceptInvitationRequest $request, string $token): RedirectResponse
     {
-        $invitation = Invitation::with('company')->where('token', $token)->firstOrFail();
+        $invitation = Invitation::with(['company', 'inviter'])->where('token', $token)->firstOrFail();
 
         if ($invitation->isAccepted() || $invitation->isExpired()) {
             return redirect('/admin/login');
@@ -65,12 +66,14 @@ class AcceptInvitationController
         $invitation->company->users()->attach($user, ['role' => $invitation->role->value]);
         $invitation->markAccepted();
 
+        $this->notifyInviter($invitation);
+
         return redirect('/admin/login')->with('status', 'Account created. Please sign in.');
     }
 
     public function storeExistingUser(string $token): RedirectResponse
     {
-        $invitation = Invitation::with('company')->where('token', $token)->firstOrFail();
+        $invitation = Invitation::with(['company', 'inviter'])->where('token', $token)->firstOrFail();
 
         if ($invitation->isAccepted() || $invitation->isExpired()) {
             return redirect('/admin/login');
@@ -84,6 +87,23 @@ class AcceptInvitationController
 
         $invitation->markAccepted();
 
+        $this->notifyInviter($invitation);
+
         return redirect('/admin/login')->with('status', 'You have been added to the team. Please sign in.');
+    }
+
+    private function notifyInviter(Invitation $invitation): void
+    {
+        if (! $invitation->inviter) {
+            return;
+        }
+
+        $invitation->loadMissing('company');
+
+        Notification::make()
+            ->title("{$invitation->email} accepted your invitation")
+            ->body("They joined {$invitation->company->name} as {$invitation->role->getLabel()}.")
+            ->success()
+            ->sendToDatabase($invitation->inviter);
     }
 }
