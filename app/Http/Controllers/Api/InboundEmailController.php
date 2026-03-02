@@ -54,7 +54,10 @@ class InboundEmailController
             if ($importedFile) {
                 $filesProcessed++;
 
-                if ($importedFile->status !== ImportStatus::Skipped) {
+                /** @var ImportStatus $status */
+                $status = $importedFile->status;
+
+                if ($status !== ImportStatus::Skipped) {
                     ProcessImportedFile::dispatch($importedFile);
                 }
             }
