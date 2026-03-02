@@ -36,6 +36,7 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Indigo,
             ])
             ->brandName('Virtual CFO')
+            ->databaseNotifications()
             ->tenant(Company::class)
             ->tenantRegistration(RegisterCompany::class)
             ->tenantProfile(EditCompanySettings::class)

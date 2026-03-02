@@ -5,6 +5,7 @@ use App\Filament\Pages\TeamMembers;
 use App\Mail\InvitationMail;
 use App\Models\Invitation;
 use App\Models\User;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -168,6 +169,44 @@ describe('Invitation Flow', function () {
 
             expect($invitation->fresh()->isAccepted())->toBeTrue();
             expect($invitation->company->users()->where('user_id', $user->id)->exists())->toBeTrue();
+        });
+    });
+
+    describe('Acceptance notifications', function () {
+        it('notifies inviter when new user accepts', function () {
+            $inviter = User::factory()->admin()->create();
+            $invitation = Invitation::factory()->create([
+                'invited_by' => $inviter->id,
+                'role' => UserRole::Viewer,
+            ]);
+
+            $this->post(route('invitations.accept.new', $invitation->token), [
+                'name' => 'New User',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ]);
+
+            expect(DatabaseNotification::where('notifiable_id', $inviter->id)->count())->toBe(1);
+
+            $notification = DatabaseNotification::where('notifiable_id', $inviter->id)->first();
+            expect($notification->data['title'])->toContain('accepted');
+        });
+
+        it('notifies inviter when existing user accepts', function () {
+            $inviter = User::factory()->admin()->create();
+            $user = User::factory()->create(['email' => 'existing@example.com']);
+            $invitation = Invitation::factory()->create([
+                'email' => 'existing@example.com',
+                'invited_by' => $inviter->id,
+                'role' => UserRole::Accountant,
+            ]);
+
+            $this->post(route('invitations.accept.existing', $invitation->token));
+
+            expect(DatabaseNotification::where('notifiable_id', $inviter->id)->count())->toBe(1);
+
+            $notification = DatabaseNotification::where('notifiable_id', $inviter->id)->first();
+            expect($notification->data['title'])->toContain('accepted');
         });
     });
 

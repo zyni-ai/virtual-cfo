@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Enums\UserRole;
+use App\Filament\Widgets\PendingInvitations;
 use App\Mail\InvitationMail;
 use App\Models\Company;
 use App\Models\Invitation;
@@ -37,6 +38,14 @@ class TeamMembers extends Page implements HasTable
     protected static ?int $navigationSort = 10;
 
     protected string $view = 'filament.pages.team-members';
+
+    /** @return array<class-string> */
+    protected function getFooterWidgets(): array
+    {
+        return [
+            PendingInvitations::class,
+        ];
+    }
 
     public static function canAccess(): bool
     {
@@ -98,7 +107,7 @@ class TeamMembers extends Page implements HasTable
                             'expires_at' => now()->addDays(7),
                         ]);
 
-                        Mail::to($data['email'])->send(new InvitationMail($existing->fresh()));
+                        Mail::to($data['email'])->queue(new InvitationMail($existing->fresh()));
 
                         RateLimiter::hit($rateLimitKey, 3600);
 
@@ -120,7 +129,7 @@ class TeamMembers extends Page implements HasTable
                         'expires_at' => now()->addDays(7),
                     ]);
 
-                    Mail::to($data['email'])->send(new InvitationMail($invitation));
+                    Mail::to($data['email'])->queue(new InvitationMail($invitation));
 
                     RateLimiter::hit($rateLimitKey, 3600);
 
