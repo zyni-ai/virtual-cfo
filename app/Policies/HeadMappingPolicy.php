@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\HeadMapping;
 use App\Models\User;
 
@@ -20,16 +19,16 @@ class HeadMappingPolicy
 
     public function create(User $user): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->currentRole()?->canWrite() ?? false;
     }
 
     public function update(User $user, HeadMapping $headMapping): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->currentRole()?->canWrite() ?? false;
     }
 
     public function delete(User $user, HeadMapping $headMapping): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->currentRole()?->canWrite() ?? false;
     }
 }

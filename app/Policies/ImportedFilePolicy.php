@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\ImportedFile;
 use App\Models\User;
 
@@ -20,16 +19,16 @@ class ImportedFilePolicy
 
     public function create(User $user): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->currentRole()?->canWrite() ?? false;
     }
 
     public function update(User $user, ImportedFile $importedFile): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->currentRole()?->canWrite() ?? false;
     }
 
     public function delete(User $user, ImportedFile $importedFile): bool
     {
-        return $user->role === UserRole::Admin;
+        return $user->currentRole()?->canWrite() ?? false;
     }
 }

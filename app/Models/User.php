@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use Filament\Facades\Filament;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasDefaultTenant;
 use Filament\Models\Contracts\HasTenants;
@@ -51,7 +52,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     /** @return BelongsToMany<Company, $this> */
     public function companies(): BelongsToMany
     {
-        return $this->belongsToMany(Company::class)->withTimestamps();
+        return $this->belongsToMany(Company::class)->withPivot('role')->withTimestamps();
     }
 
     /** @return Collection<int, Company> */
@@ -68,6 +69,40 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     public function getDefaultTenant(Panel $panel): ?Model
     {
         return $this->companies->first();
+    }
+
+    /** @var array<int, UserRole|null> */
+    protected array $roleCache = [];
+
+    public function roleForCompany(Company $company): ?UserRole
+    {
+        if (array_key_exists($company->id, $this->roleCache)) {
+            return $this->roleCache[$company->id];
+        }
+
+        /** @var string|null $role */
+        $role = $this->companies()
+            ->where('company_id', $company->id)
+            ->value('company_user.role');
+
+        return $this->roleCache[$company->id] = $role ? UserRole::tryFrom($role) : null;
+    }
+
+    public function currentRole(): ?UserRole
+    {
+        $tenant = Filament::getTenant();
+
+        if (! $tenant instanceof Company) {
+            return null;
+        }
+
+        return $this->roleForCompany($tenant);
+    }
+
+    /** @return HasMany<LoginSession, $this> */
+    public function loginSessions(): HasMany
+    {
+        return $this->hasMany(LoginSession::class);
     }
 
     public function importedFiles(): HasMany
