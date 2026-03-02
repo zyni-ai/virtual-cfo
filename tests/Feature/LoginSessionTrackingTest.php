@@ -66,12 +66,11 @@ describe('Login Session Tracking', function () {
         it('only closes the most recent active session', function () {
             $user = User::factory()->admin()->create();
 
-            $closedTime = now()->subDays(2);
             $oldSession = LoginSession::factory()->create([
                 'user_id' => $user->id,
                 'logged_in_at' => now()->subDays(3),
                 'last_active_at' => now()->subDays(2),
-                'logged_out_at' => $closedTime,
+                'logged_out_at' => now()->subDays(2),
             ]);
 
             $currentSession = LoginSession::factory()->create([
@@ -80,13 +79,14 @@ describe('Login Session Tracking', function () {
                 'last_active_at' => now()->subMinutes(5),
             ]);
 
+            // Capture the DB-roundtripped value before logout fires
+            $oldLoggedOutBefore = $oldSession->fresh()->logged_out_at->timestamp;
+
             $listener = new RecordLogoutSession;
             $listener->handle(new Logout('web', $user));
 
             expect($currentSession->fresh()->logged_out_at)->not->toBeNull();
-
-            $refreshedOld = $oldSession->fresh();
-            expect($refreshedOld->logged_out_at->timestamp)->toBe($closedTime->timestamp);
+            expect($oldSession->fresh()->logged_out_at->timestamp)->toBe($oldLoggedOutBefore);
         });
     });
 
