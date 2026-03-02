@@ -35,8 +35,14 @@ class ViewImportedFile extends ViewRecord
                         Infolists\Components\TextEntry::make('original_filename')
                             ->label('Filename'),
                         Infolists\Components\TextEntry::make('bank_name')
-                            ->label('Bank')
+                            ->label('Detected Bank')
                             ->placeholder('Not detected'),
+                        Infolists\Components\TextEntry::make('bankAccount.name')
+                            ->label('Bank Account')
+                            ->visible(fn (ImportedFile $record): bool => $record->bank_account_id !== null),
+                        Infolists\Components\TextEntry::make('creditCard.name')
+                            ->label('Credit Card')
+                            ->visible(fn (ImportedFile $record): bool => $record->credit_card_id !== null),
                         Infolists\Components\TextEntry::make('statement_type')
                             ->label('Type')
                             ->badge(),

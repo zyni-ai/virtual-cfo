@@ -24,7 +24,6 @@ describe('CreateImportedFile duplicate detection', function () {
             ->fillForm([
                 'file_path' => $file,
                 'statement_type' => StatementType::Bank->value,
-                'bank_name' => 'HDFC',
             ])
             ->call('create')
             ->assertHasNoFormErrors();

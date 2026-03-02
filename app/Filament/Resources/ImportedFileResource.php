@@ -13,6 +13,7 @@ use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Filters\TrashedFilter;
@@ -54,18 +55,24 @@ class ImportedFileResource extends Resource
                             ->label('Statement Type')
                             ->options(StatementType::class)
                             ->default(StatementType::Bank)
-                            ->required(),
+                            ->required()
+                            ->live(),
 
                         Forms\Components\Select::make('bank_account_id')
-                            ->label('Bank Account')
+                            ->label('Account')
                             ->relationship('bankAccount', 'name')
                             ->searchable()
                             ->preload()
-                            ->placeholder('Auto-detect from statement'),
+                            ->placeholder('Auto-detect from statement')
+                            ->visible(fn (Get $get): bool => $get('statement_type') === StatementType::Bank),
 
-                        Forms\Components\TextInput::make('bank_name')
-                            ->label('Bank Name (optional, auto-detected)')
-                            ->maxLength(255),
+                        Forms\Components\Select::make('credit_card_id')
+                            ->label('Credit Card')
+                            ->relationship('creditCard', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('Auto-detect from statement')
+                            ->visible(fn (Get $get): bool => $get('statement_type') === StatementType::CreditCard),
 
                         Forms\Components\TextInput::make('pdf_password')
                             ->label('PDF Password (optional)')
@@ -87,6 +94,7 @@ class ImportedFileResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['creditCard']))
             ->columns([
                 Tables\Columns\TextColumn::make('original_filename')
                     ->label('File')
@@ -94,8 +102,8 @@ class ImportedFileResource extends Resource
                     ->limit(40),
 
                 Tables\Columns\TextColumn::make('bankAccount.name')
-                    ->label('Bank Account')
-                    ->placeholder(fn (ImportedFile $record) => $record->bank_name ?? 'Detecting...'),
+                    ->label('Account')
+                    ->placeholder(fn (ImportedFile $record) => $record->creditCard?->name ?? $record->bank_name ?? 'Detecting...'),
 
                 Tables\Columns\TextColumn::make('bank_name')
                     ->label('Detected Bank')
