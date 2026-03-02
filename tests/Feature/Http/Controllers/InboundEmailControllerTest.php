@@ -440,6 +440,37 @@ describe('InboundEmailController source metadata', function () {
             ->and($metadata['subject'])->toBe('Invoice for January 2026')
             ->and($metadata['received_at'])->not->toBeNull();
     });
+
+    it('stores message_id as a column on ImportedFile', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->message_id)->toBe('<unique-msg-id-123@mail.example.com>');
+    });
+
+    it('stores null message_id when Message-Id header is absent', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload([
+                'attachment-count' => '1',
+                'Message-Id' => null,
+            ]),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->message_id)->toBeNull();
+    });
 });
 
 describe('InboundEmailController email body capture', function () {
@@ -675,6 +706,23 @@ describe('InboundEmailController multi-tenant isolation', function () {
         ));
 
         expect(ImportedFile::count())->toBe(1);
+    });
+
+    it('allows multiple attachments from the same email', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $img1 = UploadedFile::fake()->image('invoice_scan1.png', 100, 100);
+        $img2 = UploadedFile::fake()->image('invoice_scan2.png', 200, 200);
+
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '2']),
+            ['attachment-1' => $img1, 'attachment-2' => $img2],
+        ));
+
+        $response->assertSuccessful()->assertJson(['files_processed' => 2]);
+
+        $messageIds = ImportedFile::pluck('message_id')->all();
+        expect($messageIds)->each->toBe('<unique-msg-id-123@mail.example.com>');
     });
 
     it('scopes message_id deduplication to the receiving company', function () {

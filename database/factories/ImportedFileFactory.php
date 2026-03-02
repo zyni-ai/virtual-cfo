@@ -107,15 +107,20 @@ class ImportedFileFactory extends Factory
 
     public function fromEmail(?string $messageId = null): static
     {
-        return $this->state(fn (array $attributes) => [
-            'source' => ImportSource::Email,
-            'source_metadata' => [
-                'message_id' => $messageId ?? '<'.fake()->uuid().'@mail.example.com>',
-                'from' => fake()->email(),
-                'subject' => 'Invoice '.fake()->date('M Y'),
-                'received_at' => now()->toIso8601String(),
-            ],
-        ]);
+        return $this->state(function (array $attributes) use ($messageId) {
+            $resolvedMessageId = $messageId ?? '<'.fake()->uuid().'@mail.example.com>';
+
+            return [
+                'source' => ImportSource::Email,
+                'message_id' => $resolvedMessageId,
+                'source_metadata' => [
+                    'message_id' => $resolvedMessageId,
+                    'from' => fake()->email(),
+                    'subject' => 'Invoice '.fake()->date('M Y'),
+                    'received_at' => now()->toIso8601String(),
+                ],
+            ];
+        });
     }
 
     public function fromZoho(?string $invoiceId = null): static

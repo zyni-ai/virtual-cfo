@@ -191,4 +191,17 @@ describe('ImportedFile source tracking', function () {
         $fresh = ImportedFile::find($file->id);
         expect($fresh->source_metadata)->toBe($metadata);
     });
+
+    it('populates message_id column from fromEmail factory state', function () {
+        $file = ImportedFile::factory()->fromEmail('<factory-msg@example.com>')->create();
+
+        expect($file->message_id)->toBe('<factory-msg@example.com>')
+            ->and($file->source_metadata['message_id'])->toBe('<factory-msg@example.com>');
+    });
+
+    it('has null message_id for non-email sources', function () {
+        $file = ImportedFile::factory()->create();
+
+        expect($file->message_id)->toBeNull();
+    });
 });

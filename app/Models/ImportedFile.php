@@ -55,6 +55,7 @@ class ImportedFile extends Model
         'status',
         'source',
         'source_metadata',
+        'message_id',
         'total_rows',
         'mapped_rows',
         'error_message',
