@@ -54,10 +54,7 @@ class InboundEmailController
             if ($importedFile) {
                 $filesProcessed++;
 
-                /** @var ImportStatus $status */
-                $status = $importedFile->status;
-
-                if ($status !== ImportStatus::Skipped) {
+                if ($importedFile->status !== ImportStatus::Skipped) {
                     ProcessImportedFile::dispatch($importedFile);
                 }
             }
@@ -84,10 +81,8 @@ class InboundEmailController
     {
         return ImportedFile::query()
             ->where('company_id', $company->id)
-            ->where('source', ImportSource::Email)
-            ->whereNotNull('source_metadata')
-            ->get(['id', 'source_metadata'])
-            ->contains(fn (ImportedFile $file): bool => ($file->source_metadata['message_id'] ?? null) === $messageId);
+            ->where('message_id', $messageId)
+            ->exists();
     }
 
     /**
@@ -146,6 +141,7 @@ class InboundEmailController
             'file_hash' => $fileHash,
             'source' => ImportSource::Email,
             'source_metadata' => $metadata,
+            'message_id' => $metadata['message_id'] ?? null,
         ];
 
         if ($classification === null) {
