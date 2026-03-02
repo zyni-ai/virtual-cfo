@@ -3,12 +3,90 @@
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use App\Filament\Resources\ImportedFileResource;
+use App\Filament\Resources\ImportedFileResource\Pages\CreateImportedFile;
 use App\Filament\Resources\ImportedFileResource\Pages\ListImportedFiles;
+use App\Filament\Resources\ImportedFileResource\Pages\ViewImportedFile;
 use App\Jobs\ProcessImportedFile;
+use App\Models\BankAccount;
+use App\Models\CreditCard;
 use App\Models\ImportedFile;
 use Illuminate\Support\Facades\Queue;
 
 use function Pest\Livewire\livewire;
+
+describe('ImportedFileResource reactive form', function () {
+    beforeEach(function () {
+        asUser();
+    });
+
+    it('shows bank_account_id when statement_type is Bank', function () {
+        livewire(CreateImportedFile::class)
+            ->set('data.statement_type', StatementType::Bank->value)
+            ->assertFormFieldVisible('bank_account_id')
+            ->assertFormFieldHidden('credit_card_id');
+    });
+
+    it('shows credit_card_id when statement_type is CreditCard', function () {
+        livewire(CreateImportedFile::class)
+            ->set('data.statement_type', StatementType::CreditCard->value)
+            ->assertFormFieldVisible('credit_card_id')
+            ->assertFormFieldHidden('bank_account_id');
+    });
+
+    it('hides both account fields when statement_type is Invoice', function () {
+        livewire(CreateImportedFile::class)
+            ->set('data.statement_type', StatementType::Invoice->value)
+            ->assertFormFieldHidden('bank_account_id')
+            ->assertFormFieldHidden('credit_card_id');
+    });
+
+    it('does not have bank_name field on create form', function () {
+        $component = livewire(CreateImportedFile::class);
+
+        $fields = $component->instance()
+            ->getSchema('form')
+            ->getFlatFields(withHidden: true);
+
+        expect($fields)->not->toHaveKey('bank_name');
+    });
+});
+
+describe('ImportedFileResource view page', function () {
+    beforeEach(function () {
+        asUser();
+    });
+
+    it('shows linked bank account name', function () {
+        $account = BankAccount::factory()->create([
+            'company_id' => tenant()->id,
+            'name' => 'HDFC Current Account',
+        ]);
+        $file = ImportedFile::factory()->completed()->create([
+            'bank_account_id' => $account->id,
+        ]);
+
+        livewire(ViewImportedFile::class, ['record' => $file->getRouteKey()])
+            ->assertSchemaStateSet([
+                'bankAccount.name' => 'HDFC Current Account',
+            ]);
+    });
+
+    it('shows linked credit card name', function () {
+        $card = CreditCard::factory()->create([
+            'company_id' => tenant()->id,
+            'name' => 'ICICI Amazon Pay',
+        ]);
+        $file = ImportedFile::factory()->completed()->create([
+            'credit_card_id' => $card->id,
+            'statement_type' => StatementType::CreditCard,
+        ]);
+
+        livewire(ViewImportedFile::class, ['record' => $file->getRouteKey()])
+            ->assertSchemaStateSet([
+                'creditCard.name' => 'ICICI Amazon Pay',
+            ]);
+    });
+});
 
 describe('ImportedFileResource', function () {
     beforeEach(function () {
