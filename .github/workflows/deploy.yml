@@ -1,0 +1,29 @@
+name: Deploy
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Deployment placeholder
+        run: |
+          echo "========================================="
+          echo "  Deploying ${{ github.ref_name }}"
+          echo "========================================="
+          echo ""
+          echo "Configure deployment target here."
+          echo "This workflow triggers on tag creation."
+          echo ""
+          echo "Tag:    ${{ github.ref_name }}"
+          echo "SHA:    ${{ github.sha }}"
+          echo "Actor:  ${{ github.actor }}"

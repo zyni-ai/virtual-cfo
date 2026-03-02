@@ -15,6 +15,7 @@ Closes #
 ## Checklist
 - [ ] Branch follows naming: `<type>/<issue#>-<description>`
 - [ ] Commits follow format: `<type>(scope): message (#issue)`
+- [ ] PR has a `type:` label (feature, bug, refactor, docs, chore) for release notes
 - [ ] Tests added/updated for changes
 - [ ] `vendor/bin/pint --dirty` run
 - [ ] All new models have factories

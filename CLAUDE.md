@@ -66,6 +66,17 @@ feature/* → master (squash merge) → CD → staging/QA → tag vX.Y.Z → pro
 
 **Merge strategy:** Always squash merge into `master`.
 **CI checks required before merge:** Syntax, Pint, PHPStan, Security, Tests
+**PR labels:** Every PR must have a `type:` label (`type: feature`, `type: bug`, `type: refactor`, `type: docs`, `type: chore`) for release notes categorization.
+
+### Releases
+
+Semantic versioning (`vX.Y.Z`). Releases are cut by tagging `master`:
+
+```bash
+gh release create vX.Y.Z --generate-notes --target master --title "vX.Y.Z"
+```
+
+See [Release Process](docs/guides/release-process.md) for full details (pre-release checklist, deployment, rollback).
 
 ## Common Mistakes (AVOID)
 
@@ -211,7 +222,7 @@ The agents use the `model()` method (laravel/ai convention) to resolve the model
 | Folder | Purpose | When to Read |
 |--------|---------|--------------|
 | `docs/architecture/` | Architecture decisions (pipeline, agents, data model, Tally XML, data privacy) | Before implementing #40–#43, #15, #54–#55 |
-| `docs/guides/` | How-to guides (AI workflow, testing) | For step-by-step workflows |
+| `docs/guides/` | How-to guides (AI workflow, testing, releases) | For step-by-step workflows |
 | `docs/PLAN.md` | Project setup plan and implementation order | For project context |
 
 ### AI-Assisted Development Workflow
