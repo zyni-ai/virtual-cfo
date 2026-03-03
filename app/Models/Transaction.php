@@ -35,6 +35,7 @@ class Transaction extends Model
         'raw_data',
         'bank_format',
         'reconciliation_status',
+        'recurring_pattern_id',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -84,6 +85,12 @@ class Transaction extends Model
     public function accountHead(): BelongsTo
     {
         return $this->belongsTo(AccountHead::class);
+    }
+
+    /** @return BelongsTo<RecurringPattern, $this> */
+    public function recurringPattern(): BelongsTo
+    {
+        return $this->belongsTo(RecurringPattern::class);
     }
 
     public function reconciliationMatchesAsBank(): HasMany
