@@ -47,6 +47,7 @@ describe('Filament Resources', function () {
             ->ignoring('App\Filament\Resources\CreditCardResource\Pages')
             ->ignoring('App\Filament\Resources\HeadMappingResource\Pages')
             ->ignoring('App\Filament\Resources\ImportedFileResource\Pages')
+            ->ignoring('App\Filament\Resources\RecurringPatternResource\Pages')
             ->ignoring('App\Filament\Resources\TransactionResource\Pages');
     });
 })->group('architecture');
