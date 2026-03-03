@@ -205,12 +205,6 @@ parameters:
 			path: app/Models/ImportedFile.php
 
 		-
-			message: '#^Method App\\Models\\ImportedFile\:\:uploader\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/ImportedFile.php
-
-		-
 			message: '#^Class App\\Models\\ReconciliationMatch uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
