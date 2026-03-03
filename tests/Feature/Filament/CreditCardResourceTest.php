@@ -77,14 +77,11 @@ describe('CreditCardResource', function () {
         expect($card->fresh()->name)->toBe('New Card Name');
     });
 
-    it('can delete a credit card via soft delete', function () {
-        $card = CreditCard::factory()->create(['company_id' => tenant()->id]);
+    it('does not have a delete action (archive-only)', function () {
+        CreditCard::factory()->create(['company_id' => tenant()->id]);
 
         livewire(ListCreditCards::class)
-            ->callTableAction('delete', $card);
-
-        expect(CreditCard::find($card->id))->toBeNull()
-            ->and(CreditCard::withTrashed()->find($card->id))->not->toBeNull();
+            ->assertTableActionDoesNotExist('delete');
     });
 
     it('shows import count in table', function () {

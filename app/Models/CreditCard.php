@@ -4,10 +4,12 @@ namespace App\Models;
 
 use App\Enums\ImportStatus;
 use App\Jobs\ProcessImportedFile;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -83,5 +85,30 @@ class CreditCard extends Model
     public function importedFiles(): HasMany
     {
         return $this->hasMany(ImportedFile::class);
+    }
+
+    /** @return BelongsToMany<Company, $this> */
+    public function sharedCompanies(): BelongsToMany
+    {
+        return $this->belongsToMany(Company::class, 'company_credit_card')
+            ->withPivot('shared_by')
+            ->withTimestamps();
+    }
+
+    public function isSharedWith(Company $company): bool
+    {
+        return $this->sharedCompanies()->where('companies.id', $company->id)->exists();
+    }
+
+    /**
+     * @param  Builder<CreditCard>  $query
+     * @return Builder<CreditCard>
+     */
+    public function scopeVisibleToCompany(Builder $query, int $companyId): Builder
+    {
+        return $query->where(function (Builder $q) use ($companyId) {
+            $q->where('company_id', $companyId)
+                ->orWhereHas('sharedCompanies', fn (Builder $sub) => $sub->where('companies.id', $companyId));
+        });
     }
 }

@@ -252,6 +252,67 @@ class TransactionResource extends Resource
                         })
                         ->deselectRecordsAfterCompletion(),
 
+                    Actions\BulkAction::make('move_to_company')
+                        ->label('Move to Company')
+                        ->icon('heroicon-o-arrow-right-circle')
+                        ->color('warning')
+                        ->form([
+                            Forms\Components\Select::make('target_company_id')
+                                ->label('Target Company')
+                                ->options(function () {
+                                    $user = Auth::user();
+                                    /** @var \App\Models\Company|null $currentTenant */
+                                    $currentTenant = \Filament\Facades\Filament::getTenant();
+
+                                    return \App\Models\Company::query()
+                                        ->whereHas('users', function (Builder $q) use ($user) {
+                                            $q->where('users.id', $user->id)
+                                                ->where('company_user.role', \App\Enums\UserRole::Admin->value);
+                                        })
+                                        ->when($currentTenant, fn (Builder $q) => $q->where('companies.id', '!=', $currentTenant->id))
+                                        ->pluck('name', 'id');
+                                })
+                                ->searchable()
+                                ->required(),
+                        ])
+                        ->action(function (Collection $records, array $data) {
+                            $targetCompany = \App\Models\Company::find($data['target_company_id']);
+
+                            $creditCardIds = $records->pluck('imported_file_id')
+                                ->map(fn ($fileId) => ImportedFile::find($fileId)?->credit_card_id)
+                                ->filter()
+                                ->unique();
+
+                            $allShared = $creditCardIds->every(function ($cardId) use ($targetCompany) {
+                                $card = \App\Models\CreditCard::find($cardId);
+
+                                return $card && $card->isSharedWith($targetCompany);
+                            });
+
+                            if (! $allShared) {
+                                Notification::make()
+                                    ->title('Card must be shared with the target company first')
+                                    ->danger()
+                                    ->send();
+
+                                return;
+                            }
+
+                            $count = 0;
+                            $records->each(function (Model $record) use ($targetCompany, &$count) {
+                                /** @var Transaction $tx */
+                                $tx = $record;
+                                $tx->moveToCompany($targetCompany);
+                                $count++;
+                            });
+
+                            Notification::make()
+                                ->title($count.' transactions moved to '.$targetCompany->name)
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
                     Actions\DeleteBulkAction::make(),
                 ]),
             ])

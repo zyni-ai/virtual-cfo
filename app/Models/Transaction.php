@@ -75,6 +75,7 @@ class Transaction extends Model
         return $this->belongsTo(Company::class);
     }
 
+    /** @return BelongsTo<ImportedFile, $this> */
     public function importedFile(): BelongsTo
     {
         return $this->belongsTo(ImportedFile::class);
@@ -161,5 +162,15 @@ class Transaction extends Model
         }
 
         return null;
+    }
+
+    public function moveToCompany(Company $target): void
+    {
+        $this->update([
+            'company_id' => $target->id,
+            'account_head_id' => null,
+            'mapping_type' => MappingType::Unmapped,
+            'ai_confidence' => null,
+        ]);
     }
 }
