@@ -4,6 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Enums\MappingType;
 use App\Enums\MatchType;
+use App\Exports\TransactionCsvExport;
+use App\Exports\TransactionExcelExport;
 use App\Filament\Resources\TransactionResource\Pages;
 use App\Jobs\MatchTransactionHeads;
 use App\Models\AccountHead;
@@ -23,6 +25,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionResource extends Resource
@@ -273,40 +277,87 @@ class TransactionResource extends Resource
                             ->send();
                     }),
 
-                Actions\Action::make('export_tally')
-                    ->label('Export to Tally XML')
+                Actions\ActionGroup::make([
+                    Actions\Action::make('export_tally')
+                        ->label('Tally XML')
+                        ->icon('heroicon-o-document-text')
+                        ->form([
+                            Forms\Components\DatePicker::make('from')
+                                ->label('From Date'),
+                            Forms\Components\DatePicker::make('until')
+                                ->label('Until Date'),
+                        ])
+                        ->action(function (array $data): StreamedResponse {
+                            $query = Transaction::whereNotNull('account_head_id')
+                                ->with(['accountHead', 'importedFile.company', 'importedFile.bankAccount'])
+                                ->orderBy('date');
+
+                            if (! empty($data['from'])) {
+                                $query->whereDate('date', '>=', $data['from']);
+                            }
+
+                            if (! empty($data['until'])) {
+                                $query->whereDate('date', '<=', $data['until']);
+                            }
+
+                            $transactions = $query->get();
+
+                            $service = new TallyExportService;
+                            $xml = $service->exportTransactions($transactions);
+
+                            return response()->streamDownload(
+                                fn () => print ($xml),
+                                'tally-export-'.now()->format('Y-m-d-His').'.xml',
+                                ['Content-Type' => 'application/xml']
+                            );
+                        }),
+
+                    Actions\Action::make('export_csv')
+                        ->label('CSV')
+                        ->icon('heroicon-o-table-cells')
+                        ->form([
+                            Forms\Components\DatePicker::make('from')
+                                ->label('From Date'),
+                            Forms\Components\DatePicker::make('until')
+                                ->label('Until Date'),
+                        ])
+                        ->action(function (array $data): BinaryFileResponse {
+                            $export = new TransactionCsvExport(
+                                from: $data['from'] ?? null,
+                                until: $data['until'] ?? null,
+                            );
+
+                            return Excel::download(
+                                $export,
+                                'transactions-'.now()->format('Y-m-d-His').'.csv',
+                            );
+                        }),
+
+                    Actions\Action::make('export_excel')
+                        ->label('Excel')
+                        ->icon('heroicon-o-document-arrow-down')
+                        ->form([
+                            Forms\Components\DatePicker::make('from')
+                                ->label('From Date'),
+                            Forms\Components\DatePicker::make('until')
+                                ->label('Until Date'),
+                        ])
+                        ->action(function (array $data): BinaryFileResponse {
+                            $export = new TransactionExcelExport(
+                                from: $data['from'] ?? null,
+                                until: $data['until'] ?? null,
+                            );
+
+                            return Excel::download(
+                                $export,
+                                'transactions-'.now()->format('Y-m-d-His').'.xlsx',
+                            );
+                        }),
+                ])
+                    ->label('Export')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('success')
-                    ->form([
-                        Forms\Components\DatePicker::make('from')
-                            ->label('From Date'),
-                        Forms\Components\DatePicker::make('until')
-                            ->label('Until Date'),
-                    ])
-                    ->action(function (array $data): StreamedResponse {
-                        $query = Transaction::whereNotNull('account_head_id')
-                            ->with(['accountHead', 'importedFile.company', 'importedFile.bankAccount'])
-                            ->orderBy('date');
-
-                        if (! empty($data['from'])) {
-                            $query->whereDate('date', '>=', $data['from']);
-                        }
-
-                        if (! empty($data['until'])) {
-                            $query->whereDate('date', '<=', $data['until']);
-                        }
-
-                        $transactions = $query->get();
-
-                        $service = new TallyExportService;
-                        $xml = $service->exportTransactions($transactions);
-
-                        return response()->streamDownload(
-                            fn () => print ($xml),
-                            'tally-export-'.now()->format('Y-m-d-His').'.xml',
-                            ['Content-Type' => 'application/xml']
-                        );
-                    }),
+                    ->button(),
             ]);
     }
 
