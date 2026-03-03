@@ -8,6 +8,7 @@ use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\DataPrivacy\Pseudonymizer;
+use App\Services\RecurringPatterns\RecurringPatternService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -21,6 +22,7 @@ class HeadMatcherService
 
     public function __construct(
         protected RuleBasedMatcher $ruleBasedMatcher,
+        protected RecurringPatternService $recurringPatternService = new RecurringPatternService,
         protected Pseudonymizer $pseudonymizer = new Pseudonymizer,
     ) {}
 
@@ -32,7 +34,7 @@ class HeadMatcherService
     }
 
     /**
-     * Run the full matching pipeline: rules first, then AI for remaining.
+     * Run the full matching pipeline: rules first, then recurring patterns, then AI.
      */
     public function matchForFile(ImportedFile $importedFile): array
     {
@@ -43,13 +45,16 @@ class HeadMatcherService
             ->exists();
 
         if (! $hasUnmapped) {
-            return ['rule_matched' => 0, 'ai_matched' => 0, 'unmatched' => 0];
+            return ['rule_matched' => 0, 'recurring_matched' => 0, 'ai_matched' => 0, 'unmatched' => 0];
         }
 
         // Pass 1: Rule-based matching in chunks
         $ruleCount = $this->runChunkedRuleMatching($importedFile);
 
-        // Pass 2: AI matching in chunks for remaining unmapped
+        // Pass 2: Recurring pattern matching for remaining unmapped
+        $recurringCount = $this->runRecurringPatternMatching($importedFile);
+
+        // Pass 3: AI matching in chunks for remaining unmapped
         $aiCount = $this->runChunkedAiMatching($importedFile);
 
         // Update file stats
@@ -61,6 +66,7 @@ class HeadMatcherService
 
         return [
             'rule_matched' => $ruleCount,
+            'recurring_matched' => $recurringCount,
             'ai_matched' => $aiCount,
             'unmatched' => $importedFile->transactions()
                 ->where('mapping_type', MappingType::Unmapped)
@@ -82,6 +88,29 @@ class HeadMatcherService
             ->chunkById($this->ruleChunkSize, function (Collection $transactions) use ($bankName, &$totalMatched) {
                 $ruleMatches = $this->ruleBasedMatcher->match($transactions, $bankName);
                 $totalMatched += $this->ruleBasedMatcher->applyMatches($ruleMatches);
+            });
+
+        return $totalMatched;
+    }
+
+    /**
+     * Run recurring pattern matching on remaining unmapped transactions.
+     */
+    protected function runRecurringPatternMatching(ImportedFile $importedFile): int
+    {
+        $totalMatched = 0;
+
+        $importedFile->transactions()
+            ->where('mapping_type', MappingType::Unmapped)
+            ->chunkById($this->ruleChunkSize, function (Collection $transactions) use (&$totalMatched) {
+                /** @var Transaction $transaction */
+                foreach ($transactions as $transaction) {
+                    $pattern = $this->recurringPatternService->matchTransaction($transaction);
+
+                    if ($pattern && $pattern->account_head_id !== null) {
+                        $totalMatched++;
+                    }
+                }
             });
 
         return $totalMatched;

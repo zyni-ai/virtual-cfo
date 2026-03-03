@@ -201,7 +201,7 @@ describe('HeadMatcherService::matchForFile()', function () {
         $service = app(HeadMatcherService::class);
         $results = $service->matchForFile($file);
 
-        expect($results)->toBe(['rule_matched' => 0, 'ai_matched' => 0, 'unmatched' => 0]);
+        expect($results)->toBe(['rule_matched' => 0, 'recurring_matched' => 0, 'ai_matched' => 0, 'unmatched' => 0]);
     });
 
     it('matches transactions using rules first', function () {

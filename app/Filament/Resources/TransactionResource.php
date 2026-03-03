@@ -104,6 +104,12 @@ class TransactionResource extends Resource
                         $state >= 0.5 => 'warning',
                         default => 'danger',
                     }),
+
+                Tables\Columns\IconColumn::make('recurring_pattern_id')
+                    ->label('Recurring')
+                    ->icon(fn ($state) => $state ? 'heroicon-o-arrow-path' : null)
+                    ->color('info')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('date', 'desc')
             ->filters([
