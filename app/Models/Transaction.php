@@ -35,6 +35,7 @@ class Transaction extends Model
         'raw_data',
         'bank_format',
         'reconciliation_status',
+        'recurring_pattern_id',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -75,6 +76,7 @@ class Transaction extends Model
         return $this->belongsTo(Company::class);
     }
 
+    /** @return BelongsTo<ImportedFile, $this> */
     public function importedFile(): BelongsTo
     {
         return $this->belongsTo(ImportedFile::class);
@@ -83,6 +85,12 @@ class Transaction extends Model
     public function accountHead(): BelongsTo
     {
         return $this->belongsTo(AccountHead::class);
+    }
+
+    /** @return BelongsTo<RecurringPattern, $this> */
+    public function recurringPattern(): BelongsTo
+    {
+        return $this->belongsTo(RecurringPattern::class);
     }
 
     public function reconciliationMatchesAsBank(): HasMany
@@ -161,5 +169,15 @@ class Transaction extends Model
         }
 
         return null;
+    }
+
+    public function moveToCompany(Company $target): void
+    {
+        $this->update([
+            'company_id' => $target->id,
+            'account_head_id' => null,
+            'mapping_type' => MappingType::Unmapped,
+            'ai_confidence' => null,
+        ]);
     }
 }

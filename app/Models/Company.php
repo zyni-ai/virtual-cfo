@@ -89,4 +89,12 @@ class Company extends Model
     {
         return $this->hasMany(Connector::class);
     }
+
+    /** @return BelongsToMany<CreditCard, $this> */
+    public function sharedCreditCards(): BelongsToMany
+    {
+        return $this->belongsToMany(CreditCard::class, 'company_credit_card')
+            ->withPivot('shared_by')
+            ->withTimestamps();
+    }
 }
