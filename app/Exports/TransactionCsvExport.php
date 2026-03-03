@@ -90,7 +90,7 @@ class TransactionCsvExport implements FromQuery, WithHeadings, WithMapping
             $accountHead?->name,
             $accountHead?->group_name,
             $importedFile?->bank_name,
-            $row->mapping_type,
+            $row->mapping_type?->value,
         ];
     }
 }

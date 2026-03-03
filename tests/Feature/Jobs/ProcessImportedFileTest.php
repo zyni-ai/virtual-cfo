@@ -1,10 +1,13 @@
 <?php
 
+use App\Ai\Agents\InvoiceParser;
 use App\Ai\Agents\StatementParser;
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
+use App\Enums\StatementType;
 use App\Jobs\MatchTransactionHeads;
 use App\Jobs\ProcessImportedFile;
+use App\Jobs\SuggestReconciliationMatches;
 use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
@@ -12,6 +15,67 @@ use App\Services\DocumentProcessor\DocumentProcessor;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+
+describe('ProcessImportedFile auto-suggestion dispatch', function () {
+    it('dispatches SuggestReconciliationMatches after successfully processing an invoice file', function () {
+        Storage::fake('local');
+        Storage::put('statements/invoice.pdf', 'fake-pdf-content');
+
+        InvoiceParser::fake([
+            [
+                'vendor_name' => 'Test Vendor',
+                'invoice_number' => 'INV/001',
+                'invoice_date' => '2025-04-05',
+                'total_amount' => 15000,
+                'currency' => 'INR',
+                'base_amount' => 12712,
+                'line_items' => [['description' => 'Services', 'amount' => 12712]],
+            ],
+        ]);
+
+        Queue::fake([SuggestReconciliationMatches::class]);
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::Invoice,
+            'file_path' => 'statements/invoice.pdf',
+        ]);
+
+        $job = new ProcessImportedFile($file);
+        $job->handle(app(DocumentProcessor::class));
+
+        Queue::assertPushed(SuggestReconciliationMatches::class, function ($job) use ($file) {
+            return $job->invoiceFile->id === $file->id;
+        });
+    });
+
+    it('does not dispatch SuggestReconciliationMatches for bank statement files', function () {
+        Storage::fake('local');
+        Storage::put('statements/bank.pdf', 'fake-pdf-content');
+
+        StatementParser::fake([
+            [
+                'bank_name' => 'HDFC Bank',
+                'transactions' => [
+                    ['date' => '2025-04-05', 'description' => 'NEFT PAYMENT', 'debit' => 15000, 'balance' => 100000],
+                ],
+            ],
+        ]);
+
+        Queue::fake([SuggestReconciliationMatches::class]);
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::Bank,
+            'file_path' => 'statements/bank.pdf',
+        ]);
+
+        $job = new ProcessImportedFile($file);
+        $job->handle(app(DocumentProcessor::class));
+
+        Queue::assertNotPushed(SuggestReconciliationMatches::class);
+    });
+});
 
 describe('ProcessImportedFile job', function () {
     it('implements ShouldQueue', function () {

@@ -18,7 +18,7 @@ class ExpenseBySourceWidget extends ChartWidget
     protected function getData(): array
     {
         $rows = TransactionAggregate::query()
-            ->where('company_id', Filament::getTenant()->id)
+            ->where('company_id', Filament::getTenant()->getKey())
             ->whereNotNull('account_head_id')
             ->with(['bankAccount:id,name', 'creditCard:id,name'])
             ->select('bank_account_id', 'credit_card_id')

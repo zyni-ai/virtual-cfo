@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\MatchMethod;
+use App\Enums\MatchStatus;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
 use App\Filament\Pages\Reconciliation;
@@ -138,7 +139,7 @@ describe('Reconciliation Page', function () {
         });
     });
 
-    it('can create a manual match', function () {
+    it('can create a manual match with confirmed status', function () {
         $bankFile = ImportedFile::factory()->completed()->create([
             'statement_type' => StatementType::Bank,
         ]);
@@ -171,12 +172,106 @@ describe('Reconciliation Page', function () {
 
         $match = ReconciliationMatch::first();
         expect($match->match_method)->toBe(MatchMethod::Manual)
-            ->and($match->confidence)->toBe(1.0);
+            ->and($match->confidence)->toBe(1.0)
+            ->and($match->status)->toBe(MatchStatus::Confirmed);
 
         $bankTxn->refresh();
         $invoiceTxn->refresh();
         expect($bankTxn->reconciliation_status)->toBe(ReconciliationStatus::Matched)
             ->and($invoiceTxn->reconciliation_status)->toBe(ReconciliationStatus::Matched);
+    });
+
+    it('displays pending suggestions count in stats widget', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxn = Transaction::factory()->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+        $invoiceTxn = Transaction::factory()->create([
+            'imported_file_id' => $invoiceFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn->id,
+            'invoice_transaction_id' => $invoiceTxn->id,
+        ]);
+
+        livewire(ReconciliationStatsOverview::class)
+            ->assertSee('Pending Suggestions');
+    });
+
+    it('can confirm a suggested match via table action', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxn = Transaction::factory()->debit(5000.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        $invoiceTxn = Transaction::factory()->debit(5000.00)->create([
+            'imported_file_id' => $invoiceFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        $match = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn->id,
+            'invoice_transaction_id' => $invoiceTxn->id,
+        ]);
+
+        livewire(Reconciliation::class)
+            ->callTableAction('confirm_suggestion', $bankTxn);
+
+        $match->refresh();
+        $bankTxn->refresh();
+        expect($match->status)->toBe(MatchStatus::Confirmed)
+            ->and($bankTxn->reconciliation_status)->toBe(ReconciliationStatus::Matched);
+    });
+
+    it('can reject all suggestions for a bank transaction via table action', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxn = Transaction::factory()->debit(5000.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        $match1 = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn->id,
+            'invoice_transaction_id' => Transaction::factory()->create([
+                'imported_file_id' => $invoiceFile->id,
+            ])->id,
+        ]);
+        $match2 = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn->id,
+            'invoice_transaction_id' => Transaction::factory()->create([
+                'imported_file_id' => $invoiceFile->id,
+            ])->id,
+        ]);
+
+        livewire(Reconciliation::class)
+            ->callTableAction('reject_suggestions', $bankTxn);
+
+        $match1->refresh();
+        $match2->refresh();
+        expect($match1->status)->toBe(MatchStatus::Rejected)
+            ->and($match2->status)->toBe(MatchStatus::Rejected);
     });
 });
 

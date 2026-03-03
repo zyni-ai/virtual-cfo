@@ -58,19 +58,19 @@ class Reports extends Page
                         Select::make('bankAccountIds')
                             ->label('Bank Accounts')
                             ->multiple()
-                            ->options(fn () => BankAccount::where('company_id', Filament::getTenant()->id)->pluck('name', 'id'))
+                            ->options(fn () => BankAccount::where('company_id', Filament::getTenant()->getKey())->pluck('name', 'id'))
                             ->placeholder('All'),
 
                         Select::make('creditCardIds')
                             ->label('Credit Cards')
                             ->multiple()
-                            ->options(fn () => CreditCard::where('company_id', Filament::getTenant()->id)->pluck('name', 'id'))
+                            ->options(fn () => CreditCard::where('company_id', Filament::getTenant()->getKey())->pluck('name', 'id'))
                             ->placeholder('All'),
 
                         Select::make('accountHeadIds')
                             ->label('Account Heads')
                             ->multiple()
-                            ->options(fn () => AccountHead::where('company_id', Filament::getTenant()->id)->pluck('name', 'id'))
+                            ->options(fn () => AccountHead::where('company_id', Filament::getTenant()->getKey())->pluck('name', 'id'))
                             ->placeholder('All'),
                     ])
                     ->columns(5),

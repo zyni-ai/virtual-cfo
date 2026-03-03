@@ -37,7 +37,7 @@ class ReportingService
     public function filteredAggregatesQuery(array $filters = []): Builder
     {
         $query = TransactionAggregate::query()
-            ->where('company_id', Filament::getTenant()->id);
+            ->where('company_id', Filament::getTenant()->getKey());
 
         if (empty($filters)) {
             return $query;

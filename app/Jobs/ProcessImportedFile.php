@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\ImportStatus;
+use App\Enums\StatementType;
 use App\Enums\UserRole;
 use App\Models\ImportedFile;
 use App\Models\User;
@@ -56,6 +57,7 @@ class ProcessImportedFile implements ShouldQueue
 
             $this->importedFile->refresh();
             $this->notifySuccess();
+            $this->dispatchAutoSuggestions();
         } catch (\Throwable $e) {
             Log::error('Failed to process imported file', [
                 'file_id' => $this->importedFile->id,
@@ -91,8 +93,6 @@ class ProcessImportedFile implements ShouldQueue
 
     private function notifySuccess(): void
     {
-        $this->importedFile->refresh();
-
         if ($this->importedFile->uploaded_by) {
             $this->importedFile->uploader->notify(new ImportCompletedNotification($this->importedFile));
         }
@@ -111,5 +111,15 @@ class ProcessImportedFile implements ShouldQueue
 
         $admins = User::where('role', UserRole::Admin)->get();
         Notification::send($admins, $notification);
+    }
+
+    private function dispatchAutoSuggestions(): void
+    {
+        /** @var StatementType $statementType */
+        $statementType = $this->importedFile->statement_type;
+
+        if ($statementType === StatementType::Invoice) {
+            SuggestReconciliationMatches::dispatch($this->importedFile);
+        }
     }
 }

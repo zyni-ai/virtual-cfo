@@ -5,6 +5,7 @@ use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
 use App\Enums\MatchMethod;
+use App\Enums\MatchStatus;
 use App\Enums\MatchType;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
@@ -123,5 +124,32 @@ describe('ImportSource', function () {
 describe('ConnectorProvider', function () {
     it('has correct labels', function () {
         expect(ConnectorProvider::Zoho->getLabel())->toBe('Zoho Invoice');
+    });
+});
+
+describe('MatchStatus', function () {
+    it('has correct cases', function () {
+        expect(MatchStatus::cases())->toHaveCount(3)
+            ->and(MatchStatus::Suggested->value)->toBe('suggested')
+            ->and(MatchStatus::Confirmed->value)->toBe('confirmed')
+            ->and(MatchStatus::Rejected->value)->toBe('rejected');
+    });
+
+    it('has correct labels', function () {
+        expect(MatchStatus::Suggested->getLabel())->toBe('Suggested')
+            ->and(MatchStatus::Confirmed->getLabel())->toBe('Confirmed')
+            ->and(MatchStatus::Rejected->getLabel())->toBe('Rejected');
+    });
+
+    it('has colors', function () {
+        expect(MatchStatus::Suggested->getColor())->toBeString()
+            ->and(MatchStatus::Confirmed->getColor())->toBeString()
+            ->and(MatchStatus::Rejected->getColor())->toBeString();
+    });
+
+    it('has icons', function () {
+        expect(MatchStatus::Suggested->getIcon())->toBeString()
+            ->and(MatchStatus::Confirmed->getIcon())->toBeString()
+            ->and(MatchStatus::Rejected->getIcon())->toBeString();
     });
 });
