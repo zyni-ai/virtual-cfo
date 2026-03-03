@@ -257,6 +257,7 @@ class TransactionResource extends Resource
                                 ->label('Target Company')
                                 ->options(function () {
                                     $user = Auth::user();
+                                    /** @var \App\Models\Company|null $currentTenant */
                                     $currentTenant = \Filament\Facades\Filament::getTenant();
 
                                     return \App\Models\Company::query()
@@ -294,7 +295,9 @@ class TransactionResource extends Resource
                             }
 
                             $count = 0;
-                            $records->each(function (Transaction $tx) use ($targetCompany, &$count) {
+                            $records->each(function (Model $record) use ($targetCompany, &$count) {
+                                /** @var Transaction $tx */
+                                $tx = $record;
                                 $tx->moveToCompany($targetCompany);
                                 $count++;
                             });

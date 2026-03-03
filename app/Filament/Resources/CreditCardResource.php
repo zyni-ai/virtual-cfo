@@ -117,6 +117,7 @@ class CreditCardResource extends Resource
                             ->multiple()
                             ->options(function () {
                                 $user = Auth::user();
+                                /** @var \App\Models\Company|null $currentTenant */
                                 $currentTenant = Filament::getTenant();
 
                                 return Company::query()
@@ -175,9 +176,11 @@ class CreditCardResource extends Resource
                 SoftDeletingScope::class,
             ]);
 
+        /** @var \App\Models\Company|null $tenant */
         $tenant = Filament::getTenant();
 
         if ($tenant) {
+            /** @var Builder<CreditCard> $query */
             $query->visibleToCompany($tenant->getKey());
         }
 
