@@ -3,7 +3,11 @@
 namespace App\Jobs;
 
 use App\Enums\ImportStatus;
+use App\Enums\UserRole;
 use App\Models\ImportedFile;
+use App\Models\User;
+use App\Notifications\ImportCompletedNotification;
+use App\Notifications\ImportFailedNotification;
 use App\Services\DocumentProcessor\DocumentProcessor;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,6 +15,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 class ProcessImportedFile implements ShouldQueue
 {
@@ -49,6 +54,8 @@ class ProcessImportedFile implements ShouldQueue
         try {
             $documentProcessor->process($this->importedFile);
 
+            $this->importedFile->refresh();
+            $this->notifySuccess();
         } catch (\Throwable $e) {
             Log::error('Failed to process imported file', [
                 'file_id' => $this->importedFile->id,
@@ -78,5 +85,31 @@ class ProcessImportedFile implements ShouldQueue
             'file_id' => $this->importedFile->id,
             'exception' => $exception->getMessage(),
         ]);
+
+        $this->notifyFailure();
+    }
+
+    private function notifySuccess(): void
+    {
+        $this->importedFile->refresh();
+
+        if ($this->importedFile->uploaded_by) {
+            $this->importedFile->uploader->notify(new ImportCompletedNotification($this->importedFile));
+        }
+    }
+
+    private function notifyFailure(): void
+    {
+        $this->importedFile->refresh();
+        $notification = new ImportFailedNotification($this->importedFile);
+
+        if ($this->importedFile->uploaded_by) {
+            $this->importedFile->uploader->notify($notification);
+
+            return;
+        }
+
+        $admins = User::where('role', UserRole::Admin)->get();
+        Notification::send($admins, $notification);
     }
 }

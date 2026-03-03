@@ -8,6 +8,8 @@ use App\Mail\InvitationMail;
 use App\Models\Company;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Notifications\MemberRemovedNotification;
+use App\Notifications\MemberRoleChangedNotification;
 use BackedEnum;
 use Filament\Actions;
 use Filament\Facades\Filament;
@@ -205,6 +207,11 @@ class TeamMembers extends Page implements HasTable
 
                         $roleLabel = UserRole::tryFrom($newRole)?->getLabel() ?? ucfirst($newRole);
 
+                        $record->notify(new MemberRoleChangedNotification(
+                            companyName: $company->name,
+                            newRole: $roleLabel,
+                        ));
+
                         Notification::make()
                             ->title('Role updated')
                             ->body("{$record->name}'s role changed to {$roleLabel}.")
@@ -228,6 +235,10 @@ class TeamMembers extends Page implements HasTable
                                 'email' => $record->email,
                             ])
                             ->log('member_removed');
+
+                        $record->notify(new MemberRemovedNotification(
+                            companyName: $company->name,
+                        ));
 
                         Notification::make()
                             ->title('Member removed')
