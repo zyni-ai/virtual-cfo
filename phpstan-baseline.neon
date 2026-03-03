@@ -103,18 +103,6 @@ parameters:
 			path: app/Filament/Resources/ImportedFileResource/Pages/CreateImportedFile.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$bank_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Filament/Resources/TransactionResource.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:transactions\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Filament/Resources/TransactionResource.php
-
-		-
 			message: '#^Class App\\Models\\AccountHead uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -236,12 +224,6 @@ parameters:
 
 		-
 			message: '#^Method App\\Models\\Transaction\:\:accountHead\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/Transaction.php
-
-		-
-			message: '#^Method App\\Models\\Transaction\:\:importedFile\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Transaction.php
