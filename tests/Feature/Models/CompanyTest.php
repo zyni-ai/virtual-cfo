@@ -110,7 +110,9 @@ describe('Company activity log', function () {
         $company = Company::factory()->create();
         $company->update(['name' => 'Updated Name']);
 
-        expect($company->activities)->toHaveCount(2)
-            ->and($company->activities->last()->description)->toBe('updated');
+        $activities = $company->activities()->orderBy('id')->get();
+
+        expect($activities)->toHaveCount(2)
+            ->and($activities->last()->description)->toBe('updated');
     });
 });
