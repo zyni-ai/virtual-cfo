@@ -66,7 +66,14 @@ class AccountHead extends Model
         return $this->hasMany(HeadMapping::class);
     }
 
+    private ?string $cachedFullPath = null;
+
     public function getFullPathAttribute(): string
+    {
+        return $this->cachedFullPath ??= $this->computeFullPath();
+    }
+
+    private function computeFullPath(): string
     {
         $parts = [$this->name];
         $current = $this;

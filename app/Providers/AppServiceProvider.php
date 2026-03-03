@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Listeners\RecordLoginSession;
 use App\Listeners\RecordLogoutSession;
+use App\Models\Transaction;
+use App\Observers\TransactionObserver;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
@@ -20,5 +22,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Event::listen(Login::class, RecordLoginSession::class);
         Event::listen(Logout::class, RecordLogoutSession::class);
+
+        Transaction::observe(TransactionObserver::class);
     }
 }

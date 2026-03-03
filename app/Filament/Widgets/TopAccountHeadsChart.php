@@ -3,11 +3,13 @@
 namespace App\Filament\Widgets;
 
 use App\Models\AccountHead;
+use App\Models\TransactionAggregate;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Facades\DB;
 
 class TopAccountHeadsChart extends ChartWidget
 {
-    protected ?string $heading = 'Top 10 Account Heads by Volume';
+    protected ?string $heading = 'Top 10 Account Heads by Amount';
 
     protected static ?int $sort = 5;
 
@@ -15,22 +17,29 @@ class TopAccountHeadsChart extends ChartWidget
 
     protected function getData(): array
     {
-        $heads = AccountHead::query()
-            ->withCount('transactions')
-            ->has('transactions')
-            ->orderByDesc('transactions_count')
+        /** @var \Illuminate\Support\Collection<int, TransactionAggregate> $aggregates */
+        $aggregates = TransactionAggregate::query()
+            ->whereNotNull('account_head_id')
+            ->select('account_head_id')
+            ->addSelect(DB::raw('SUM(total_debit + total_credit) as total_amount'))
+            ->groupBy('account_head_id')
+            ->orderByDesc('total_amount')
             ->limit(10)
             ->get();
+
+        $headNames = AccountHead::query()
+            ->whereIn('id', $aggregates->pluck('account_head_id'))
+            ->pluck('name', 'id');
 
         return [
             'datasets' => [
                 [
-                    'label' => 'Transactions',
-                    'data' => $heads->pluck('transactions_count')->toArray(),
+                    'label' => 'Total Amount',
+                    'data' => $aggregates->map(fn ($row) => round((float) $row->getAttribute('total_amount'), 2))->toArray(),
                     'backgroundColor' => '#6366f1',
                 ],
             ],
-            'labels' => $heads->pluck('name')->toArray(),
+            'labels' => $aggregates->map(fn ($row) => $headNames->get($row->account_head_id, 'Unknown'))->toArray(),
         ];
     }
 
