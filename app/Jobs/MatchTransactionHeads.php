@@ -2,7 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Enums\MappingType;
 use App\Models\ImportedFile;
+use App\Notifications\HeadMatchingCompletedNotification;
+use App\Notifications\LowConfidenceMatchesNotification;
 use App\Services\HeadMatcher\HeadMatcherService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -54,6 +57,8 @@ class MatchTransactionHeads implements ShouldQueue
                 'ai_matched' => $results['ai_matched'],
                 'unmatched' => $results['unmatched'],
             ]);
+
+            $this->notifyCompletion($results);
         } catch (\Throwable $e) {
             Log::error('Failed to match transaction heads', [
                 'file_id' => $this->importedFile->id,
@@ -73,5 +78,36 @@ class MatchTransactionHeads implements ShouldQueue
             'file_id' => $this->importedFile->id,
             'exception' => $exception->getMessage(),
         ]);
+    }
+
+    /**
+     * @param  array<string, int>  $results
+     */
+    private function notifyCompletion(array $results): void
+    {
+        if (! $this->importedFile->uploaded_by) {
+            return;
+        }
+
+        $uploader = $this->importedFile->uploader;
+
+        $uploader->notify(new HeadMatchingCompletedNotification(
+            $this->importedFile,
+            ruleMatched: $results['rule_matched'],
+            aiMatched: $results['ai_matched'],
+            unmatched: $results['unmatched'],
+        ));
+
+        $lowConfidenceCount = $this->importedFile->transactions()
+            ->where('mapping_type', MappingType::Ai)
+            ->where('ai_confidence', '<', 0.8)
+            ->count();
+
+        if ($lowConfidenceCount > 0) {
+            $uploader->notify(new LowConfidenceMatchesNotification(
+                $this->importedFile,
+                count: $lowConfidenceCount,
+            ));
+        }
     }
 }

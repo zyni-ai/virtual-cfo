@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AcceptInvitationRequest;
 use App\Models\Invitation;
 use App\Models\User;
-use Filament\Notifications\Notification;
+use App\Notifications\InvitationAcceptedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
@@ -100,10 +100,6 @@ class AcceptInvitationController
 
         $invitation->loadMissing('company');
 
-        Notification::make()
-            ->title("{$invitation->email} accepted your invitation")
-            ->body("They joined {$invitation->company->name} as {$invitation->role->getLabel()}.")
-            ->success()
-            ->sendToDatabase($invitation->inviter);
+        $invitation->inviter->notify(new InvitationAcceptedNotification($invitation));
     }
 }

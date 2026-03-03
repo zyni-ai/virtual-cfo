@@ -8,9 +8,11 @@ use App\Enums\StatementType;
 use App\Jobs\ProcessImportedFile;
 use App\Models\Company;
 use App\Models\ImportedFile;
+use App\Notifications\StatementReceivedByEmailNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 class InboundEmailController
@@ -60,6 +62,8 @@ class InboundEmailController
                 if ($status !== ImportStatus::Skipped) {
                     ProcessImportedFile::dispatch($importedFile);
                 }
+
+                $this->notifyAdmins($company, $importedFile, $metadata);
             }
         }
 
@@ -67,6 +71,24 @@ class InboundEmailController
             'status' => 'ok',
             'files_processed' => $filesProcessed,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function notifyAdmins(Company $company, ImportedFile $importedFile, array $metadata): void
+    {
+        $admins = $company->users()->wherePivot('role', 'admin')->get();
+
+        if ($admins->isEmpty()) {
+            return;
+        }
+
+        Notification::send($admins, new StatementReceivedByEmailNotification(
+            filename: $importedFile->original_filename,
+            companyName: $company->name,
+            senderEmail: $metadata['from'] ?? null,
+        ));
     }
 
     private function extractBodyText(Request $request): ?string
