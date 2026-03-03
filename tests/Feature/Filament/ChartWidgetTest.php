@@ -153,15 +153,16 @@ describe('TopAccountHeadsChart widget', function () {
         expect($method->invoke($widget))->toBe('bar');
     });
 
-    it('returns top 10 account heads by transaction count', function () {
+    it('returns top 10 account heads by total amount', function () {
         $company = tenant();
 
         $heads = AccountHead::factory()->count(12)->create(['company_id' => $company->id]);
 
-        // Assign decreasing transaction counts: 12, 11, 10, ..., 1
+        // Assign decreasing amounts: 1200, 1100, 1000, ..., 100
         $heads->each(function (AccountHead $head, int $index) use ($company) {
+            $amount = (12 - $index) * 100;
             Transaction::factory()
-                ->count(12 - $index)
+                ->debit($amount)
                 ->mapped($head)
                 ->create(['company_id' => $company->id]);
         });
@@ -170,21 +171,21 @@ describe('TopAccountHeadsChart widget', function () {
 
         expect($data['labels'])->toHaveCount(10)
             ->and($data['datasets'][0]['data'])->toHaveCount(10)
-            ->and($data['datasets'][0]['data'][0])->toBe(12)
-            ->and($data['datasets'][0]['data'][9])->toBe(3);
+            ->and($data['datasets'][0]['data'][0])->toBe(1200.0)
+            ->and($data['datasets'][0]['data'][9])->toBe(300.0);
     });
 
     it('handles fewer than 10 account heads', function () {
         $company = tenant();
 
         $head = AccountHead::factory()->create(['company_id' => $company->id]);
-        Transaction::factory()->count(5)->mapped($head)->create(['company_id' => $company->id]);
+        Transaction::factory()->debit(500)->mapped($head)->create(['company_id' => $company->id]);
 
         $data = getChartData(TopAccountHeadsChart::class);
 
         expect($data['labels'])->toHaveCount(1)
             ->and($data['datasets'][0]['data'])->toHaveCount(1)
-            ->and($data['datasets'][0]['data'][0])->toBe(5);
+            ->and($data['datasets'][0]['data'][0])->toBe(500.0);
     });
 });
 

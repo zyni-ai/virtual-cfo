@@ -2,9 +2,9 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\Transaction;
+use App\Models\TransactionAggregate;
 use Filament\Widgets\ChartWidget;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class MonthlyDebitCreditChart extends ChartWidget
 {
@@ -18,15 +18,17 @@ class MonthlyDebitCreditChart extends ChartWidget
     {
         $months = collect(range(11, 0))->map(fn (int $i) => now()->subMonths($i)->startOfMonth());
 
-        $startDate = $months->first();
+        $startMonth = $months->first()->format('Y-m');
 
-        // Load all transactions from the last 12 months via Eloquent
-        // (debit/credit are encrypted -- cannot SUM in SQL)
-        $transactions = Transaction::query()
-            ->where('date', '>=', $startDate)
-            ->get();
-
-        $grouped = $transactions->groupBy(fn (Transaction $t) => Carbon::parse($t->date)->format('Y-m'));
+        /** @var \Illuminate\Support\Collection<int, TransactionAggregate> $aggregates */
+        $aggregates = TransactionAggregate::query()
+            ->where('year_month', '>=', $startMonth)
+            ->select('year_month')
+            ->addSelect(DB::raw('SUM(total_debit) as sum_debit'))
+            ->addSelect(DB::raw('SUM(total_credit) as sum_credit'))
+            ->groupBy('year_month')
+            ->get()
+            ->keyBy('year_month');
 
         $debitData = [];
         $creditData = [];
@@ -36,17 +38,9 @@ class MonthlyDebitCreditChart extends ChartWidget
             $key = $month->format('Y-m');
             $labels[] = $month->format('M Y');
 
-            $monthTransactions = $grouped->get($key, collect());
-
-            $debitData[] = round(
-                $monthTransactions->sum(fn (Transaction $t) => $t->debit !== null ? (float) $t->debit : 0),
-                2,
-            );
-
-            $creditData[] = round(
-                $monthTransactions->sum(fn (Transaction $t) => $t->credit !== null ? (float) $t->credit : 0),
-                2,
-            );
+            $row = $aggregates->get($key);
+            $debitData[] = $row ? round((float) $row->getAttribute('sum_debit'), 2) : 0;
+            $creditData[] = $row ? round((float) $row->getAttribute('sum_credit'), 2) : 0;
         }
 
         return [
