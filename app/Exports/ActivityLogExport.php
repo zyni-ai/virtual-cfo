@@ -47,9 +47,12 @@ class ActivityLogExport implements FromQuery, WithHeadings, WithMapping
     public function map(mixed $row): array
     {
         /** @var Activity $row */
+        /** @var \App\Models\User|null $causer */
+        $causer = $row->causer;
+
         return [
             $row->created_at->format('d M Y H:i'),
-            $row->causer?->name ?? 'System',
+            $causer?->name ?? 'System',
             $row->event,
             $row->subject_type ? Str::afterLast($row->subject_type, '\\') : '',
             $row->subject_id,
