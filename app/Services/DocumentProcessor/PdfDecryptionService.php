@@ -23,6 +23,7 @@ class PdfDecryptionService
      * Detect if a PDF is password-protected by checking for /Encrypt in the raw bytes.
      *
      * This is a PHP-native check that does not require qpdf.
+     * Reads the entire file because /Encrypt can appear anywhere in the PDF structure.
      */
     public function isPasswordProtected(string $storagePath): bool
     {
@@ -32,16 +33,9 @@ class PdfDecryptionService
             return false;
         }
 
-        $handle = fopen($absolutePath, 'rb');
+        $content = file_get_contents($absolutePath);
 
-        if ($handle === false) {
-            return false;
-        }
-
-        $header = fread($handle, 4096);
-        fclose($handle);
-
-        return $header !== false && str_contains($header, '/Encrypt');
+        return $content !== false && str_contains($content, '/Encrypt');
     }
 
     /**
