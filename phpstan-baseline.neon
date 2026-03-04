@@ -84,17 +84,6 @@ parameters:
 			count: 1
 			path: app/Filament/Resources/HeadMappingResource.php
 
-		-
-			message: '#^Strict comparison using === between string and App\\Enums\\ImportStatus\:\:NeedsPassword will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: app/Filament/Resources/ImportedFileResource.php
-
-		-
-			message: '#^Call to function in_array\(\) with string and array\{App\\Enums\\ImportStatus\:\:Completed, App\\Enums\\ImportStatus\:\:Failed\} will always evaluate to false\.$#'
-			identifier: function.impossibleType
-			count: 1
-			path: app/Filament/Resources/ImportedFileResource.php
 
 		-
 			message: '#^Parameter \#1 \$importedFile of job class App\\Jobs\\ProcessImportedFile constructor expects App\\Models\\ImportedFile in App\\Jobs\\ProcessImportedFile\:\:dispatch\(\), Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
@@ -199,18 +188,6 @@ parameters:
 			path: app/Models/ReconciliationMatch.php
 
 		-
-			message: '#^Method App\\Models\\ReconciliationMatch\:\:bankTransaction\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/ReconciliationMatch.php
-
-		-
-			message: '#^Method App\\Models\\ReconciliationMatch\:\:invoiceTransaction\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/ReconciliationMatch.php
-
-		-
 			message: '#^Class App\\Models\\Transaction uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -254,18 +231,6 @@ parameters:
 
 		-
 			message: '#^Method App\\Models\\Transaction\:\:scopeUnmapped\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/Transaction.php
-
-		-
-			message: '#^Method App\\Models\\Transaction\:\:reconciliationMatchesAsBank\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/Transaction.php
-
-		-
-			message: '#^Method App\\Models\\Transaction\:\:reconciliationMatchesAsInvoice\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Transaction.php
@@ -341,19 +306,6 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: app/Services/HeadMatcher/RuleBasedMatcher.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between string and App\\Enums\\MappingType\:\:Unmapped will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: app/Services/HeadMatcher/RuleBasedMatcher.php
-
-		-
-			message: '#^Unreachable statement \- code above always terminates\.$#'
-			identifier: deadCode.unreachable
-			count: 1
-			path: app/Services/HeadMatcher/RuleBasedMatcher.php
-
 
 		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:reject\(\) expects bool\|\(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|Illuminate\\Database\\Eloquent\\Model, Closure\(App\\Models\\Transaction\)\: bool given\.$#'

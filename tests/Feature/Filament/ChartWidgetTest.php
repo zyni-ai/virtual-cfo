@@ -10,19 +10,6 @@ use App\Models\Transaction;
 
 use function Pest\Livewire\livewire;
 
-/**
- * Helper to call protected getData() on a ChartWidget via reflection.
- *
- * @return array<string, mixed>
- */
-function getChartData(string $widgetClass): array
-{
-    $widget = new $widgetClass;
-    $method = new ReflectionMethod($widget, 'getData');
-
-    return $method->invoke($widget);
-}
-
 describe('ImportsOverTimeChart widget', function () {
     beforeEach(function () {
         asUser();

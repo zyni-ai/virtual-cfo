@@ -41,3 +41,16 @@ function tenant(): Company
 {
     return Filament::getTenant();
 }
+
+/**
+ * Call protected getData() on a ChartWidget via reflection.
+ *
+ * @return array<string, mixed>
+ */
+function getChartData(string $widgetClass): array
+{
+    $widget = new $widgetClass;
+    $method = new ReflectionMethod($widget, 'getData');
+
+    return $method->invoke($widget);
+}

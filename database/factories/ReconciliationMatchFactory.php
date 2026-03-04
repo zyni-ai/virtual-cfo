@@ -3,12 +3,13 @@
 namespace Database\Factories;
 
 use App\Enums\MatchMethod;
+use App\Enums\MatchStatus;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ReconciliationMatch>
+ * @extends Factory<ReconciliationMatch>
  */
 class ReconciliationMatchFactory extends Factory
 {
@@ -22,6 +23,7 @@ class ReconciliationMatchFactory extends Factory
             'confidence' => fake()->randomFloat(4, 0.5, 1.0),
             'match_method' => fake()->randomElement(MatchMethod::cases()),
             'notes' => null,
+            'status' => MatchStatus::Confirmed,
         ];
     }
 
@@ -38,6 +40,20 @@ class ReconciliationMatchFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'match_method' => MatchMethod::Manual,
             'confidence' => 1.0,
+        ]);
+    }
+
+    public function suggested(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => MatchStatus::Suggested,
+        ]);
+    }
+
+    public function confirmed(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => MatchStatus::Confirmed,
         ]);
     }
 }

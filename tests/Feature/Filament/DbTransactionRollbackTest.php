@@ -65,9 +65,8 @@ describe('DB Transaction - Manual Match', function () {
             ->and($invoiceTxn->reconciliation_status)->toBe(ReconciliationStatus::Matched);
     });
 
-    it('uses DB::transaction in the manual_match action', function () {
-        // Verify by reading the source code that DB::transaction is used
-        $reflection = new ReflectionClass(Reconciliation::class);
+    it('manual_match delegates to ReconciliationService::createMatch which is transactional', function () {
+        $reflection = new ReflectionClass(ReconciliationService::class);
         $source = file_get_contents($reflection->getFileName());
 
         expect($source)->toContain('DB::transaction(');

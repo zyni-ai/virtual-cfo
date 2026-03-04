@@ -3,7 +3,9 @@
 namespace App\Services\Reconciliation;
 
 use App\Enums\MatchMethod;
+use App\Enums\MatchStatus;
 use App\Enums\ReconciliationStatus;
+use App\Enums\StatementType;
 use App\Models\ImportedFile;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
@@ -12,6 +14,9 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @phpstan-type Candidate array{invoice: Transaction, confidence: float, method: MatchMethod}
+ */
 class ReconciliationService
 {
     /**
@@ -279,21 +284,7 @@ class ReconciliationService
                 }
             }
 
-            // Fuzzy match party name from bank description against invoice description
-            /** @var string $invoiceDescription */
-            $invoiceDescription = $invoice->description ?? '';
-            $similarity = $this->calculateNameSimilarity($bankDescription, $invoiceDescription);
-
-            // Also check against vendor_name in raw_data if available
-            /** @var array<string, mixed>|null $rawData */
-            $rawData = $invoice->raw_data;
-            if (is_array($rawData) && isset($rawData['vendor_name'])) {
-                $vendorSimilarity = $this->calculateNameSimilarity(
-                    $bankDescription,
-                    (string) $rawData['vendor_name']
-                );
-                $similarity = max($similarity, $vendorSimilarity);
-            }
+            $similarity = $this->bestPartyNameSimilarity($bankDescription, $invoice);
 
             if ($similarity >= self::MIN_PARTY_SIMILARITY && $similarity > $bestConfidence) {
                 $bestMatch = $invoice;
@@ -338,81 +329,324 @@ class ReconciliationService
      */
     public function enrichMatchedTransactions(ImportedFile $bankFile): void
     {
-        $matchedTransactions = Transaction::where('imported_file_id', $bankFile->id)
-            ->where('reconciliation_status', ReconciliationStatus::Matched)
+        $matches = ReconciliationMatch::whereHas(
+            'bankTransaction',
+            fn ($q) => $q->where('imported_file_id', $bankFile->id)
+                ->where('reconciliation_status', ReconciliationStatus::Matched)
+        )
+            ->confirmed()
+            ->with(['bankTransaction', 'invoiceTransaction'])
             ->get();
 
-        foreach ($matchedTransactions as $bankTxn) {
-            /** @var Transaction $bankTxn */
-            $match = ReconciliationMatch::where('bank_transaction_id', $bankTxn->id)->first();
-
-            if (! $match) {
-                continue;
-            }
-
-            /** @var Transaction|null $invoiceTxn */
-            $invoiceTxn = $match->invoiceTransaction;
-
-            if (! $invoiceTxn) {
-                continue;
-            }
-
-            /** @var array<string, mixed>|null $invoiceRawData */
-            $invoiceRawData = $invoiceTxn->raw_data;
-
-            if (! is_array($invoiceRawData)) {
-                continue;
-            }
-
-            $enrichment = [
-                'reconciled_invoice_id' => $invoiceTxn->id,
-                'vendor_name' => $invoiceRawData['vendor_name'] ?? null,
-                'vendor_gstin' => $invoiceRawData['vendor_gstin'] ?? null,
-                'invoice_number' => $invoiceRawData['invoice_number'] ?? $invoiceTxn->reference_number,
-                'base_amount' => $invoiceRawData['base_amount'] ?? null,
-                'cgst_amount' => $invoiceRawData['cgst_amount'] ?? null,
-                'sgst_amount' => $invoiceRawData['sgst_amount'] ?? null,
-                'tds_amount' => $invoiceRawData['tds_amount'] ?? null,
-                'line_items' => $invoiceRawData['line_items'] ?? null,
-            ];
-
-            /** @var array<string, mixed> $currentRawData */
-            $currentRawData = $bankTxn->raw_data ?? [];
-            $bankTxn->update([
-                'raw_data' => array_merge($currentRawData, $enrichment),
-            ]);
+        foreach ($matches as $match) {
+            $this->enrichSingleMatch($match);
         }
     }
 
     /**
-     * Create a reconciliation match record and update both transaction statuses.
+     * Find candidate invoice matches for a bank transaction without creating records.
+     *
+     * @param  Collection<int, Transaction>  $invoices
+     * @return array<int, array{invoice: Transaction, confidence: float, method: MatchMethod}>
      */
-    private function createMatch(
+    public function findCandidates(
+        Transaction $bankTxn,
+        Collection $invoices,
+        float $tolerance = self::DEFAULT_AMOUNT_TOLERANCE,
+        int $dayWindow = self::DEFAULT_DATE_WINDOW,
+    ): array {
+        $bankAmount = $bankTxn->amount;
+
+        if ($bankAmount === null) {
+            return [];
+        }
+
+        $candidates = [];
+
+        foreach ($invoices as $invoice) {
+            /** @var Transaction $invoice */
+            $invoiceAmount = $invoice->amount;
+
+            if ($invoiceAmount === null) {
+                continue;
+            }
+
+            if (abs($bankAmount - $invoiceAmount) > $tolerance) {
+                continue;
+            }
+
+            $amountConfidence = $this->calculateAmountConfidence($bankAmount, $invoiceAmount);
+
+            // Try date-based scoring
+            /** @var Carbon|null $bankDate */
+            $bankDate = $bankTxn->date;
+            /** @var Carbon|null $invoiceDate */
+            $invoiceDate = $invoice->date;
+
+            $dateConfidence = 0.0;
+            $method = MatchMethod::Amount;
+
+            if ($bankDate !== null && $invoiceDate !== null && ! $bankDate->lt($invoiceDate)) {
+                $daysDiff = (int) abs($bankDate->diffInDays($invoiceDate));
+                if ($daysDiff <= $dayWindow) {
+                    $dateConfidence = max(0.0, 1.0 - ($daysDiff / $dayWindow));
+                    $method = MatchMethod::AmountDate;
+                }
+            }
+
+            // Try party name scoring
+            /** @var string|null $bankDescription */
+            $bankDescription = $bankTxn->description;
+            $nameConfidence = 0.0;
+
+            if ($bankDescription !== null) {
+                $similarity = $this->bestPartyNameSimilarity($bankDescription, $invoice);
+
+                if ($similarity >= self::MIN_PARTY_SIMILARITY) {
+                    $nameConfidence = $similarity / 100;
+                    $method = MatchMethod::AmountDateParty;
+                }
+            }
+
+            // Weighted combination: amount is primary (60%), date and party are corroborative (20% each)
+            $confidence = ($amountConfidence * 0.6) + ($dateConfidence * 0.2) + ($nameConfidence * 0.2);
+
+            $candidates[] = [
+                'invoice' => $invoice,
+                'confidence' => round($confidence, 4),
+                'method' => $method,
+            ];
+        }
+
+        // Sort by confidence descending
+        usort($candidates, fn (array $a, array $b) => $b['confidence'] <=> $a['confidence']);
+
+        return $candidates;
+    }
+
+    /**
+     * Scan for invoice match candidates and create suggested matches.
+     * Returns the number of suggestions created.
+     */
+    public function suggestMatches(ImportedFile $invoiceFile): int
+    {
+        $companyId = $invoiceFile->company_id;
+
+        // Get all unreconciled invoice transactions from this file
+        /** @var Collection<int, Transaction> $invoiceTransactions */
+        $invoiceTransactions = $invoiceFile->transactions()
+            ->where('reconciliation_status', ReconciliationStatus::Unreconciled)
+            ->get();
+
+        if ($invoiceTransactions->isEmpty()) {
+            return 0;
+        }
+
+        // Get all unreconciled bank/CC transactions for this company
+        $bankTransactions = Transaction::query()
+            ->where('company_id', $companyId)
+            ->where('reconciliation_status', ReconciliationStatus::Unreconciled)
+            ->whereHas('importedFile', fn ($q) => $q->whereIn('statement_type', [
+                StatementType::Bank,
+                StatementType::CreditCard,
+            ]))
+            ->get();
+
+        if ($bankTransactions->isEmpty()) {
+            return 0;
+        }
+
+        // Pre-load IDs that already have suggestions (1 query instead of N)
+        $alreadySuggestedIds = ReconciliationMatch::whereIn('bank_transaction_id', $bankTransactions->pluck('id'))
+            ->suggested()
+            ->pluck('bank_transaction_id')
+            ->flip();
+
+        $suggestionsCreated = 0;
+
+        foreach ($bankTransactions as $bankTxn) {
+            if ($alreadySuggestedIds->has($bankTxn->id)) {
+                continue;
+            }
+
+            $candidates = $this->findCandidates($bankTxn, $invoiceTransactions);
+
+            if (empty($candidates)) {
+                continue;
+            }
+
+            // Create suggestion for the best candidate
+            $best = $candidates[0];
+            $this->createMatch(
+                $bankTxn,
+                $best['invoice'],
+                $best['confidence'],
+                $best['method'],
+                MatchStatus::Suggested,
+            );
+            $suggestionsCreated++;
+        }
+
+        return $suggestionsCreated;
+    }
+
+    /**
+     * Confirm a suggested match: update status, set transaction statuses, reject competing suggestions.
+     */
+    public function confirmSuggestion(ReconciliationMatch $match): void
+    {
+        if ($match->status !== MatchStatus::Suggested) {
+            throw new \InvalidArgumentException(
+                "Cannot confirm match #{$match->id}: status is {$match->status->value}, expected suggested"
+            );
+        }
+
+        $match->loadMissing(['bankTransaction', 'invoiceTransaction']);
+
+        DB::transaction(function () use ($match) {
+            $match->update(['status' => MatchStatus::Confirmed]);
+
+            $match->bankTransaction->update(['reconciliation_status' => ReconciliationStatus::Matched]);
+            $match->invoiceTransaction->update(['reconciliation_status' => ReconciliationStatus::Matched]);
+
+            // Reject competing suggestions for the same bank or invoice transaction
+            ReconciliationMatch::where('id', '!=', $match->id)
+                ->suggested()
+                ->where(fn ($q) => $q
+                    ->where('bank_transaction_id', $match->bank_transaction_id)
+                    ->orWhere('invoice_transaction_id', $match->invoice_transaction_id)
+                )
+                ->update(['status' => MatchStatus::Rejected]);
+
+            $this->enrichSingleMatch($match);
+        });
+    }
+
+    /**
+     * Reject a suggested match with an optional reason.
+     */
+    public function rejectSuggestion(ReconciliationMatch $match, ?string $reason = null): void
+    {
+        if ($match->status !== MatchStatus::Suggested) {
+            throw new \InvalidArgumentException(
+                "Cannot reject match #{$match->id}: status is {$match->status->value}, expected suggested"
+            );
+        }
+
+        $data = ['status' => MatchStatus::Rejected];
+
+        if ($reason !== null) {
+            $data['notes'] = $reason;
+        }
+
+        $match->update($data);
+    }
+
+    /**
+     * Reject all pending suggestions for a bank transaction.
+     */
+    public function rejectAllSuggestions(Transaction $bankTxn): int
+    {
+        return $bankTxn->reconciliationMatchesAsBank()
+            ->suggested()
+            ->update(['status' => MatchStatus::Rejected]);
+    }
+
+    /**
+     * Create a reconciliation match record and optionally update transaction statuses.
+     */
+    public function createMatch(
         Transaction $bankTxn,
         Transaction $invoiceTxn,
         float $confidence,
         MatchMethod $method,
+        MatchStatus $status = MatchStatus::Confirmed,
     ): ReconciliationMatch {
-        return DB::transaction(function () use ($bankTxn, $invoiceTxn, $confidence, $method) {
+        return DB::transaction(function () use ($bankTxn, $invoiceTxn, $confidence, $method, $status) {
             $match = ReconciliationMatch::create([
                 'bank_transaction_id' => $bankTxn->id,
                 'invoice_transaction_id' => $invoiceTxn->id,
                 'confidence' => round($confidence, 4),
                 'match_method' => $method,
+                'status' => $status,
             ]);
 
-            $bankTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
-            $invoiceTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
+            // Only update transaction statuses for confirmed matches
+            if ($status === MatchStatus::Confirmed) {
+                $bankTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
+                $invoiceTxn->update(['reconciliation_status' => ReconciliationStatus::Matched]);
+            }
 
             Log::info('Reconciliation match created', [
                 'bank_transaction_id' => $bankTxn->id,
                 'invoice_transaction_id' => $invoiceTxn->id,
                 'method' => $method->value,
                 'confidence' => $confidence,
+                'status' => $status->value,
             ]);
 
             return $match;
         });
+    }
+
+    /**
+     * Calculate the best party name similarity between a bank description and an invoice.
+     * Checks both the invoice description and vendor_name from raw_data.
+     */
+    private function bestPartyNameSimilarity(string $bankDescription, Transaction $invoice): float
+    {
+        /** @var string $invoiceDescription */
+        $invoiceDescription = $invoice->description ?? '';
+        $similarity = $this->calculateNameSimilarity($bankDescription, $invoiceDescription);
+
+        /** @var array<string, mixed>|null $rawData */
+        $rawData = $invoice->raw_data;
+        if (is_array($rawData) && isset($rawData['vendor_name'])) {
+            $vendorSimilarity = $this->calculateNameSimilarity(
+                $bankDescription,
+                (string) $rawData['vendor_name']
+            );
+            $similarity = max($similarity, $vendorSimilarity);
+        }
+
+        return $similarity;
+    }
+
+    /**
+     * Enrich a single confirmed match's bank transaction with invoice data.
+     */
+    private function enrichSingleMatch(ReconciliationMatch $match): void
+    {
+        /** @var Transaction $invoiceTxn */
+        $invoiceTxn = $match->invoiceTransaction;
+
+        /** @var array<string, mixed>|null $invoiceRawData */
+        $invoiceRawData = $invoiceTxn->raw_data;
+
+        if (! is_array($invoiceRawData)) {
+            return;
+        }
+
+        /** @var Transaction $bankTxn */
+        $bankTxn = $match->bankTransaction;
+
+        $enrichment = [
+            'reconciled_invoice_id' => $invoiceTxn->id,
+            'vendor_name' => $invoiceRawData['vendor_name'] ?? null,
+            'vendor_gstin' => $invoiceRawData['vendor_gstin'] ?? null,
+            'invoice_number' => $invoiceRawData['invoice_number'] ?? $invoiceTxn->reference_number,
+            'base_amount' => $invoiceRawData['base_amount'] ?? null,
+            'cgst_amount' => $invoiceRawData['cgst_amount'] ?? null,
+            'sgst_amount' => $invoiceRawData['sgst_amount'] ?? null,
+            'tds_amount' => $invoiceRawData['tds_amount'] ?? null,
+            'line_items' => $invoiceRawData['line_items'] ?? null,
+        ];
+
+        /** @var array<string, mixed> $currentRawData */
+        $currentRawData = $bankTxn->raw_data ?? [];
+        $bankTxn->update([
+            'raw_data' => array_merge($currentRawData, $enrichment),
+        ]);
     }
 
     /**

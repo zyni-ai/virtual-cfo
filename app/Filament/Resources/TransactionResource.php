@@ -3,7 +3,10 @@
 namespace App\Filament\Resources;
 
 use App\Enums\MappingType;
+use App\Enums\MatchMethod;
 use App\Enums\MatchType;
+use App\Enums\ReconciliationStatus;
+use App\Enums\StatementType;
 use App\Exports\TransactionCsvExport;
 use App\Exports\TransactionExcelExport;
 use App\Filament\Resources\TransactionResource\Pages;
@@ -12,6 +15,7 @@ use App\Models\AccountHead;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use App\Services\Reconciliation\ReconciliationService;
 use App\Services\TallyExport\TallyExportService;
 use BackedEnum;
 use Filament\Actions;
@@ -25,6 +29,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -161,14 +166,13 @@ class TransactionResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Transaction $record, array $data) {
-                        \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+                        DB::transaction(function () use ($record, $data) {
                             $record->update([
                                 'account_head_id' => $data['account_head_id'],
                                 'mapping_type' => MappingType::Manual,
                                 'ai_confidence' => null,
                             ]);
 
-                            // Update parent file stats
                             $file = $record->importedFile;
                             $file->update([
                                 'mapped_rows' => $file->transactions()
@@ -219,6 +223,54 @@ class TransactionResource extends Resource
                             ->send();
                     })
                     ->visible(fn (Transaction $record) => $record->account_head_id !== null),
+
+                Actions\Action::make('match_invoice')
+                    ->label('Match Invoice')
+                    ->icon('heroicon-o-link')
+                    ->color('warning')
+                    ->form([
+                        Forms\Components\CheckboxList::make('invoice_transaction_ids')
+                            ->label('Select Invoice(s)')
+                            ->options(function (Transaction $record) {
+                                return Transaction::whereHas(
+                                    'importedFile',
+                                    fn (Builder $q) => $q->where('statement_type', StatementType::Invoice)
+                                        ->where('company_id', $record->importedFile?->company_id)
+                                )
+                                    ->where('reconciliation_status', ReconciliationStatus::Unreconciled)
+                                    ->select(['id', 'description', 'debit'])
+                                    ->orderByDesc('date')
+                                    ->limit(500)
+                                    ->get()
+                                    ->mapWithKeys(fn (Transaction $t) => [
+                                        $t->id => $t->description.' ('.number_format((float) $t->debit, 2).')',
+                                    ]);
+                            })
+                            ->required(),
+                    ])
+                    ->action(function (Transaction $record, array $data) {
+                        $service = app(ReconciliationService::class);
+                        $invoiceTransactions = Transaction::whereIn('id', $data['invoice_transaction_ids'])->get()->keyBy('id');
+
+                        DB::transaction(function () use ($record, $data, $service, $invoiceTransactions) {
+                            foreach ($data['invoice_transaction_ids'] as $invoiceId) {
+                                /** @var Transaction $invoiceTxn */
+                                $invoiceTxn = $invoiceTransactions->get($invoiceId);
+
+                                $service->createMatch($record, $invoiceTxn, 1.0, MatchMethod::Manual);
+                            }
+                        });
+
+                        $record->loadMissing('importedFile');
+                        $service->enrichMatchedTransactions($record->importedFile);
+
+                        Notification::make()
+                            ->title('Invoice matched successfully')
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn (Transaction $record) => $record->reconciliation_status === ReconciliationStatus::Unreconciled
+                        && $record->importedFile?->statement_type !== StatementType::Invoice),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
@@ -233,7 +285,7 @@ class TransactionResource extends Resource
                                 ->required(),
                         ])
                         ->action(function (Collection $records, array $data) {
-                            \Illuminate\Support\Facades\DB::transaction(function () use ($records, $data) {
+                            DB::transaction(function () use ($records, $data) {
                                 $records->each(function (Model $record) use ($data) {
                                     $record->update([
                                         'account_head_id' => $data['account_head_id'],
@@ -242,7 +294,6 @@ class TransactionResource extends Resource
                                     ]);
                                 });
 
-                                // Update file stats for affected files
                                 $fileIds = $records->pluck('imported_file_id')->unique();
                                 foreach ($fileIds as $fileId) {
                                     $file = ImportedFile::find($fileId);

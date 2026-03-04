@@ -13,6 +13,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property ReconciliationStatus $reconciliation_status
+ * @property MappingType $mapping_type
+ */
 class Transaction extends Model
 {
     use HasFactory;
@@ -93,11 +97,13 @@ class Transaction extends Model
         return $this->belongsTo(RecurringPattern::class);
     }
 
+    /** @return HasMany<ReconciliationMatch, $this> */
     public function reconciliationMatchesAsBank(): HasMany
     {
         return $this->hasMany(ReconciliationMatch::class, 'bank_transaction_id');
     }
 
+    /** @return HasMany<ReconciliationMatch, $this> */
     public function reconciliationMatchesAsInvoice(): HasMany
     {
         return $this->hasMany(ReconciliationMatch::class, 'invoice_transaction_id');

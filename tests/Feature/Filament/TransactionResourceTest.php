@@ -1,11 +1,15 @@
 <?php
 
 use App\Enums\MappingType;
+use App\Enums\MatchStatus;
+use App\Enums\ReconciliationStatus;
+use App\Enums\StatementType;
 use App\Filament\Resources\TransactionResource;
 use App\Filament\Resources\TransactionResource\Pages\ListTransactions;
 use App\Jobs\MatchTransactionHeads;
 use App\Models\AccountHead;
 use App\Models\ImportedFile;
+use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Queue;
 
@@ -130,5 +134,44 @@ describe('TransactionResource', function () {
         Queue::assertNotPushed(MatchTransactionHeads::class, function (MatchTransactionHeads $job) use ($fileFullyMapped) {
             return $job->importedFile->id === $fileFullyMapped->id;
         });
+    });
+
+    it('can match a bank transaction to an invoice via match_invoice action', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxn = Transaction::factory()->debit(10000.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'description' => 'NEFT-Vendor Payment',
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        $invoiceTxn = Transaction::factory()->debit(10000.00)->create([
+            'imported_file_id' => $invoiceFile->id,
+            'description' => 'INV/001 - Test Vendor',
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        livewire(ListTransactions::class)
+            ->callTableAction('match_invoice', $bankTxn, [
+                'invoice_transaction_ids' => [$invoiceTxn->id],
+            ]);
+
+        expect(ReconciliationMatch::count())->toBe(1);
+
+        $match = ReconciliationMatch::first();
+        expect($match->bank_transaction_id)->toBe($bankTxn->id)
+            ->and($match->invoice_transaction_id)->toBe($invoiceTxn->id)
+            ->and($match->match_method)->toBe(\App\Enums\MatchMethod::Manual)
+            ->and($match->status)->toBe(MatchStatus::Confirmed);
+
+        $bankTxn->refresh();
+        $invoiceTxn->refresh();
+        expect($bankTxn->reconciliation_status)->toBe(ReconciliationStatus::Matched)
+            ->and($invoiceTxn->reconciliation_status)->toBe(ReconciliationStatus::Matched);
     });
 });
