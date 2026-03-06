@@ -9,7 +9,7 @@ describe('AI provider configuration', function () {
         $config = config('ai.providers.openrouter');
 
         expect($config)->not->toBeNull()
-            ->and($config['driver'])->toBe('openai')
+            ->and($config['driver'])->toBe('openrouter')
             ->and($config)->toHaveKey('url');
     });
 

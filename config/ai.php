@@ -16,7 +16,7 @@ return [
     'providers' => [
 
         'openrouter' => [
-            'driver' => 'openai',
+            'driver' => 'openrouter',
             'key' => env('OPENROUTER_API_KEY'),
             'url' => 'https://openrouter.ai/api/v1',
         ],
