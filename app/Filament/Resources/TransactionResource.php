@@ -36,6 +36,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionResource extends Resource
 {
+    use Concerns\HasTransactionColumns;
+
     protected static ?string $model = Transaction::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
@@ -76,13 +78,7 @@ class TransactionResource extends Resource
                     ->label('Ref #')
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                Tables\Columns\TextColumn::make('amount')
-                    ->label('Amount')
-                    ->state(fn (Transaction $record): ?string => $record->debit ?? $record->credit)
-                    ->numeric(decimalPlaces: 2)
-                    ->color(fn (Transaction $record): string => $record->debit ? 'danger' : 'success')
-                    ->icon(fn (Transaction $record): string => $record->debit ? 'heroicon-m-arrow-up' : 'heroicon-m-arrow-down')
-                    ->placeholder('-'),
+                static::amountColumn(),
 
                 Tables\Columns\TextColumn::make('balance')
                     ->label('Balance')
@@ -93,14 +89,7 @@ class TransactionResource extends Resource
                     ->label('Account Head')
                     ->placeholder('Unmapped')
                     ->searchable()
-                    ->description(fn (Transaction $record): ?string => match ($record->mapping_type) {
-                        MappingType::Unmapped => null,
-                        MappingType::Manual => 'Assigned manually',
-                        MappingType::Auto => 'Matched by rule',
-                        MappingType::Ai => $record->ai_confidence !== null
-                            ? 'Suggested by AI · '.round($record->ai_confidence * 100).'% confident'
-                            : 'Suggested by AI',
-                    }),
+                    ->description(static::mappingTypeDescription()),
 
                 Tables\Columns\IconColumn::make('recurring_pattern_id')
                     ->label('Recurring')

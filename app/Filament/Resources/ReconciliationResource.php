@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Enums\ImportStatus;
-use App\Enums\MappingType;
 use App\Enums\MatchMethod;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
@@ -26,6 +25,8 @@ use Illuminate\Support\Carbon;
 
 class ReconciliationResource extends Resource
 {
+    use Concerns\HasTransactionColumns;
+
     protected static ?string $model = Transaction::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-scale';
@@ -69,13 +70,7 @@ class ReconciliationResource extends Resource
                     ->tooltip(fn (Transaction $record): string => $record->description)
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('amount')
-                    ->label('Amount')
-                    ->state(fn (Transaction $record): ?string => $record->debit ?? $record->credit)
-                    ->numeric(decimalPlaces: 2)
-                    ->color(fn (Transaction $record): string => $record->debit ? 'danger' : 'success')
-                    ->icon(fn (Transaction $record): string => $record->debit ? 'heroicon-m-arrow-up' : 'heroicon-m-arrow-down')
-                    ->placeholder('-'),
+                static::amountColumn(),
 
                 Tables\Columns\TextColumn::make('reconciliation_status')
                     ->label('Status')
@@ -86,14 +81,7 @@ class ReconciliationResource extends Resource
                     ->placeholder('—')
                     ->searchable()
                     ->toggleable()
-                    ->description(fn (Transaction $record): ?string => match ($record->mapping_type) {
-                        MappingType::Unmapped => null,
-                        MappingType::Manual => 'Assigned manually',
-                        MappingType::Auto => 'Matched by rule',
-                        MappingType::Ai => $record->ai_confidence !== null
-                            ? 'Suggested by AI · '.round($record->ai_confidence * 100).'% confident'
-                            : 'Suggested by AI',
-                    }),
+                    ->description(static::mappingTypeDescription()),
             ])
             ->defaultSort('date', 'desc')
             ->filters([

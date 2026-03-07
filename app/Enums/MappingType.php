@@ -31,4 +31,16 @@ enum MappingType: string implements HasColor, HasLabel
             self::Ai => 'warning',
         };
     }
+
+    public function getDescription(?float $aiConfidence = null): ?string
+    {
+        return match ($this) {
+            self::Unmapped => null,
+            self::Manual => 'Assigned manually',
+            self::Auto => 'Matched by rule',
+            self::Ai => $aiConfidence !== null
+                ? 'Suggested by AI · '.round($aiConfidence * 100).'% confident'
+                : 'Suggested by AI',
+        };
+    }
 }
