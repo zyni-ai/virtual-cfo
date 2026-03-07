@@ -1,7 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
-use App\Filament\Pages\TeamMembers;
+use App\Filament\Resources\TeamMemberResource\Pages\ListTeamMembers;
 use App\Mail\InvitationMail;
 use App\Models\Invitation;
 use App\Models\User;
@@ -18,8 +18,8 @@ describe('Invitation Flow', function () {
             asUser(role: UserRole::Admin);
             $company = tenant();
 
-            livewire(TeamMembers::class)
-                ->callAction('invite', [
+            livewire(ListTeamMembers::class)
+                ->callTableAction('invite', data: [
                     'email' => 'newuser@example.com',
                     'role' => UserRole::Viewer->value,
                 ])
@@ -42,8 +42,8 @@ describe('Invitation Flow', function () {
             $existing = User::factory()->viewer()->create(['email' => 'member@example.com']);
             $company->users()->attach($existing, ['role' => UserRole::Viewer->value]);
 
-            livewire(TeamMembers::class)
-                ->callAction('invite', [
+            livewire(ListTeamMembers::class)
+                ->callTableAction('invite', data: [
                     'email' => 'member@example.com',
                     'role' => UserRole::Viewer->value,
                 ])
@@ -64,8 +64,8 @@ describe('Invitation Flow', function () {
                 'expires_at' => now()->addDay(),
             ]);
 
-            livewire(TeamMembers::class)
-                ->callAction('invite', [
+            livewire(ListTeamMembers::class)
+                ->callTableAction('invite', data: [
                     'email' => 'pending@example.com',
                     'role' => UserRole::Accountant->value,
                 ])
@@ -87,8 +87,8 @@ describe('Invitation Flow', function () {
                 RateLimiter::hit($rateLimitKey, 3600);
             }
 
-            livewire(TeamMembers::class)
-                ->callAction('invite', [
+            livewire(ListTeamMembers::class)
+                ->callTableAction('invite', data: [
                     'email' => 'blocked@example.com',
                     'role' => UserRole::Viewer->value,
                 ])

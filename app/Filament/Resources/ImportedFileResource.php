@@ -99,20 +99,22 @@ class ImportedFileResource extends Resource
                 Tables\Columns\TextColumn::make('original_filename')
                     ->label('File')
                     ->searchable()
-                    ->limit(40),
+                    ->limit(40)
+                    ->description(fn (ImportedFile $record): ?string => $record->total_rows
+                        ? $record->total_rows.' '.str('transaction')->plural($record->total_rows)
+                        : null
+                    ),
 
                 Tables\Columns\TextColumn::make('bankAccount.name')
                     ->label('Account')
-                    ->placeholder(fn (ImportedFile $record) => $record->creditCard?->name ?? $record->bank_name ?? 'Detecting...'),
-
-                Tables\Columns\TextColumn::make('bank_name')
-                    ->label('Detected Bank')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('statement_type')
-                    ->label('Type')
-                    ->badge(),
+                    ->state(function (ImportedFile $record): string {
+                        return $record->bankAccount?->name
+                            ?? $record->creditCard?->name
+                            ?? $record->bank_name
+                            ?? 'Detecting...';
+                    })
+                    ->description(fn (ImportedFile $record): string => $record->statement_type->getLabel())
+                    ->searchable(),
 
                 Tables\Columns\TextColumn::make('source')
                     ->label('Source')
@@ -121,30 +123,11 @@ class ImportedFileResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->badge(),
 
-                Tables\Columns\TextColumn::make('total_rows')
-                    ->label('Rows')
-                    ->numeric()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('mapped_percentage')
-                    ->label('Mapped %')
-                    ->suffix('%')
-                    ->sortable(query: function (Builder $query, string $direction) {
-                        $dir = strtolower($direction) === 'desc' ? 'DESC' : 'ASC';
-
-                        return $query->orderByRaw(
-                            'CASE WHEN total_rows > 0 THEN (mapped_rows::float / total_rows) ELSE 0 END '.$dir
-                        );
-                    }),
-
-                Tables\Columns\TextColumn::make('uploader.name')
-                    ->label('Uploaded By')
-                    ->sortable(),
-
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Uploaded')
                     ->dateTime('d M Y, H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn (ImportedFile $record): string => 'by '.($record->uploader?->name ?? 'System')),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
@@ -162,71 +145,73 @@ class ImportedFileResource extends Resource
             ->actions([
                 Actions\ViewAction::make(),
 
-                Actions\Action::make('download')
-                    ->label('Download')
-                    ->icon('heroicon-o-arrow-down-tray')
-                    ->color('gray')
-                    ->url(fn (ImportedFile $record): string => route('imported-files.download', $record))
-                    ->openUrlInNewTab(),
+                Actions\ActionGroup::make([
+                    Actions\Action::make('download')
+                        ->label('Download')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('gray')
+                        ->url(fn (ImportedFile $record): string => route('imported-files.download', $record))
+                        ->openUrlInNewTab(),
 
-                Actions\Action::make('setPassword')
-                    ->label('Set Password')
-                    ->icon('heroicon-o-key')
-                    ->color('warning')
-                    ->schema([
-                        Forms\Components\TextInput::make('pdf_password')
-                            ->label('PDF Password')
-                            ->password()
-                            ->revealable()
-                            ->required(),
-                    ])
-                    ->modalHeading('Set PDF Password')
-                    ->modalDescription('Enter the password for this PDF. The file will be re-processed automatically.')
-                    ->modalSubmitActionLabel('Decrypt & Process')
-                    ->action(function (ImportedFile $record, array $data) {
-                        $metadata = $record->source_metadata ?? [];
-                        $metadata['manual_password'] = $data['pdf_password'];
+                    Actions\Action::make('setPassword')
+                        ->label('Set Password')
+                        ->icon('heroicon-o-key')
+                        ->color('warning')
+                        ->schema([
+                            Forms\Components\TextInput::make('pdf_password')
+                                ->label('PDF Password')
+                                ->password()
+                                ->revealable()
+                                ->required(),
+                        ])
+                        ->modalHeading('Set PDF Password')
+                        ->modalDescription('Enter the password for this PDF. The file will be re-processed automatically.')
+                        ->modalSubmitActionLabel('Decrypt & Process')
+                        ->action(function (ImportedFile $record, array $data) {
+                            $metadata = $record->source_metadata ?? [];
+                            $metadata['manual_password'] = $data['pdf_password'];
 
-                        \Illuminate\Support\Facades\DB::transaction(function () use ($record, $metadata) {
-                            $record->transactions()->delete();
-                            $record->update([
-                                'source_metadata' => $metadata,
-                                'status' => ImportStatus::Pending,
-                                'total_rows' => 0,
-                                'mapped_rows' => 0,
-                                'error_message' => null,
-                            ]);
-                        });
+                            \Illuminate\Support\Facades\DB::transaction(function () use ($record, $metadata) {
+                                $record->transactions()->delete();
+                                $record->update([
+                                    'source_metadata' => $metadata,
+                                    'status' => ImportStatus::Pending,
+                                    'total_rows' => 0,
+                                    'mapped_rows' => 0,
+                                    'error_message' => null,
+                                ]);
+                            });
 
-                        ProcessImportedFile::dispatch($record);
-                    })
-                    ->visible(fn (ImportedFile $record) => $record->status === ImportStatus::NeedsPassword),
+                            ProcessImportedFile::dispatch($record);
+                        })
+                        ->visible(fn (ImportedFile $record) => $record->status === ImportStatus::NeedsPassword),
 
-                Actions\Action::make('reprocess')
-                    ->label('Re-process')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->action(function (ImportedFile $record) {
-                        \Illuminate\Support\Facades\DB::transaction(function () use ($record) {
-                            $record->transactions()->delete();
-                            $record->update([
-                                'status' => ImportStatus::Pending,
-                                'total_rows' => 0,
-                                'mapped_rows' => 0,
-                                'error_message' => null,
-                            ]);
-                        });
-                        ProcessImportedFile::dispatch($record);
-                    })
-                    ->visible(fn (ImportedFile $record) => in_array($record->status, [
-                        ImportStatus::Completed,
-                        ImportStatus::Failed,
-                    ])),
+                    Actions\Action::make('reprocess')
+                        ->label('Re-process')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->action(function (ImportedFile $record) {
+                            \Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+                                $record->transactions()->delete();
+                                $record->update([
+                                    'status' => ImportStatus::Pending,
+                                    'total_rows' => 0,
+                                    'mapped_rows' => 0,
+                                    'error_message' => null,
+                                ]);
+                            });
+                            ProcessImportedFile::dispatch($record);
+                        })
+                        ->visible(fn (ImportedFile $record) => in_array($record->status, [
+                            ImportStatus::Completed,
+                            ImportStatus::Failed,
+                        ])),
 
-                Actions\DeleteAction::make(),
-                Actions\ForceDeleteAction::make(),
-                Actions\RestoreAction::make(),
+                    Actions\DeleteAction::make(),
+                    Actions\ForceDeleteAction::make(),
+                    Actions\RestoreAction::make(),
+                ]),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
@@ -234,6 +219,11 @@ class ImportedFileResource extends Resource
                     Actions\ForceDeleteBulkAction::make(),
                     Actions\RestoreBulkAction::make(),
                 ]),
+            ])
+            ->headerActions([
+                Actions\CreateAction::make()
+                    ->label('Upload Statement')
+                    ->icon('heroicon-o-arrow-up-tray'),
             ]);
     }
 

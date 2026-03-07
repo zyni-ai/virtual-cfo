@@ -17,6 +17,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 /**
  * @property array<string, mixed>|null $source_metadata
  * @property StatementType $statement_type
+ * @property ImportSource $source
  * @property ImportStatus $status
  */
 class ImportedFile extends Model

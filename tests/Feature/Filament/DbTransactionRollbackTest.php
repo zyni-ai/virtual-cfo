@@ -5,8 +5,8 @@ use App\Enums\MappingType;
 use App\Enums\MatchMethod;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
-use App\Filament\Pages\Reconciliation;
 use App\Filament\Resources\ImportedFileResource\Pages\ListImportedFiles;
+use App\Filament\Resources\ReconciliationResource\Pages\ListReconciliation;
 use App\Filament\Resources\TransactionResource\Pages\ListTransactions;
 use App\Jobs\ProcessImportedFile;
 use App\Models\AccountHead;
@@ -46,9 +46,8 @@ describe('DB Transaction - Manual Match', function () {
             'raw_data' => ['vendor_name' => 'Test Vendor'],
         ]);
 
-        livewire(Reconciliation::class)
-            ->callAction('manual_match', [
-                'bank_transaction_id' => $bankTxn->id,
+        livewire(ListReconciliation::class)
+            ->callTableAction('manual_match', $bankTxn, data: [
                 'invoice_transaction_id' => $invoiceTxn->id,
             ]);
 

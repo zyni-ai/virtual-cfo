@@ -1,44 +1,49 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Filament\Resources;
 
 use App\Enums\NavigationGroup;
 use App\Exports\ActivityLogExport;
+use App\Filament\Resources\ActivityLogResource\Pages;
 use BackedEnum;
 use Filament\Actions;
 use Filament\Facades\Filament;
-use Filament\Pages\Page;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Activitylog\Models\Activity;
 use UnitEnum;
 
-class ActivityLog extends Page implements HasTable
+class ActivityLogResource extends Resource
 {
-    use InteractsWithTable;
+    protected static ?string $model = Activity::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';
 
     protected static ?string $navigationLabel = 'Activity Log';
 
-    protected static ?string $title = 'Activity Log';
+    protected static ?string $slug = 'activity-log';
+
+    protected static ?string $modelLabel = 'Activity';
+
+    protected static ?string $pluralModelLabel = 'Activity Log';
 
     protected static UnitEnum|string|null $navigationGroup = NavigationGroup::Company;
 
     protected static ?int $navigationSort = 6;
 
-    protected string $view = 'filament.pages.activity-log';
+    protected static bool $isScopedToTenant = false;
 
     /**
      * Sensitive fields that should be masked in activity log properties.
      *
      * @var array<int, string>
      */
-    private const SENSITIVE_FIELDS = [
+    private const array SENSITIVE_FIELDS = [
         'description',
         'debit',
         'credit',
@@ -54,36 +59,27 @@ class ActivityLog extends Page implements HasTable
         return auth()->user()->currentRole()?->canManageTeam() ?? false;
     }
 
-    /** @return array<Actions\Action> */
-    protected function getHeaderActions(): array
-    {
-        return [
-            Actions\Action::make('export')
-                ->label('Export CSV')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->action(function () {
-                    /** @var \App\Models\Company $company */
-                    $company = Filament::getTenant();
-                    $tenantUserIds = $company->users()->pluck('users.id');
-
-                    return Excel::download(
-                        new ActivityLogExport($tenantUserIds),
-                        'activity-log-'.now()->format('Y-m-d').'.csv',
-                    );
-                }),
-        ];
-    }
-
-    public function table(Table $table): Table
+    /** @return Builder<Activity> */
+    public static function getEloquentQuery(): Builder
     {
         /** @var \App\Models\Company $company */
         $company = Filament::getTenant();
         $tenantUserIds = $company->users()->pluck('users.id');
 
+        /** @var Builder<Activity> */
+        return parent::getEloquentQuery()
+            ->with('causer')
+            ->whereIn('causer_id', $tenantUserIds);
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return $schema->schema([]);
+    }
+
+    public static function table(Table $table): Table
+    {
         return $table
-            ->query(
-                Activity::query()->whereIn('causer_id', $tenantUserIds)
-            )
             ->columns([
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Date')
@@ -114,9 +110,9 @@ class ActivityLog extends Page implements HasTable
 
                 Tables\Columns\TextColumn::make('properties')
                     ->label('Changes')
-                    ->formatStateUsing(fn ($record): string => self::maskProperties($record->properties))
+                    ->formatStateUsing(fn (Activity $record): string => self::maskProperties($record->properties))
                     ->limit(80)
-                    ->tooltip(fn ($record): string => self::maskProperties($record->properties))
+                    ->tooltip(fn (Activity $record): string => self::maskProperties($record->properties))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
@@ -141,13 +137,34 @@ class ActivityLog extends Page implements HasTable
 
                 Tables\Filters\SelectFilter::make('subject_type')
                     ->label('Subject Type')
-                    ->options(fn () => Activity::query()
-                        ->whereIn('causer_id', $tenantUserIds)
-                        ->whereNotNull('subject_type')
-                        ->distinct()
-                        ->pluck('subject_type', 'subject_type')
-                        ->mapWithKeys(fn (string $type) => [$type => Str::afterLast($type, '\\')])
-                        ->toArray()),
+                    ->options(function () {
+                        /** @var \App\Models\Company $company */
+                        $company = Filament::getTenant();
+                        $tenantUserIds = $company->users()->pluck('users.id');
+
+                        return Activity::query()
+                            ->whereIn('causer_id', $tenantUserIds)
+                            ->whereNotNull('subject_type')
+                            ->distinct()
+                            ->pluck('subject_type', 'subject_type')
+                            ->mapWithKeys(fn (string $type) => [$type => Str::afterLast($type, '\\')])
+                            ->toArray();
+                    }),
+            ])
+            ->headerActions([
+                Actions\Action::make('export')
+                    ->label('Export CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function () {
+                        /** @var \App\Models\Company $company */
+                        $company = Filament::getTenant();
+                        $tenantUserIds = $company->users()->pluck('users.id');
+
+                        return Excel::download(
+                            new ActivityLogExport($tenantUserIds),
+                            'activity-log-'.now()->format('Y-m-d').'.csv',
+                        );
+                    }),
             ]);
     }
 
@@ -156,7 +173,7 @@ class ActivityLog extends Page implements HasTable
      *
      * @param  array<string, mixed>|\Illuminate\Support\Collection<string, mixed>|null  $properties
      */
-    public static function maskProperties($properties): string
+    public static function maskProperties(mixed $properties): string
     {
         if ($properties === null) {
             return '—';
@@ -173,7 +190,7 @@ class ActivityLog extends Page implements HasTable
         $masked = self::maskNestedProperties($data);
 
         return collect($masked)
-            ->map(fn ($value, $key) => "{$key}: ".(is_array($value) ? json_encode($value) : $value))
+            ->map(fn (mixed $value, string $key) => "{$key}: ".(is_array($value) ? json_encode($value) : $value))
             ->implode(', ');
     }
 
@@ -194,5 +211,17 @@ class ActivityLog extends Page implements HasTable
         }
 
         return $data;
+    }
+
+    public static function getRelations(): array
+    {
+        return [];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListActivityLog::route('/'),
+        ];
     }
 }

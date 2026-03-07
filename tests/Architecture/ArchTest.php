@@ -43,11 +43,14 @@ describe('Filament Resources', function () {
             ->classes()
             ->toExtend('Filament\Resources\Resource')
             ->ignoring('App\Filament\Resources\AccountHeadResource\Pages')
+            ->ignoring('App\Filament\Resources\ActivityLogResource\Pages')
             ->ignoring('App\Filament\Resources\BankAccountResource\Pages')
             ->ignoring('App\Filament\Resources\CreditCardResource\Pages')
             ->ignoring('App\Filament\Resources\HeadMappingResource\Pages')
             ->ignoring('App\Filament\Resources\ImportedFileResource\Pages')
+            ->ignoring('App\Filament\Resources\ReconciliationResource\Pages')
             ->ignoring('App\Filament\Resources\RecurringPatternResource\Pages')
+            ->ignoring('App\Filament\Resources\TeamMemberResource\Pages')
             ->ignoring('App\Filament\Resources\TransactionResource\Pages');
     });
 })->group('architecture');

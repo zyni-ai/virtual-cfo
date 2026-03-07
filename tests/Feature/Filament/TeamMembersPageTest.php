@@ -1,7 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
-use App\Filament\Pages\TeamMembers;
+use App\Filament\Resources\TeamMemberResource\Pages\ListTeamMembers;
 use App\Models\Company;
 use App\Models\User;
 use Spatie\Activitylog\Models\Activity;
@@ -13,21 +13,21 @@ describe('Team Members Page', function () {
         it('renders for admin users', function () {
             asUser(role: UserRole::Admin);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->assertSuccessful();
         });
 
         it('denies access to accountant users', function () {
             asUser(User::factory()->accountant()->create(), UserRole::Accountant);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->assertForbidden();
         });
 
         it('denies access to viewer users', function () {
             asUser(User::factory()->viewer()->create(), UserRole::Viewer);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->assertForbidden();
         });
     });
@@ -40,7 +40,7 @@ describe('Team Members Page', function () {
             $member = User::factory()->accountant()->create();
             $company->users()->attach($member, ['role' => UserRole::Accountant->value]);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->assertCanSeeTableRecords([$admin, $member]);
         });
 
@@ -51,7 +51,7 @@ describe('Team Members Page', function () {
             $otherUser = User::factory()->viewer()->create();
             $otherCompany->users()->attach($otherUser, ['role' => UserRole::Viewer->value]);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->assertCanNotSeeTableRecords([$otherUser]);
         });
     });
@@ -64,7 +64,7 @@ describe('Team Members Page', function () {
             $member = User::factory()->viewer()->create();
             $company->users()->attach($member, ['role' => UserRole::Viewer->value]);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->callTableAction('change_role', $member, [
                     'role' => UserRole::Accountant->value,
                 ])
@@ -81,7 +81,7 @@ describe('Team Members Page', function () {
             $member = User::factory()->viewer()->create();
             $company->users()->attach($member, ['role' => UserRole::Viewer->value]);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->callTableAction('change_role', $member, [
                     'role' => UserRole::Accountant->value,
                 ]);
@@ -99,7 +99,7 @@ describe('Team Members Page', function () {
         it('cannot change own role', function () {
             $admin = asUser(role: UserRole::Admin);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->assertTableActionHidden('change_role', $admin);
         });
     });
@@ -112,7 +112,7 @@ describe('Team Members Page', function () {
             $member = User::factory()->viewer()->create();
             $company->users()->attach($member, ['role' => UserRole::Viewer->value]);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->callTableAction('remove', $member)
                 ->assertNotified('Member removed');
 
@@ -126,7 +126,7 @@ describe('Team Members Page', function () {
             $member = User::factory()->viewer()->create(['name' => 'John Doe']);
             $company->users()->attach($member, ['role' => UserRole::Viewer->value]);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->callTableAction('remove', $member);
 
             $activity = Activity::where('log_name', 'team')
@@ -141,9 +141,8 @@ describe('Team Members Page', function () {
         it('cannot remove self', function () {
             $admin = asUser(role: UserRole::Admin);
 
-            livewire(TeamMembers::class)
+            livewire(ListTeamMembers::class)
                 ->assertTableActionHidden('remove', $admin);
         });
     });
-
 });

@@ -1,7 +1,8 @@
 <?php
 
 use App\Enums\UserRole;
-use App\Filament\Pages\ActivityLog;
+use App\Filament\Resources\ActivityLogResource;
+use App\Filament\Resources\ActivityLogResource\Pages\ListActivityLog;
 use App\Models\Company;
 use App\Models\User;
 use Spatie\Activitylog\Models\Activity;
@@ -13,21 +14,21 @@ describe('Activity Log Page', function () {
         it('renders for admin users', function () {
             asUser(role: UserRole::Admin);
 
-            livewire(ActivityLog::class)
+            livewire(ListActivityLog::class)
                 ->assertSuccessful();
         });
 
         it('denies access to accountant users', function () {
             asUser(User::factory()->accountant()->create(), UserRole::Accountant);
 
-            livewire(ActivityLog::class)
+            livewire(ListActivityLog::class)
                 ->assertForbidden();
         });
 
         it('denies access to viewer users', function () {
             asUser(User::factory()->viewer()->create(), UserRole::Viewer);
 
-            livewire(ActivityLog::class)
+            livewire(ListActivityLog::class)
                 ->assertForbidden();
         });
     });
@@ -52,7 +53,7 @@ describe('Activity Log Page', function () {
                 ->causedBy($otherUser)
                 ->log('other_tenant_action');
 
-            livewire(ActivityLog::class)
+            livewire(ListActivityLog::class)
                 ->assertCanSeeTableRecords(
                     Activity::where('causer_id', $admin->id)->get()
                 )
@@ -82,7 +83,7 @@ describe('Activity Log Page', function () {
             $createdRecords = Activity::where('event', 'created')->get();
             $updatedRecords = Activity::where('event', 'updated')->get();
 
-            livewire(ActivityLog::class)
+            livewire(ListActivityLog::class)
                 ->filterTable('event', 'created')
                 ->assertCanSeeTableRecords($createdRecords)
                 ->assertCanNotSeeTableRecords($updatedRecords);
@@ -106,7 +107,7 @@ describe('Activity Log Page', function () {
                 ->causedBy($member)
                 ->log('member_action');
 
-            livewire(ActivityLog::class)
+            livewire(ListActivityLog::class)
                 ->filterTable('causer_id', $member->id)
                 ->assertCanSeeTableRecords(
                     Activity::where('causer_id', $member->id)->get()
@@ -133,7 +134,7 @@ describe('Activity Log Page', function () {
                 ->performedOn($admin)
                 ->log('user_action');
 
-            livewire(ActivityLog::class)
+            livewire(ListActivityLog::class)
                 ->filterTable('subject_type', Company::class)
                 ->assertCanSeeTableRecords(
                     Activity::where('subject_type', Company::class)->get()
@@ -148,17 +149,6 @@ describe('Activity Log Page', function () {
         it('masks sensitive fields in properties display', function () {
             asUser(role: UserRole::Admin);
 
-            $sensitiveFields = [
-                'description',
-                'debit',
-                'credit',
-                'balance',
-                'account_number',
-                'card_number',
-                'pdf_password',
-                'raw_data',
-            ];
-
             $properties = [
                 'name' => 'Visible Name',
                 'description' => 'Sensitive description',
@@ -166,7 +156,7 @@ describe('Activity Log Page', function () {
                 'debit' => '5000.00',
             ];
 
-            $masked = ActivityLog::maskProperties($properties);
+            $masked = ActivityLogResource::maskProperties($properties);
 
             expect($masked)->toContain('Visible Name')
                 ->and($masked)->toContain('***')
@@ -180,14 +170,14 @@ describe('Activity Log Page', function () {
         it('has an export header action', function () {
             asUser(role: UserRole::Admin);
 
-            livewire(ActivityLog::class)
-                ->assertActionExists('export');
+            livewire(ListActivityLog::class)
+                ->assertTableActionExists('export');
         });
     });
 
     describe('Navigation', function () {
         it('is in the Company navigation group', function () {
-            expect(ActivityLog::getNavigationGroup())->toBe(\App\Enums\NavigationGroup::Company);
+            expect(ActivityLogResource::getNavigationGroup())->toBe(\App\Enums\NavigationGroup::Company);
         });
     });
 });
