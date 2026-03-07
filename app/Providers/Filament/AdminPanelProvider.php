@@ -10,6 +10,7 @@ use App\Filament\Pages\Tenancy\RegisterCompany;
 use App\Http\Middleware\SetTenantDatabaseContext;
 use App\Http\Middleware\UpdateLastActiveAt;
 use App\Models\Company;
+use Filament\Actions\Action;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
@@ -20,6 +21,8 @@ use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -64,6 +67,18 @@ class AdminPanelProvider extends PanelProvider
                     ->sort(5)
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.tenant.profile')),
             ])
+            ->userMenuItems([
+                Action::make('restart_tour')
+                    ->label('Restart Tour')
+                    ->icon('heroicon-o-academic-cap')
+                    ->extraAttributes([
+                        'x-on:click.prevent' => "\$dispatch('restart-tour')",
+                    ]),
+            ])
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): View => view('livewire.onboarding-tour-hook'),
+            )
             ->routes(function () {
                 Route::get(AcceptInvitation::getSlug(), AcceptInvitation::class)
                     ->name(AcceptInvitation::getRouteName());
