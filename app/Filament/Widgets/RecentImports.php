@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\ImportedFileResource;
 use App\Models\ImportedFile;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -20,7 +21,6 @@ class RecentImports extends BaseWidget
         return $table
             ->query(
                 ImportedFile::query()
-                    ->with('uploader')
                     ->latest()
                     ->limit(5)
             )
@@ -29,24 +29,16 @@ class RecentImports extends BaseWidget
                     ->label('File')
                     ->limit(40),
 
-                Tables\Columns\TextColumn::make('bank_name')
-                    ->label('Bank')
-                    ->placeholder('Detecting...'),
-
                 Tables\Columns\TextColumn::make('status')
                     ->badge(),
-
-                Tables\Columns\TextColumn::make('total_rows')
-                    ->label('Rows'),
-
-                Tables\Columns\TextColumn::make('mapped_percentage')
-                    ->label('Mapped')
-                    ->suffix('%'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Uploaded')
                     ->since(),
             ])
+            ->recordUrl(
+                fn (ImportedFile $record): string => ImportedFileResource::getUrl('view', ['record' => $record]),
+            )
             ->paginated(false);
     }
 }

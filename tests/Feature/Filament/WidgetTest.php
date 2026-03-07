@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\ImportedFileResource;
 use App\Filament\Widgets\RecentImports;
 use App\Models\ImportedFile;
 
@@ -14,10 +15,29 @@ describe('RecentImports widget', function () {
         livewire(RecentImports::class)->assertSuccessful();
     });
 
-    it('shows recent imports', function () {
-        ImportedFile::factory()->count(3)->create();
+    it('shows only filename, status, and uploaded columns', function () {
+        ImportedFile::factory()->create();
+
+        $widget = livewire(RecentImports::class);
+
+        $columns = collect($widget->instance()->getTable()->getColumns())
+            ->keys()
+            ->all();
+
+        expect($columns)->toBe(['original_filename', 'status', 'created_at']);
+
+        $widget
+            ->assertCanRenderTableColumn('original_filename')
+            ->assertCanRenderTableColumn('status')
+            ->assertCanRenderTableColumn('created_at');
+    });
+
+    it('makes rows clickable to the import detail page', function () {
+        $import = ImportedFile::factory()->create();
+
+        $expectedUrl = ImportedFileResource::getUrl('view', ['record' => $import]);
 
         livewire(RecentImports::class)
-            ->assertSuccessful();
+            ->assertSeeHtml($expectedUrl);
     });
 });
