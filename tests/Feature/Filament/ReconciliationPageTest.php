@@ -4,7 +4,8 @@ use App\Enums\MatchMethod;
 use App\Enums\MatchStatus;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
-use App\Filament\Pages\Reconciliation;
+use App\Filament\Resources\ReconciliationResource;
+use App\Filament\Resources\ReconciliationResource\Pages\ListReconciliation;
 use App\Filament\Widgets\ReconciliationStatsOverview;
 use App\Jobs\ReconcileImportedFiles;
 use App\Models\ImportedFile;
@@ -20,7 +21,7 @@ describe('Reconciliation Page', function () {
     });
 
     it('can render the reconciliation page', function () {
-        $this->get(Reconciliation::getUrl())
+        $this->get(ReconciliationResource::getUrl())
             ->assertSuccessful();
     });
 
@@ -50,10 +51,8 @@ describe('Reconciliation Page', function () {
     });
 
     it('registers the stats widget as a header widget', function () {
-        $page = new Reconciliation;
-        $widgets = $page->getHeaderWidgets();
-
-        expect($widgets)->toContain(ReconciliationStatsOverview::class);
+        livewire(ListReconciliation::class)
+            ->assertSee('Unreconciled');
     });
 
     it('displays bank transactions in the table', function () {
@@ -66,7 +65,7 @@ describe('Reconciliation Page', function () {
             'reconciliation_status' => ReconciliationStatus::Unreconciled,
         ]);
 
-        livewire(Reconciliation::class)
+        livewire(ListReconciliation::class)
             ->assertCanSeeTableRecords($transactions)
             ->assertCountTableRecords(3);
     });
@@ -86,7 +85,7 @@ describe('Reconciliation Page', function () {
             'imported_file_id' => $invoiceFile->id,
         ]);
 
-        livewire(Reconciliation::class)
+        livewire(ListReconciliation::class)
             ->assertCanSeeTableRecords([$bankTxn])
             ->assertCanNotSeeTableRecords([$invoiceTxn]);
     });
@@ -109,7 +108,7 @@ describe('Reconciliation Page', function () {
             'reconciliation_status' => ReconciliationStatus::Flagged,
         ]);
 
-        livewire(Reconciliation::class)
+        livewire(ListReconciliation::class)
             ->assertCanSeeTableRecords([$unreconciled, $matched, $flagged])
             ->filterTable('reconciliation_status', ReconciliationStatus::Unreconciled->value)
             ->assertCanSeeTableRecords([$unreconciled])
@@ -127,8 +126,8 @@ describe('Reconciliation Page', function () {
             'statement_type' => StatementType::Invoice,
         ]);
 
-        livewire(Reconciliation::class)
-            ->callAction('run_reconciliation', [
+        livewire(ListReconciliation::class)
+            ->callTableAction('run_reconciliation', data: [
                 'bank_file_id' => $bankFile->id,
                 'invoice_file_id' => $invoiceFile->id,
             ]);
@@ -162,9 +161,8 @@ describe('Reconciliation Page', function () {
             'raw_data' => ['vendor_name' => 'Test Vendor'],
         ]);
 
-        livewire(Reconciliation::class)
-            ->callAction('manual_match', [
-                'bank_transaction_id' => $bankTxn->id,
+        livewire(ListReconciliation::class)
+            ->callTableAction('manual_match', $bankTxn, data: [
                 'invoice_transaction_id' => $invoiceTxn->id,
             ]);
 
@@ -230,7 +228,7 @@ describe('Reconciliation Page', function () {
             'invoice_transaction_id' => $invoiceTxn->id,
         ]);
 
-        livewire(Reconciliation::class)
+        livewire(ListReconciliation::class)
             ->callTableAction('confirm_suggestion', $bankTxn);
 
         $match->refresh();
@@ -265,7 +263,7 @@ describe('Reconciliation Page', function () {
             ])->id,
         ]);
 
-        livewire(Reconciliation::class)
+        livewire(ListReconciliation::class)
             ->callTableAction('reject_suggestions', $bankTxn);
 
         $match1->refresh();

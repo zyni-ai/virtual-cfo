@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Filament\Resources;
 
 use App\Enums\NavigationGroup;
 use App\Enums\UserRole;
+use App\Filament\Resources\TeamMemberResource\Pages;
 use App\Filament\Widgets\PendingInvitations;
 use App\Mail\InvitationMail;
 use App\Models\Company;
@@ -16,147 +17,64 @@ use Filament\Actions;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
-use Filament\Pages\Page;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use UnitEnum;
 
-class TeamMembers extends Page implements HasTable
+class TeamMemberResource extends Resource
 {
-    use InteractsWithTable;
+    protected static ?string $model = User::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user-group';
 
     protected static ?string $navigationLabel = 'Team Members';
 
-    protected static ?string $title = 'Team Members';
+    protected static ?string $slug = 'team-members';
+
+    protected static ?string $modelLabel = 'Team Member';
+
+    protected static ?string $pluralModelLabel = 'Team Members';
 
     protected static UnitEnum|string|null $navigationGroup = NavigationGroup::Company;
 
     protected static ?int $navigationSort = 4;
 
-    protected string $view = 'filament.pages.team-members';
-
-    /** @return array<class-string> */
-    protected function getFooterWidgets(): array
-    {
-        return [
-            PendingInvitations::class,
-        ];
-    }
+    protected static bool $isScopedToTenant = false;
 
     public static function canAccess(): bool
     {
         return auth()->user()->currentRole()?->canManageTeam() ?? false;
     }
 
-    /** @return array<Actions\Action> */
-    protected function getHeaderActions(): array
+    /** @return Builder<User> */
+    public static function getEloquentQuery(): Builder
     {
-        return [
-            Actions\Action::make('invite')
-                ->label('Invite Member')
-                ->icon('heroicon-o-paper-airplane')
-                ->form([
-                    Forms\Components\TextInput::make('email')
-                        ->email()
-                        ->required(),
-                    Forms\Components\Select::make('role')
-                        ->options(UserRole::class)
-                        ->default(UserRole::Viewer->value)
-                        ->required(),
-                ])
-                ->action(function (array $data): void {
-                    /** @var Company $company */
-                    $company = Filament::getTenant();
-                    /** @var User $user */
-                    $user = auth()->user();
+        /** @var Company $company */
+        $company = Filament::getTenant();
 
-                    $rateLimitKey = "invitations:{$company->id}";
-
-                    if (RateLimiter::tooManyAttempts($rateLimitKey, 10)) {
-                        Notification::make()
-                            ->title('Too many invitations')
-                            ->body('You can send a maximum of 10 invitations per hour.')
-                            ->danger()
-                            ->send();
-
-                        return;
-                    }
-
-                    if ($company->users()->where('email', $data['email'])->exists()) {
-                        Notification::make()
-                            ->title('Already a member')
-                            ->body('This user is already a member of this company.')
-                            ->warning()
-                            ->send();
-
-                        return;
-                    }
-
-                    $existing = Invitation::where('company_id', $company->id)
-                        ->where('email', $data['email'])
-                        ->whereNull('accepted_at')
-                        ->first();
-
-                    if ($existing) {
-                        $existing->update([
-                            'role' => $data['role'],
-                            'expires_at' => now()->addDays(7),
-                        ]);
-
-                        Mail::to($data['email'])->queue(new InvitationMail($existing->fresh()));
-
-                        RateLimiter::hit($rateLimitKey, 3600);
-
-                        Notification::make()
-                            ->title('Invitation resent')
-                            ->body("Invitation resent to {$data['email']}.")
-                            ->success()
-                            ->send();
-
-                        return;
-                    }
-
-                    $invitation = Invitation::create([
-                        'company_id' => $company->id,
-                        'email' => $data['email'],
-                        'role' => $data['role'],
-                        'token' => Str::random(64),
-                        'invited_by' => $user->id,
-                        'expires_at' => now()->addDays(7),
-                    ]);
-
-                    Mail::to($data['email'])->queue(new InvitationMail($invitation));
-
-                    RateLimiter::hit($rateLimitKey, 3600);
-
-                    Notification::make()
-                        ->title('Invitation sent')
-                        ->body("Invitation sent to {$data['email']}.")
-                        ->success()
-                        ->send();
-                }),
-        ];
+        return User::query()
+            ->join('company_user', 'users.id', '=', 'company_user.user_id')
+            ->where('company_user.company_id', $company->id)
+            ->select('users.*', 'company_user.role as pivot_role', 'company_user.created_at as pivot_joined_at');
     }
 
-    public function table(Table $table): Table
+    public static function form(Schema $schema): Schema
+    {
+        return $schema->schema([]);
+    }
+
+    public static function table(Table $table): Table
     {
         /** @var Company $company */
         $company = Filament::getTenant();
 
         return $table
-            ->query(
-                User::query()
-                    ->join('company_user', 'users.id', '=', 'company_user.user_id')
-                    ->where('company_user.company_id', $company->id)
-                    ->select('users.*', 'company_user.role as pivot_role', 'company_user.created_at as pivot_joined_at')
-            )
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
@@ -248,6 +166,101 @@ class TeamMembers extends Page implements HasTable
                             ->send();
                     }),
             ])
+            ->headerActions([
+                Actions\Action::make('invite')
+                    ->label('Invite Member')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->form([
+                        Forms\Components\TextInput::make('email')
+                            ->email()
+                            ->required(),
+                        Forms\Components\Select::make('role')
+                            ->options(UserRole::class)
+                            ->default(UserRole::Viewer->value)
+                            ->required(),
+                    ])
+                    ->action(function (array $data) use ($company): void {
+                        /** @var User $user */
+                        $user = auth()->user();
+
+                        $rateLimitKey = "invitations:{$company->id}";
+
+                        if (RateLimiter::tooManyAttempts($rateLimitKey, 10)) {
+                            Notification::make()
+                                ->title('Too many invitations')
+                                ->body('You can send a maximum of 10 invitations per hour.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        if ($company->users()->where('email', $data['email'])->exists()) {
+                            Notification::make()
+                                ->title('Already a member')
+                                ->body('This user is already a member of this company.')
+                                ->warning()
+                                ->send();
+
+                            return;
+                        }
+
+                        $existing = Invitation::where('company_id', $company->id)
+                            ->where('email', $data['email'])
+                            ->whereNull('accepted_at')
+                            ->first();
+
+                        if ($existing) {
+                            $existing->update([
+                                'role' => $data['role'],
+                                'expires_at' => now()->addDays(7),
+                            ]);
+
+                            Mail::to($data['email'])->queue(new InvitationMail($existing->fresh()));
+
+                            RateLimiter::hit($rateLimitKey, 3600);
+
+                            Notification::make()
+                                ->title('Invitation resent')
+                                ->body("Invitation resent to {$data['email']}.")
+                                ->success()
+                                ->send();
+
+                            return;
+                        }
+
+                        $invitation = Invitation::create([
+                            'company_id' => $company->id,
+                            'email' => $data['email'],
+                            'role' => $data['role'],
+                            'token' => Str::random(64),
+                            'invited_by' => $user->id,
+                            'expires_at' => now()->addDays(7),
+                        ]);
+
+                        Mail::to($data['email'])->queue(new InvitationMail($invitation));
+
+                        RateLimiter::hit($rateLimitKey, 3600);
+
+                        Notification::make()
+                            ->title('Invitation sent')
+                            ->body("Invitation sent to {$data['email']}.")
+                            ->success()
+                            ->send();
+                    }),
+            ])
             ->defaultSort('name');
+    }
+
+    public static function getRelations(): array
+    {
+        return [];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListTeamMembers::route('/'),
+        ];
     }
 }
