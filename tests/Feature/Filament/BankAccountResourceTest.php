@@ -113,7 +113,7 @@ describe('BankAccountResource', function () {
 
     it('has correct navigation properties', function () {
         expect(BankAccountResource::getNavigationLabel())->toBe('Bank Accounts')
-            ->and(BankAccountResource::getNavigationSort())->toBe(5);
+            ->and(BankAccountResource::getNavigationSort())->toBe(2);
     });
 
     it('can set pdf_password on a bank account', function () {

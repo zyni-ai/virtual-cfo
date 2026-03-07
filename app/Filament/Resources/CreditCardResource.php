@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\NavigationGroup;
 use App\Enums\UserRole;
 use App\Filament\Resources\CreditCardResource\Pages;
 use App\Models\Company;
@@ -30,9 +31,9 @@ class CreditCardResource extends Resource
 
     protected static ?string $navigationLabel = 'Credit Cards';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Company;
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 3;
 
     protected static bool $isScopedToTenant = false;
 

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\AccountType;
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\BankAccountResource\Pages;
 use App\Models\BankAccount;
 use BackedEnum;
@@ -26,9 +27,9 @@ class BankAccountResource extends Resource
 
     protected static ?string $navigationLabel = 'Bank Accounts';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Company;
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {

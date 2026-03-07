@@ -186,8 +186,8 @@ describe('Activity Log Page', function () {
     });
 
     describe('Navigation', function () {
-        it('is in the Settings navigation group', function () {
-            expect(ActivityLog::getNavigationGroup())->toBe('Settings');
+        it('is in the Company navigation group', function () {
+            expect(ActivityLog::getNavigationGroup())->toBe(\App\Enums\NavigationGroup::Company);
         });
     });
 });

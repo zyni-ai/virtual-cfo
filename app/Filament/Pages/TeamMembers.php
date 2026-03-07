@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\NavigationGroup;
 use App\Enums\UserRole;
 use App\Filament\Widgets\PendingInvitations;
 use App\Mail\InvitationMail;
@@ -35,9 +36,9 @@ class TeamMembers extends Page implements HasTable
 
     protected static ?string $title = 'Team Members';
 
-    protected static UnitEnum|string|null $navigationGroup = 'Settings';
+    protected static UnitEnum|string|null $navigationGroup = NavigationGroup::Company;
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 4;
 
     protected string $view = 'filament.pages.team-members';
 

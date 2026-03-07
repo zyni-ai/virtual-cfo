@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\NavigationGroup;
 use App\Exports\ActivityLogExport;
 use BackedEnum;
 use Filament\Actions;
@@ -26,9 +27,9 @@ class ActivityLog extends Page implements HasTable
 
     protected static ?string $title = 'Activity Log';
 
-    protected static UnitEnum|string|null $navigationGroup = 'Settings';
+    protected static UnitEnum|string|null $navigationGroup = NavigationGroup::Company;
 
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 6;
 
     protected string $view = 'filament.pages.activity-log';
 
