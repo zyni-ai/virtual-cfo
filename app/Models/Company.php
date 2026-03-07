@@ -28,6 +28,7 @@ class Company extends Model
         'date_of_birth',
         'pan_number',
         'mobile_number',
+        'review_confidence_threshold',
     ];
 
     protected function casts(): array

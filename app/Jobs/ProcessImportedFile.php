@@ -51,7 +51,7 @@ class ProcessImportedFile implements ShouldQueue
         return [30, 120, 300];
     }
 
-    public function handle(DocumentProcessor $documentProcessor, DuplicateDetectionService $duplicateDetectionService): void
+    public function handle(DocumentProcessor $documentProcessor): void
     {
         try {
             $documentProcessor->process($this->importedFile);
@@ -59,7 +59,7 @@ class ProcessImportedFile implements ShouldQueue
             $this->importedFile->refresh();
             $this->notifySuccess();
             $this->dispatchAutoSuggestions();
-            $this->scanForDuplicates($duplicateDetectionService);
+            $this->scanForDuplicates();
         } catch (\Throwable $e) {
             Log::error('Failed to process imported file', [
                 'file_id' => $this->importedFile->id,
@@ -125,9 +125,10 @@ class ProcessImportedFile implements ShouldQueue
         }
     }
 
-    private function scanForDuplicates(DuplicateDetectionService $service): void
+    private function scanForDuplicates(): void
     {
         try {
+            $service = app(DuplicateDetectionService::class);
             $flags = $service->scanForDuplicates($this->importedFile);
 
             if ($flags->isNotEmpty()) {
