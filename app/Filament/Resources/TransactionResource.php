@@ -466,7 +466,10 @@ class TransactionResource extends Resource
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('success')
                     ->button(),
-            ]);
+            ])
+            ->emptyStateHeading('No transactions yet')
+            ->emptyStateDescription('Transactions appear here after you upload and process a bank statement or invoice.')
+            ->emptyStateIcon('heroicon-o-banknotes');
     }
 
     public static function getRelations(): array

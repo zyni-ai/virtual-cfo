@@ -56,7 +56,8 @@ class ImportedFileResource extends Resource
                             ->options(StatementType::class)
                             ->default(StatementType::Bank)
                             ->required()
-                            ->live(),
+                            ->live()
+                            ->helperText('Select the type of document you are uploading.'),
 
                         Forms\Components\Select::make('bank_account_id')
                             ->label('Account')
@@ -224,7 +225,10 @@ class ImportedFileResource extends Resource
                 Actions\CreateAction::make()
                     ->label('Upload Statement')
                     ->icon('heroicon-o-arrow-up-tray'),
-            ]);
+            ])
+            ->emptyStateHeading('No imported files yet')
+            ->emptyStateDescription('Upload a bank statement, credit card statement, or invoice to get started.')
+            ->emptyStateIcon('heroicon-o-document-arrow-up');
     }
 
     /** @return Builder<ImportedFile> */

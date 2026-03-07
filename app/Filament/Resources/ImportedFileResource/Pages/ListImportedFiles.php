@@ -10,6 +10,11 @@ class ListImportedFiles extends ListRecords
 {
     protected static string $resource = ImportedFileResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Upload and manage bank statements, credit card statements, and invoices';
+    }
+
     protected function getHeaderActions(): array
     {
         return [];

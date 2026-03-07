@@ -10,6 +10,11 @@ class ListReconciliation extends ListRecords
 {
     protected static string $resource = ReconciliationResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Match bank transactions against invoices';
+    }
+
     protected function getHeaderWidgets(): array
     {
         return [

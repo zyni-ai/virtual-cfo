@@ -10,6 +10,11 @@ class ListTransactions extends ListRecords
 {
     protected static string $resource = TransactionResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Review, map, and export your parsed transactions';
+    }
+
     protected function getHeaderWidgets(): array
     {
         return [
