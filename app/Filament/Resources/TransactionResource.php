@@ -76,16 +76,12 @@ class TransactionResource extends Resource
                     ->label('Ref #')
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                Tables\Columns\TextColumn::make('debit')
-                    ->label('Debit')
+                Tables\Columns\TextColumn::make('amount')
+                    ->label('Amount')
+                    ->state(fn (Transaction $record): ?string => $record->debit ?? $record->credit)
                     ->numeric(decimalPlaces: 2)
-                    ->color('danger')
-                    ->placeholder('-'),
-
-                Tables\Columns\TextColumn::make('credit')
-                    ->label('Credit')
-                    ->numeric(decimalPlaces: 2)
-                    ->color('success')
+                    ->color(fn (Transaction $record): string => $record->debit ? 'danger' : 'success')
+                    ->icon(fn (Transaction $record): string => $record->debit ? 'heroicon-m-arrow-up' : 'heroicon-m-arrow-down')
                     ->placeholder('-'),
 
                 Tables\Columns\TextColumn::make('balance')
@@ -96,22 +92,14 @@ class TransactionResource extends Resource
                 Tables\Columns\TextColumn::make('accountHead.name')
                     ->label('Account Head')
                     ->placeholder('Unmapped')
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('mapping_type')
-                    ->label('Mapping')
-                    ->badge(),
-
-                Tables\Columns\TextColumn::make('ai_confidence')
-                    ->label('Confidence')
-                    ->numeric(decimalPlaces: 2)
-                    ->visible(fn () => true)
-                    ->placeholder('-')
-                    ->color(fn (?float $state) => match (true) {
-                        $state === null => 'gray',
-                        $state >= 0.8 => 'success',
-                        $state >= 0.5 => 'warning',
-                        default => 'danger',
+                    ->searchable()
+                    ->description(fn (Transaction $record): ?string => match ($record->mapping_type) {
+                        MappingType::Unmapped => null,
+                        MappingType::Manual => 'Assigned manually',
+                        MappingType::Auto => 'Matched by rule',
+                        MappingType::Ai => $record->ai_confidence !== null
+                            ? 'Suggested by AI · '.round($record->ai_confidence * 100).'% confident'
+                            : 'Suggested by AI',
                     }),
 
                 Tables\Columns\IconColumn::make('recurring_pattern_id')
@@ -182,95 +170,97 @@ class TransactionResource extends Resource
                         });
                     }),
 
-                Actions\Action::make('create_rule')
-                    ->label('Create Rule')
-                    ->icon('heroicon-o-plus-circle')
-                    ->color('info')
-                    ->form([
-                        Forms\Components\TextInput::make('pattern')
-                            ->label('Pattern')
-                            ->required()
-                            ->default(fn (Transaction $record) => $record->description),
+                Actions\ActionGroup::make([
+                    Actions\Action::make('create_rule')
+                        ->label('Create Rule')
+                        ->icon('heroicon-o-plus-circle')
+                        ->color('info')
+                        ->form([
+                            Forms\Components\TextInput::make('pattern')
+                                ->label('Pattern')
+                                ->required()
+                                ->default(fn (Transaction $record) => $record->description),
 
-                        Forms\Components\Select::make('match_type')
-                            ->options(MatchType::class)
-                            ->default(MatchType::Contains)
-                            ->required(),
+                            Forms\Components\Select::make('match_type')
+                                ->options(MatchType::class)
+                                ->default(MatchType::Contains)
+                                ->required(),
 
-                        Forms\Components\Select::make('account_head_id')
-                            ->label('Account Head')
-                            ->options(fn () => AccountHead::where('is_active', true)->pluck('name', 'id'))
-                            ->searchable()
-                            ->required()
-                            ->default(fn (Transaction $record) => $record->account_head_id),
+                            Forms\Components\Select::make('account_head_id')
+                                ->label('Account Head')
+                                ->options(fn () => AccountHead::where('is_active', true)->pluck('name', 'id'))
+                                ->searchable()
+                                ->required()
+                                ->default(fn (Transaction $record) => $record->account_head_id),
 
-                        Forms\Components\TextInput::make('bank_name')
-                            ->label('Bank Name (optional)')
-                            ->default(fn (Transaction $record) => $record->importedFile?->bank_name),
-                    ])
-                    ->action(function (Transaction $record, array $data) {
-                        HeadMapping::create([
-                            'pattern' => $data['pattern'],
-                            'match_type' => $data['match_type'],
-                            'account_head_id' => $data['account_head_id'],
-                            'bank_name' => $data['bank_name'] ?: null,
-                            'created_by' => Auth::id(),
-                        ]);
+                            Forms\Components\TextInput::make('bank_name')
+                                ->label('Bank Name (optional)')
+                                ->default(fn (Transaction $record) => $record->importedFile?->bank_name),
+                        ])
+                        ->action(function (Transaction $record, array $data) {
+                            HeadMapping::create([
+                                'pattern' => $data['pattern'],
+                                'match_type' => $data['match_type'],
+                                'account_head_id' => $data['account_head_id'],
+                                'bank_name' => $data['bank_name'] ?: null,
+                                'created_by' => Auth::id(),
+                            ]);
 
-                        Notification::make()
-                            ->title('Mapping rule created')
-                            ->success()
-                            ->send();
-                    })
-                    ->visible(fn (Transaction $record) => $record->account_head_id !== null),
+                            Notification::make()
+                                ->title('Mapping rule created')
+                                ->success()
+                                ->send();
+                        })
+                        ->visible(fn (Transaction $record) => $record->account_head_id !== null),
 
-                Actions\Action::make('match_invoice')
-                    ->label('Match Invoice')
-                    ->icon('heroicon-o-link')
-                    ->color('warning')
-                    ->form([
-                        Forms\Components\CheckboxList::make('invoice_transaction_ids')
-                            ->label('Select Invoice(s)')
-                            ->options(function (Transaction $record) {
-                                return Transaction::whereHas(
-                                    'importedFile',
-                                    fn (Builder $q) => $q->where('statement_type', StatementType::Invoice)
-                                        ->where('company_id', $record->importedFile?->company_id)
-                                )
-                                    ->where('reconciliation_status', ReconciliationStatus::Unreconciled)
-                                    ->select(['id', 'description', 'debit'])
-                                    ->orderByDesc('date')
-                                    ->limit(500)
-                                    ->get()
-                                    ->mapWithKeys(fn (Transaction $t) => [
-                                        $t->id => $t->description.' ('.number_format((float) $t->debit, 2).')',
-                                    ]);
-                            })
-                            ->required(),
-                    ])
-                    ->action(function (Transaction $record, array $data) {
-                        $service = app(ReconciliationService::class);
-                        $invoiceTransactions = Transaction::whereIn('id', $data['invoice_transaction_ids'])->get()->keyBy('id');
+                    Actions\Action::make('match_invoice')
+                        ->label('Match Invoice')
+                        ->icon('heroicon-o-link')
+                        ->color('warning')
+                        ->form([
+                            Forms\Components\CheckboxList::make('invoice_transaction_ids')
+                                ->label('Select Invoice(s)')
+                                ->options(function (Transaction $record) {
+                                    return Transaction::whereHas(
+                                        'importedFile',
+                                        fn (Builder $q) => $q->where('statement_type', StatementType::Invoice)
+                                            ->where('company_id', $record->importedFile?->company_id)
+                                    )
+                                        ->where('reconciliation_status', ReconciliationStatus::Unreconciled)
+                                        ->select(['id', 'description', 'debit'])
+                                        ->orderByDesc('date')
+                                        ->limit(500)
+                                        ->get()
+                                        ->mapWithKeys(fn (Transaction $t) => [
+                                            $t->id => $t->description.' ('.number_format((float) $t->debit, 2).')',
+                                        ]);
+                                })
+                                ->required(),
+                        ])
+                        ->action(function (Transaction $record, array $data) {
+                            $service = app(ReconciliationService::class);
+                            $invoiceTransactions = Transaction::whereIn('id', $data['invoice_transaction_ids'])->get()->keyBy('id');
 
-                        DB::transaction(function () use ($record, $data, $service, $invoiceTransactions) {
-                            foreach ($data['invoice_transaction_ids'] as $invoiceId) {
-                                /** @var Transaction $invoiceTxn */
-                                $invoiceTxn = $invoiceTransactions->get($invoiceId);
+                            DB::transaction(function () use ($record, $data, $service, $invoiceTransactions) {
+                                foreach ($data['invoice_transaction_ids'] as $invoiceId) {
+                                    /** @var Transaction $invoiceTxn */
+                                    $invoiceTxn = $invoiceTransactions->get($invoiceId);
 
-                                $service->createMatch($record, $invoiceTxn, 1.0, MatchMethod::Manual);
-                            }
-                        });
+                                    $service->createMatch($record, $invoiceTxn, 1.0, MatchMethod::Manual);
+                                }
+                            });
 
-                        $record->loadMissing('importedFile');
-                        $service->enrichMatchedTransactions($record->importedFile);
+                            $record->loadMissing('importedFile');
+                            $service->enrichMatchedTransactions($record->importedFile);
 
-                        Notification::make()
-                            ->title('Invoice matched successfully')
-                            ->success()
-                            ->send();
-                    })
-                    ->visible(fn (Transaction $record) => $record->reconciliation_status === ReconciliationStatus::Unreconciled
-                        && $record->importedFile?->statement_type !== StatementType::Invoice),
+                            Notification::make()
+                                ->title('Invoice matched successfully')
+                                ->success()
+                                ->send();
+                        })
+                        ->visible(fn (Transaction $record) => $record->reconciliation_status === ReconciliationStatus::Unreconciled
+                            && $record->importedFile?->statement_type !== StatementType::Invoice),
+                ]),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
