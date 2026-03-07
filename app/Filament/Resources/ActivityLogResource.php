@@ -43,7 +43,7 @@ class ActivityLogResource extends Resource
      *
      * @var array<int, string>
      */
-    private const SENSITIVE_FIELDS = [
+    private const array SENSITIVE_FIELDS = [
         'description',
         'debit',
         'credit',
@@ -110,9 +110,9 @@ class ActivityLogResource extends Resource
 
                 Tables\Columns\TextColumn::make('properties')
                     ->label('Changes')
-                    ->formatStateUsing(fn ($record): string => self::maskProperties($record->properties))
+                    ->formatStateUsing(fn (Activity $record): string => self::maskProperties($record->properties))
                     ->limit(80)
-                    ->tooltip(fn ($record): string => self::maskProperties($record->properties))
+                    ->tooltip(fn (Activity $record): string => self::maskProperties($record->properties))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
@@ -173,7 +173,7 @@ class ActivityLogResource extends Resource
      *
      * @param  array<string, mixed>|\Illuminate\Support\Collection<string, mixed>|null  $properties
      */
-    public static function maskProperties($properties): string
+    public static function maskProperties(mixed $properties): string
     {
         if ($properties === null) {
             return '—';
@@ -190,7 +190,7 @@ class ActivityLogResource extends Resource
         $masked = self::maskNestedProperties($data);
 
         return collect($masked)
-            ->map(fn ($value, $key) => "{$key}: ".(is_array($value) ? json_encode($value) : $value))
+            ->map(fn (mixed $value, string $key) => "{$key}: ".(is_array($value) ? json_encode($value) : $value))
             ->implode(', ');
     }
 

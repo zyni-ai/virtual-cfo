@@ -43,7 +43,8 @@ class ReconciliationResource extends Resource
             ->with([
                 'importedFile',
                 'accountHead',
-                'reconciliationMatchesAsBank' => fn ($q) => $q->suggested(),
+                /** @phpstan-ignore method.notFound */
+                'reconciliationMatchesAsBank' => fn (\Illuminate\Database\Eloquent\Relations\Relation $q) => $q->suggested(),
             ])
             ->whereHas('importedFile', fn (Builder $q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]));
     }
