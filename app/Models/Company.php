@@ -23,6 +23,7 @@ class Company extends Model
         'gst_registration_type',
         'financial_year',
         'currency',
+        'fy_start_month',
         'inbox_address',
         'account_holder_name',
         'date_of_birth',
@@ -43,7 +44,7 @@ class Company extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'gstin', 'state', 'gst_registration_type', 'financial_year', 'currency'])
+            ->logOnly(['name', 'gstin', 'state', 'gst_registration_type', 'financial_year', 'currency', 'fy_start_month'])
             ->logOnlyDirty()
             ->useLogName('companies');
     }
