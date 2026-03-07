@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Enums\NavigationGroup;
 use App\Enums\UserRole;
 use App\Filament\Resources\TeamMemberResource\Pages;
-use App\Filament\Widgets\PendingInvitations;
 use App\Mail\InvitationMail;
 use App\Models\Company;
 use App\Models\Invitation;
