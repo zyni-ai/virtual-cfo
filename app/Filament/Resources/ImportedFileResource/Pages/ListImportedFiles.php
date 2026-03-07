@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ImportedFileResource\Pages;
 
 use App\Filament\Resources\ImportedFileResource;
+use App\Filament\Widgets\ImportedFileStatsOverview;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
@@ -15,6 +16,13 @@ class ListImportedFiles extends ListRecords
         return [
             Actions\CreateAction::make()
                 ->label('Upload Statement'),
+        ];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            ImportedFileStatsOverview::class,
         ];
     }
 }

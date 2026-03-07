@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 
 class RecurringAutoMappedWidget extends BaseWidget
 {
-    protected static ?int $sort = 3;
+    protected static bool $isDiscovered = false;
 
     protected function getStats(): array
     {

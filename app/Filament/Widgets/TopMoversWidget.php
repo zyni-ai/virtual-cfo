@@ -8,7 +8,7 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class TopMoversWidget extends BaseWidget
 {
-    protected static ?int $sort = 7;
+    protected static ?int $sort = 1;
 
     protected ?string $pollingInterval = null;
 

@@ -1,73 +1,12 @@
 <?php
 
-use App\Filament\Widgets\ImportsOverTimeChart;
 use App\Filament\Widgets\MappingStatusChart;
 use App\Filament\Widgets\MonthlyDebitCreditChart;
 use App\Filament\Widgets\TopAccountHeadsChart;
 use App\Models\AccountHead;
-use App\Models\ImportedFile;
 use App\Models\Transaction;
 
 use function Pest\Livewire\livewire;
-
-describe('ImportsOverTimeChart widget', function () {
-    beforeEach(function () {
-        asUser();
-    });
-
-    it('can render', function () {
-        livewire(ImportsOverTimeChart::class)->assertSuccessful();
-    });
-
-    it('is a line chart', function () {
-        $widget = new ImportsOverTimeChart;
-        $method = new ReflectionMethod($widget, 'getType');
-
-        expect($method->invoke($widget))->toBe('line');
-    });
-
-    it('returns chart data with 12 months of labels and one dataset', function () {
-        ImportedFile::factory()->count(3)->create([
-            'company_id' => tenant()->id,
-            'created_at' => now(),
-        ]);
-
-        $data = getChartData(ImportsOverTimeChart::class);
-
-        expect($data)
-            ->toHaveKey('datasets')
-            ->toHaveKey('labels')
-            ->and($data['labels'])->toHaveCount(12)
-            ->and($data['datasets'])->toHaveCount(1)
-            ->and($data['datasets'][0])->toHaveKey('label')
-            ->and($data['datasets'][0])->toHaveKey('data')
-            ->and($data['datasets'][0]['data'])->toHaveCount(12);
-    });
-
-    it('counts imports grouped by month for last 12 months', function () {
-        $company = tenant();
-
-        ImportedFile::factory()->count(3)->create([
-            'company_id' => $company->id,
-            'created_at' => now(),
-        ]);
-
-        ImportedFile::factory()->count(2)->create([
-            'company_id' => $company->id,
-            'created_at' => now()->subMonth(),
-        ]);
-
-        $data = getChartData(ImportsOverTimeChart::class);
-
-        // Last element = current month count
-        $lastValue = end($data['datasets'][0]['data']);
-        expect($lastValue)->toBe(3);
-
-        // Second-to-last = previous month count
-        $values = $data['datasets'][0]['data'];
-        expect($values[count($values) - 2])->toBe(2);
-    });
-});
 
 describe('MappingStatusChart widget', function () {
     beforeEach(function () {

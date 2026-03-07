@@ -10,7 +10,7 @@ class MonthlyDebitCreditChart extends ChartWidget
 {
     protected ?string $heading = 'Monthly Debit / Credit Totals';
 
-    protected static ?int $sort = 6;
+    protected static ?int $sort = 5;
 
     protected ?string $pollingInterval = null;
 
