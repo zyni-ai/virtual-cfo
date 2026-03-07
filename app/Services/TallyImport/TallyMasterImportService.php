@@ -52,6 +52,12 @@ class TallyMasterImportService
             $content = (string) preg_replace('/encoding="UTF-16"/', 'encoding="UTF-8"', $content, 1);
         }
 
+        // Strip characters invalid in XML that Tally exports sometimes include:
+        // 1. Raw control characters (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F)
+        // 2. XML character references to those values (e.g. &#4;)
+        $content = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $content);
+        $content = (string) preg_replace('/&#x?[0-8bBcCeEfF];/', '', $content);
+
         return $content;
     }
 
