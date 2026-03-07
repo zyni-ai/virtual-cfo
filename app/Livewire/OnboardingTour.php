@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
@@ -13,33 +14,32 @@ class OnboardingTour extends Component
 
     public function mount(): void
     {
-        /** @var \App\Models\User $user */
-        $user = Auth::user();
-
-        $this->showTour = $user->toured_at === null;
+        $this->showTour = $this->user()->toured_at === null;
     }
 
     public function completeTour(): void
     {
-        /** @var \App\Models\User $user */
-        $user = Auth::user();
-
-        $user->update(['toured_at' => now()]);
+        $this->user()->update(['toured_at' => now()]);
         $this->showTour = false;
     }
 
     #[On('restart-tour')]
     public function restartTour(): void
     {
-        /** @var \App\Models\User $user */
-        $user = Auth::user();
-
-        $user->update(['toured_at' => null]);
+        $this->user()->update(['toured_at' => null]);
         $this->showTour = true;
     }
 
     public function render(): View
     {
         return view('livewire.onboarding-tour');
+    }
+
+    private function user(): User
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        return $user;
     }
 }

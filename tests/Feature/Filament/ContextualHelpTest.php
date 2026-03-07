@@ -15,11 +15,11 @@ use App\Filament\Resources\TransactionResource\Pages\ListTransactions;
 
 use function Pest\Livewire\livewire;
 
-describe('Contextual Help — Form Helper Text', function () {
-    beforeEach(function () {
-        asUser();
-    });
+beforeEach(function () {
+    asUser();
+});
 
+describe('Contextual Help — Form Helper Text', function () {
     it('renders helper text on AccountHead create form', function () {
         livewire(CreateAccountHead::class)
             ->assertSeeText('The display name for this account head')
@@ -52,10 +52,6 @@ describe('Contextual Help — Form Helper Text', function () {
 });
 
 describe('Contextual Help — Empty States', function () {
-    beforeEach(function () {
-        asUser();
-    });
-
     it('shows empty state guidance on BankAccounts list', function () {
         livewire(ListBankAccounts::class)
             ->assertSeeText('No bank accounts yet');
@@ -93,10 +89,6 @@ describe('Contextual Help — Empty States', function () {
 });
 
 describe('Contextual Help — Page Subheadings', function () {
-    beforeEach(function () {
-        asUser();
-    });
-
     it('shows subheading on Transactions list page', function () {
         livewire(ListTransactions::class)
             ->assertSeeText('Review, map, and export your parsed transactions');
