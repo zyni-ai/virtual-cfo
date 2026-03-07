@@ -52,8 +52,8 @@ describe('TopMoversWidget', function () {
         livewire(TopMoversWidget::class)->assertSuccessful();
     });
 
-    it('has sort order 7', function () {
-        expect(TopMoversWidget::getSort())->toBe(7);
+    it('has sort order 1', function () {
+        expect(TopMoversWidget::getSort())->toBe(1);
     });
 
     it('shows top movers with change descriptions', function () {
@@ -95,8 +95,8 @@ describe('ExpenseBySourceWidget', function () {
         expect($method->invoke($widget))->toBe('doughnut');
     });
 
-    it('has sort order 8', function () {
-        expect(ExpenseBySourceWidget::getSort())->toBe(8);
+    it('has sort order 6', function () {
+        expect(ExpenseBySourceWidget::getSort())->toBe(6);
     });
 
     it('returns datasets grouped by source', function () {

@@ -10,7 +10,7 @@ class MappingStatusChart extends ChartWidget
 {
     protected ?string $heading = 'Mapping Status Distribution';
 
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 3;
 
     protected ?string $pollingInterval = null;
 
