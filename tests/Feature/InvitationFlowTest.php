@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Filament\Pages\Auth\AcceptInvitation;
 use App\Filament\Resources\TeamMemberResource\Pages\ListTeamMembers;
 use App\Mail\InvitationMail;
 use App\Models\Invitation;
@@ -8,6 +9,7 @@ use App\Models\User;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Livewire\Livewire;
 
 use function Pest\Livewire\livewire;
 
@@ -103,9 +105,8 @@ describe('Invitation Flow', function () {
         it('shows registration form for new user', function () {
             $invitation = Invitation::factory()->create();
 
-            $this->get(route('invitations.accept', $invitation->token))
-                ->assertSuccessful()
-                ->assertViewIs('invitations.accept')
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->assertSet('status', 'new')
                 ->assertSee('Create Account');
         });
 
@@ -114,11 +115,14 @@ describe('Invitation Flow', function () {
                 'role' => UserRole::Accountant,
             ]);
 
-            $this->post(route('invitations.accept.new', $invitation->token), [
-                'name' => 'New User',
-                'password' => 'password123',
-                'password_confirmation' => 'password123',
-            ])->assertRedirect('/admin/login');
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->fillForm([
+                    'name' => 'New User',
+                    'password' => 'password123',
+                    'passwordConfirmation' => 'password123',
+                ])
+                ->call('createAccount')
+                ->assertRedirect('/admin/login');
 
             $user = User::where('email', $invitation->email)->first();
             expect($user)->not->toBeNull()
@@ -131,18 +135,27 @@ describe('Invitation Flow', function () {
         it('validates required fields', function () {
             $invitation = Invitation::factory()->create();
 
-            $this->post(route('invitations.accept.new', $invitation->token), [])
-                ->assertSessionHasErrors(['name', 'password']);
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->fillForm([
+                    'name' => '',
+                    'password' => '',
+                    'passwordConfirmation' => '',
+                ])
+                ->call('createAccount')
+                ->assertHasFormErrors(['name' => 'required', 'password' => 'required']);
         });
 
         it('validates password confirmation', function () {
             $invitation = Invitation::factory()->create();
 
-            $this->post(route('invitations.accept.new', $invitation->token), [
-                'name' => 'Test',
-                'password' => 'password123',
-                'password_confirmation' => 'wrong',
-            ])->assertSessionHasErrors(['password']);
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->fillForm([
+                    'name' => 'Test',
+                    'password' => 'password123',
+                    'passwordConfirmation' => 'wrong',
+                ])
+                ->call('createAccount')
+                ->assertHasFormErrors(['password' => 'same']);
         });
     });
 
@@ -151,9 +164,8 @@ describe('Invitation Flow', function () {
             $user = User::factory()->create(['email' => 'existing@example.com']);
             $invitation = Invitation::factory()->create(['email' => 'existing@example.com']);
 
-            $this->get(route('invitations.accept', $invitation->token))
-                ->assertSuccessful()
-                ->assertViewIs('invitations.confirm')
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->assertSet('status', 'existing')
                 ->assertSee('Accept Invitation');
         });
 
@@ -164,7 +176,8 @@ describe('Invitation Flow', function () {
                 'role' => UserRole::Accountant,
             ]);
 
-            $this->post(route('invitations.accept.existing', $invitation->token))
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->call('acceptInvitation')
                 ->assertRedirect('/admin/login');
 
             expect($invitation->fresh()->isAccepted())->toBeTrue();
@@ -180,11 +193,13 @@ describe('Invitation Flow', function () {
                 'role' => UserRole::Viewer,
             ]);
 
-            $this->post(route('invitations.accept.new', $invitation->token), [
-                'name' => 'New User',
-                'password' => 'password123',
-                'password_confirmation' => 'password123',
-            ]);
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->fillForm([
+                    'name' => 'New User',
+                    'password' => 'password123',
+                    'passwordConfirmation' => 'password123',
+                ])
+                ->call('createAccount');
 
             expect(DatabaseNotification::where('notifiable_id', $inviter->id)->count())->toBe(1);
 
@@ -201,7 +216,8 @@ describe('Invitation Flow', function () {
                 'role' => UserRole::Accountant,
             ]);
 
-            $this->post(route('invitations.accept.existing', $invitation->token));
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->call('acceptInvitation');
 
             expect(DatabaseNotification::where('notifiable_id', $inviter->id)->count())->toBe(1);
 
@@ -211,48 +227,41 @@ describe('Invitation Flow', function () {
     });
 
     describe('Edge cases', function () {
-        it('shows expired view for expired token', function () {
+        it('shows expired message for expired token', function () {
             $invitation = Invitation::factory()->expired()->create();
 
-            $this->get(route('invitations.accept', $invitation->token))
-                ->assertSuccessful()
-                ->assertViewIs('invitations.expired')
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->assertSet('status', 'expired')
                 ->assertSee('Invitation Expired');
         });
 
         it('redirects to login for already-accepted token', function () {
             $invitation = Invitation::factory()->accepted()->create();
 
-            $this->get(route('invitations.accept', $invitation->token))
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
                 ->assertRedirect('/admin/login');
         });
 
-        it('shows already-member view when user is already in company', function () {
+        it('shows already-member message when user is already in company', function () {
             $user = User::factory()->admin()->create(['email' => 'member@test.com']);
             $invitation = Invitation::factory()->create(['email' => 'member@test.com']);
             $invitation->company->users()->attach($user, ['role' => UserRole::Admin->value]);
 
-            $this->get(route('invitations.accept', $invitation->token))
-                ->assertSuccessful()
-                ->assertViewIs('invitations.already-member')
+            Livewire::test(AcceptInvitation::class, ['token' => $invitation->token])
+                ->assertSet('status', 'already-member')
                 ->assertSee('Already a Member');
         });
 
-        it('prevents accepting expired invitation via POST', function () {
-            $invitation = Invitation::factory()->expired()->create();
-
-            $this->post(route('invitations.accept.new', $invitation->token), [
-                'name' => 'Test',
-                'password' => 'password123',
-                'password_confirmation' => 'password123',
-            ])->assertRedirect('/admin/login');
-
-            expect(User::where('email', $invitation->email)->exists())->toBeFalse();
+        it('returns 404 for invalid token', function () {
+            Livewire::test(AcceptInvitation::class, ['token' => 'invalid-token'])
+                ->assertStatus(404);
         });
 
-        it('returns 404 for invalid token', function () {
-            $this->get(route('invitations.accept', 'invalid-token'))
-                ->assertNotFound();
+        it('legacy route redirects to panel route', function () {
+            $invitation = Invitation::factory()->create();
+
+            $this->get("/invitations/{$invitation->token}/accept")
+                ->assertRedirect("/admin/invitations/{$invitation->token}/accept");
         });
     });
 });

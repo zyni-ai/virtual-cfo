@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Enums\NavigationGroup;
+use App\Filament\Pages\Auth\AcceptInvitation;
 use App\Filament\Pages\Tenancy\EditCompanySettings;
 use App\Filament\Pages\Tenancy\RegisterCompany;
 use App\Http\Middleware\SetTenantDatabaseContext;
@@ -22,6 +23,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -54,6 +56,10 @@ class AdminPanelProvider extends PanelProvider
                     ->sort(5)
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.tenant.profile')),
             ])
+            ->routes(function () {
+                Route::get(AcceptInvitation::getSlug(), AcceptInvitation::class)
+                    ->name(AcceptInvitation::getRouteName());
+            })
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
