@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\HasBrandedMail;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class MemberRoleChangedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use HasBrandedMail, Queueable;
 
     public function __construct(
         public string $companyName,
@@ -39,8 +40,12 @@ class MemberRoleChangedNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-            ->subject('Role Updated')
-            ->line("Your role in {$this->companyName} has been changed to {$this->newRole}.");
+        $mail = (new MailMessage)
+            ->subject("Role Updated — You're now {$this->newRole} at {$this->companyName}")
+            ->line("Your role in **{$this->companyName}** has been updated to **{$this->newRole}**.")
+            ->line('Your access permissions have been adjusted to reflect this change. If you have any questions, please reach out to your team admin.')
+            ->action('Go to Dashboard', url('/admin'));
+
+        return $this->brandedSalutation($this->brandedGreeting($mail, $notifiable));
     }
 }
