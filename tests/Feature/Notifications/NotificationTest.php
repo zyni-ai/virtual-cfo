@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Mail\InvitationMail;
 use App\Models\ImportedFile;
 use App\Models\Invitation;
 use App\Models\User;
@@ -242,13 +243,66 @@ describe('Notification toDatabase format', function () {
     });
 });
 
-describe('ImportFailedNotification mail', function () {
-    it('returns a MailMessage with error details', function () {
+describe('Notification toMail format', function () {
+    it('ImportFailedNotification returns a MailMessage with error details', function () {
         $file = ImportedFile::factory()->failed('PDF parsing error')->create();
         $notification = new ImportFailedNotification($file);
 
         $mail = $notification->toMail($file->uploader);
 
-        expect($mail)->toBeInstanceOf(Illuminate\Notifications\Messages\MailMessage::class);
+        expect($mail)->toBeInstanceOf(Illuminate\Notifications\Messages\MailMessage::class)
+            ->and($mail->subject)->toContain($file->original_filename)
+            ->and($mail->actionUrl)->not->toBeEmpty();
+    });
+
+    it('MemberRoleChangedNotification returns a MailMessage with role info', function () {
+        $notification = new MemberRoleChangedNotification(
+            companyName: 'Zysk Technologies',
+            newRole: 'Accountant',
+        );
+
+        $mail = $notification->toMail(User::factory()->create());
+
+        expect($mail)->toBeInstanceOf(Illuminate\Notifications\Messages\MailMessage::class)
+            ->and($mail->subject)->toContain('Accountant')
+            ->and($mail->actionUrl)->not->toBeEmpty();
+    });
+
+    it('InvitationAcceptedNotification returns a MailMessage', function () {
+        $invitation = Invitation::factory()->create();
+        $notification = new InvitationAcceptedNotification($invitation);
+
+        $mail = $notification->toMail($invitation->inviter);
+
+        expect($mail)->toBeInstanceOf(Illuminate\Notifications\Messages\MailMessage::class)
+            ->and($mail->subject)->toContain($invitation->email)
+            ->and($mail->actionUrl)->not->toBeEmpty();
+    });
+});
+
+describe('InvitationMail', function () {
+    it('renders successfully with correct subject', function () {
+        $invitation = Invitation::factory()->create();
+
+        $mailable = new InvitationMail($invitation);
+
+        $mailable->assertHasSubject("You've been invited to {$invitation->company->name}");
+    });
+
+    it('contains the accept URL', function () {
+        $invitation = Invitation::factory()->create();
+
+        $mailable = new InvitationMail($invitation);
+
+        $mailable->assertSeeInHtml(route('invitations.accept', $invitation->token));
+    });
+
+    it('contains the inviter name and role', function () {
+        $invitation = Invitation::factory()->create();
+
+        $mailable = new InvitationMail($invitation);
+
+        $mailable->assertSeeInHtml($invitation->inviter->name)
+            ->assertSeeInHtml($invitation->role->getLabel());
     });
 });

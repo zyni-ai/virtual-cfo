@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\ImportedFile;
+use App\Notifications\Concerns\HasBrandedMail;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,7 +12,7 @@ use Illuminate\Notifications\Notification;
 
 class ImportFailedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use HasBrandedMail, Queueable;
 
     public function __construct(
         public ImportedFile $importedFile,
@@ -39,10 +40,14 @@ class ImportFailedNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-            ->subject('Import Failed: '.$this->importedFile->original_filename)
-            ->line("The file \"{$this->importedFile->original_filename}\" failed to process.")
-            ->line("Error: {$this->importedFile->error_message}")
-            ->line('Please review the file and try uploading again.');
+        $mail = (new MailMessage)
+            ->subject("Import Failed — {$this->importedFile->original_filename}")
+            ->line("We weren't able to process **{$this->importedFile->original_filename}**.")
+            ->line("**What went wrong:** {$this->importedFile->error_message}")
+            ->line('This usually happens when the file format is unsupported or the statement layout could not be recognized.')
+            ->action('Review Imports', url("/admin/{$this->importedFile->company_id}/imported-files"))
+            ->line('You can re-upload the file or try a different format (PDF, CSV, or Excel).');
+
+        return $this->brandedSalutation($this->brandedGreeting($mail, $notifiable));
     }
 }
