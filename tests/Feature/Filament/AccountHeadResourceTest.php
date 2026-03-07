@@ -81,7 +81,7 @@ describe('AccountHeadResource', function () {
 
     it('has correct navigation properties', function () {
         expect(AccountHeadResource::getNavigationLabel())->toBe('Account Heads')
-            ->and(AccountHeadResource::getNavigationSort())->toBe(3);
+            ->and(AccountHeadResource::getNavigationSort())->toBe(1);
     });
 
     it('soft-deletes the record and retains it in the database', function () {

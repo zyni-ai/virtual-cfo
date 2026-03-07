@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Resources\RecurringPatternResource\Pages;
 use App\Models\RecurringPattern;
 use BackedEnum;
@@ -22,9 +23,9 @@ class RecurringPatternResource extends Resource
 
     protected static ?string $navigationLabel = 'Recurring Patterns';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::AutomationRules;
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Schema $schema): Schema
     {

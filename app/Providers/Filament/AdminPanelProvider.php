@@ -2,15 +2,18 @@
 
 namespace App\Providers\Filament;
 
+use App\Enums\NavigationGroup;
 use App\Filament\Pages\Tenancy\EditCompanySettings;
 use App\Filament\Pages\Tenancy\RegisterCompany;
 use App\Http\Middleware\SetTenantDatabaseContext;
 use App\Http\Middleware\UpdateLastActiveAt;
 use App\Models\Company;
+use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -43,6 +46,14 @@ class AdminPanelProvider extends PanelProvider
             ->pages([])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([])
+            ->navigationItems([
+                NavigationItem::make('Settings')
+                    ->url(fn (): string => EditCompanySettings::getUrl(tenant: Filament::getTenant()))
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->group(NavigationGroup::Company)
+                    ->sort(5)
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.tenant.profile')),
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

@@ -97,7 +97,7 @@ describe('CreditCardResource', function () {
 
     it('has correct navigation properties', function () {
         expect(CreditCardResource::getNavigationLabel())->toBe('Credit Cards')
-            ->and(CreditCardResource::getNavigationSort())->toBe(6);
+            ->and(CreditCardResource::getNavigationSort())->toBe(3);
     });
 
     it('stores pdf_password as encrypted', function () {
