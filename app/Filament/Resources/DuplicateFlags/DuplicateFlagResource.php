@@ -102,19 +102,7 @@ class DuplicateFlagResource extends Resource
                     ->color('danger')
                     ->requiresConfirmation()
                     ->modalDescription('This will soft-delete the duplicate transaction and link it to the original.')
-                    ->action(function (DuplicateFlag $record) {
-                        DB::transaction(function () use ($record) {
-                            $record->update([
-                                'status' => DuplicateStatus::Confirmed,
-                                'resolved_by' => Auth::id(),
-                                'resolved_at' => now(),
-                            ]);
-
-                            $duplicate = $record->duplicateTransaction;
-                            $duplicate->update(['duplicate_of_id' => $record->transaction_id]);
-                            $duplicate->delete();
-                        });
-                    })
+                    ->action(fn (DuplicateFlag $record) => self::confirmDuplicate($record))
                     ->visible(fn (DuplicateFlag $record) => $record->status === DuplicateStatus::Pending),
 
                 Actions\Action::make('dismiss')
@@ -123,13 +111,7 @@ class DuplicateFlagResource extends Resource
                     ->color('gray')
                     ->requiresConfirmation()
                     ->modalDescription('Mark as not a duplicate. These transactions will not be flagged again.')
-                    ->action(function (DuplicateFlag $record) {
-                        $record->update([
-                            'status' => DuplicateStatus::Dismissed,
-                            'resolved_by' => Auth::id(),
-                            'resolved_at' => now(),
-                        ]);
-                    })
+                    ->action(fn (DuplicateFlag $record) => self::dismissFlag($record))
                     ->visible(fn (DuplicateFlag $record) => $record->status === DuplicateStatus::Pending),
             ])
             ->toolbarActions([
@@ -147,15 +129,7 @@ class DuplicateFlagResource extends Resource
                                         return;
                                     }
 
-                                    $record->update([
-                                        'status' => DuplicateStatus::Confirmed,
-                                        'resolved_by' => Auth::id(),
-                                        'resolved_at' => now(),
-                                    ]);
-
-                                    $duplicate = $record->duplicateTransaction;
-                                    $duplicate->update(['duplicate_of_id' => $record->transaction_id]);
-                                    $duplicate->delete();
+                                    self::confirmDuplicate($record);
                                 });
                             });
                         })
@@ -167,17 +141,15 @@ class DuplicateFlagResource extends Resource
                         ->color('gray')
                         ->requiresConfirmation()
                         ->action(function (Collection $records) {
-                            /** @var Collection<int, DuplicateFlag> $records */
-                            $records->each(function (DuplicateFlag $record) {
-                                if ($record->status !== DuplicateStatus::Pending) {
-                                    return;
-                                }
+                            DB::transaction(function () use ($records) {
+                                /** @var Collection<int, DuplicateFlag> $records */
+                                $records->each(function (DuplicateFlag $record) {
+                                    if ($record->status !== DuplicateStatus::Pending) {
+                                        return;
+                                    }
 
-                                $record->update([
-                                    'status' => DuplicateStatus::Dismissed,
-                                    'resolved_by' => Auth::id(),
-                                    'resolved_at' => now(),
-                                ]);
+                                    self::dismissFlag($record);
+                                });
                             });
                         })
                         ->deselectRecordsAfterCompletion(),
@@ -202,5 +174,29 @@ class DuplicateFlagResource extends Resource
     public static function getNavigationBadgeColor(): ?string
     {
         return 'warning';
+    }
+
+    private static function confirmDuplicate(DuplicateFlag $record): void
+    {
+        DB::transaction(function () use ($record) {
+            $record->update([
+                'status' => DuplicateStatus::Confirmed,
+                'resolved_by' => Auth::id(),
+                'resolved_at' => now(),
+            ]);
+
+            $duplicate = $record->duplicateTransaction;
+            $duplicate->update(['duplicate_of_id' => $record->transaction_id]);
+            $duplicate->delete();
+        });
+    }
+
+    private static function dismissFlag(DuplicateFlag $record): void
+    {
+        $record->update([
+            'status' => DuplicateStatus::Dismissed,
+            'resolved_by' => Auth::id(),
+            'resolved_at' => now(),
+        ]);
     }
 }

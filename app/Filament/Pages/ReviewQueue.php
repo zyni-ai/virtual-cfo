@@ -19,6 +19,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ReviewQueue extends Page implements HasActions, HasSchemas, HasTable
 {
@@ -88,21 +89,14 @@ class ReviewQueue extends Page implements HasActions, HasSchemas, HasTable
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->action(function (Transaction $record) {
-                        $record->update(['mapping_type' => MappingType::Manual]);
-                    }),
+                    ->action(fn (Transaction $record) => self::approveMapping($record)),
 
                 Actions\Action::make('reject')
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->action(function (Transaction $record) {
-                        $record->update([
-                            'mapping_type' => MappingType::Unmapped,
-                            'account_head_id' => null,
-                        ]);
-                    }),
+                    ->action(fn (Transaction $record) => self::rejectMapping($record)),
 
                 Actions\Action::make('reassign')
                     ->label('Reassign')
@@ -132,10 +126,10 @@ class ReviewQueue extends Page implements HasActions, HasSchemas, HasTable
                         ->color('success')
                         ->requiresConfirmation()
                         ->action(function (Collection $records) {
-                            /** @var Collection<int, Transaction> $records */
-                            $records->each(fn (Transaction $record) => $record->update([
-                                'mapping_type' => MappingType::Manual,
-                            ]));
+                            DB::transaction(function () use ($records) {
+                                /** @var Collection<int, Transaction> $records */
+                                $records->each(fn (Transaction $record) => self::approveMapping($record));
+                            });
                         })
                         ->deselectRecordsAfterCompletion(),
 
@@ -145,11 +139,10 @@ class ReviewQueue extends Page implements HasActions, HasSchemas, HasTable
                         ->color('danger')
                         ->requiresConfirmation()
                         ->action(function (Collection $records) {
-                            /** @var Collection<int, Transaction> $records */
-                            $records->each(fn (Transaction $record) => $record->update([
-                                'mapping_type' => MappingType::Unmapped,
-                                'account_head_id' => null,
-                            ]));
+                            DB::transaction(function () use ($records) {
+                                /** @var Collection<int, Transaction> $records */
+                                $records->each(fn (Transaction $record) => self::rejectMapping($record));
+                            });
                         })
                         ->deselectRecordsAfterCompletion(),
                 ]),
@@ -179,5 +172,18 @@ class ReviewQueue extends Page implements HasActions, HasSchemas, HasTable
     public static function getNavigationBadgeColor(): ?string
     {
         return 'warning';
+    }
+
+    private static function approveMapping(Transaction $record): void
+    {
+        $record->update(['mapping_type' => MappingType::Manual]);
+    }
+
+    private static function rejectMapping(Transaction $record): void
+    {
+        $record->update([
+            'mapping_type' => MappingType::Unmapped,
+            'account_head_id' => null,
+        ]);
     }
 }

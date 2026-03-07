@@ -37,14 +37,13 @@ class BudgetThresholdNotification extends Notification implements ShouldQueue
      */
     public function toDatabase(object $notifiable): array
     {
-        $headName = $this->budget->accountHead?->name ?? 'Unknown';
         $isExceeded = $this->threshold >= 100;
 
         return FilamentNotification::make()
             ->title($isExceeded ? 'Budget exceeded' : 'Budget warning')
             ->body(sprintf(
                 '%s has reached %s%% of its budget (₹%s / ₹%s)',
-                $headName,
+                $this->headName(),
                 number_format($this->percentage, 1),
                 number_format($this->actual, 2),
                 number_format((float) $this->budget->amount, 2),
@@ -55,7 +54,7 @@ class BudgetThresholdNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $headName = $this->budget->accountHead?->name ?? 'Unknown';
+        $headName = $this->headName();
 
         return (new MailMessage)
             ->subject("Budget Exceeded: {$headName}")
@@ -70,5 +69,10 @@ class BudgetThresholdNotification extends Notification implements ShouldQueue
                 number_format($this->percentage, 1),
             ))
             ->line('Please review your spending.');
+    }
+
+    private function headName(): string
+    {
+        return $this->budget->accountHead?->name ?? 'Unknown';
     }
 }
