@@ -4,11 +4,13 @@ namespace App\Providers\Filament;
 
 use App\Enums\NavigationGroup;
 use App\Filament\Pages\Auth\AcceptInvitation;
+use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Tenancy\EditCompanySettings;
 use App\Filament\Pages\Tenancy\RegisterCompany;
 use App\Http\Middleware\SetTenantDatabaseContext;
 use App\Http\Middleware\UpdateLastActiveAt;
 use App\Models\Company;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -35,6 +37,12 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->passwordReset()
+            ->profile(EditProfile::class)
+            ->multiFactorAuthentication([
+                AppAuthentication::make()
+                    ->recoverable(),
+            ])
             ->colors([
                 'primary' => Color::Indigo,
             ])
