@@ -30,7 +30,7 @@ class InvitationMail extends Mailable implements ShouldQueue
         return new Content(
             markdown: 'emails.invitation',
             with: [
-                'acceptUrl' => route('invitations.accept', $this->invitation->token),
+                'acceptUrl' => url("/admin/invitations/{$this->invitation->token}/accept"),
                 'companyName' => $this->invitation->company->name,
                 'role' => $this->invitation->role->getLabel(),
                 'inviterName' => $this->invitation->inviter->name,

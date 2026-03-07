@@ -294,7 +294,7 @@ describe('InvitationMail', function () {
 
         $mailable = new InvitationMail($invitation);
 
-        $mailable->assertSeeInHtml(route('invitations.accept', $invitation->token));
+        $mailable->assertSeeInHtml(url("/admin/invitations/{$invitation->token}/accept"));
     });
 
     it('contains the inviter name and role', function () {
