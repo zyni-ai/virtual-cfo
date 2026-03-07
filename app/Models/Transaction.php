@@ -40,6 +40,7 @@ class Transaction extends Model
         'bank_format',
         'reconciliation_status',
         'recurring_pattern_id',
+        'duplicate_of_id',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -175,6 +176,18 @@ class Transaction extends Model
         }
 
         return null;
+    }
+
+    /** @return BelongsTo<self, $this> */
+    public function duplicateOf(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'duplicate_of_id');
+    }
+
+    /** @return HasMany<DuplicateFlag, $this> */
+    public function duplicateFlags(): HasMany
+    {
+        return $this->hasMany(DuplicateFlag::class, 'transaction_id');
     }
 
     public function moveToCompany(Company $target): void
