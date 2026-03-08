@@ -33,7 +33,7 @@ class ReviewQueue extends Page implements HasActions, HasSchemas, HasTable
 
     protected static ?string $navigationLabel = 'Review Queue';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
 
     protected string $view = 'filament.pages.review-queue';
 
@@ -59,10 +59,13 @@ class ReviewQueue extends Page implements HasActions, HasSchemas, HasTable
                     ->limit(50)
                     ->tooltip(fn (Transaction $record): string => $record->description),
 
-                Tables\Columns\TextColumn::make('debit')
+                Tables\Columns\TextColumn::make('amount')
                     ->label('Amount')
                     ->state(fn (Transaction $record): ?string => $record->debit ?? $record->credit)
-                    ->numeric(decimalPlaces: 2),
+                    ->numeric(decimalPlaces: 2)
+                    ->color(fn (Transaction $record): string => $record->debit ? 'danger' : 'success')
+                    ->icon(fn (Transaction $record): string => $record->debit ? 'heroicon-m-arrow-up' : 'heroicon-m-arrow-down')
+                    ->placeholder('-'),
 
                 Tables\Columns\TextColumn::make('accountHead.name')
                     ->label('AI Suggested Head'),
