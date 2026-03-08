@@ -1,15 +1,18 @@
 <div>
-    @if($showTour)
-        <div
-            x-data="onboardingTour($wire)"
-            x-init="$nextTick(() => startTour())"
-        ></div>
-    @endif
+    <div
+        x-data="onboardingTour($wire)"
+        @start-page-tour.window="startTour()"
+    ></div>
 </div>
 
 @script
 <script>
     Alpine.data('onboardingTour', (wire) => ({
+        init() {
+            if (wire.$get('showTour')) {
+                this.$nextTick(() => this.startTour());
+            }
+        },
         async startTour() {
             if (window.driver?.js?.driver) {
                 this.runTour();

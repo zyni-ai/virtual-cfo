@@ -5,7 +5,6 @@ namespace App\Livewire;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
-use Livewire\Attributes\On;
 use Livewire\Component;
 
 class OnboardingTour extends Component
@@ -37,7 +36,6 @@ class OnboardingTour extends Component
         $this->showTour = false;
     }
 
-    #[On('start-tour')]
     public function startTour(): void
     {
         $this->showTour = true;

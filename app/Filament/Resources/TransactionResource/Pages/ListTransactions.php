@@ -25,7 +25,7 @@ class ListTransactions extends ListRecords
                 ->icon('heroicon-o-academic-cap')
                 ->color('gray')
                 ->extraAttributes([
-                    'x-on:click.prevent' => "Livewire.dispatch('start-tour')",
+                    'x-on:click.prevent' => "\$dispatch('start-page-tour')",
                 ]),
         ];
     }

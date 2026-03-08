@@ -53,13 +53,18 @@ protected function getHeaderActions(): array
             ->icon('heroicon-o-academic-cap')
             ->color('gray')
             ->extraAttributes([
-                'x-on:click.prevent' => "Livewire.dispatch('start-tour')",
+                'x-on:click.prevent' => "\$dispatch('start-page-tour')",
             ]),
     ];
 }
+
+public function getFooter(): ?\Illuminate\Contracts\View\View
+{
+    return view('livewire.page-tour-embed', ['pageId' => 'your-page']);
+}
 ```
 
-Add the Livewire component to the page's footer or use the render hook pattern to inject it.
+The `page-tour-embed` view renders the `OnboardingTour` Livewire component with the page ID. The `$dispatch('start-page-tour')` uses Alpine's DOM event system to communicate with the component's `@start-page-tour.window` listener.
 
 ### Step 3: Test
 
