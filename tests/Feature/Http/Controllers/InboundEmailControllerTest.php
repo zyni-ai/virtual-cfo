@@ -235,6 +235,41 @@ describe('InboundEmailController email-based classification', function () {
         expect($importedFile->statement_type)->toBe(StatementType::CreditCard);
     });
 
+    it('classifies as CreditCard when forwarded email subject mentions credit card bill', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('statement.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload([
+                'attachment-count' => '1',
+                'subject' => 'Fwd: Your Credit Card Bill',
+            ]),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->statement_type)->toBe(StatementType::CreditCard);
+    });
+
+    it('classifies as CreditCard when email body contains credit card and bill', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload([
+                'attachment-count' => '1',
+                'subject' => 'Monthly Documents',
+                'stripped-text' => 'Please find your credit card bill attached for review.',
+            ]),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile->statement_type)->toBe(StatementType::CreditCard);
+    });
+
     it('falls back to filename when email has no classification signals', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
