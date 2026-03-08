@@ -28,7 +28,7 @@ class HeadMappingResource extends Resource
 
     protected static ?string $navigationLabel = 'Mapping Rules';
 
-    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::AutomationRules;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Configuration;
 
     protected static ?int $navigationSort = 2;
 

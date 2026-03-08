@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\NavigationGroup;
 use App\Enums\PeriodType;
 use App\Filament\Resources\BudgetResource\Pages\ManageBudgets;
 use App\Models\AccountHead;
@@ -16,18 +17,21 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class BudgetResource extends Resource
 {
     protected static ?string $model = Budget::class;
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-calculator';
 
     protected static ?string $navigationLabel = 'Budgets';
 
     protected static ?string $modelLabel = 'Budget';
 
-    protected static ?int $navigationSort = 5;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Configuration;
+
+    protected static ?int $navigationSort = 4;
 
     public static function form(Schema $schema): Schema
     {

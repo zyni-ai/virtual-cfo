@@ -32,7 +32,7 @@ class AccountHeadResource extends Resource
 
     protected static ?string $navigationLabel = 'Account Heads';
 
-    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::AutomationRules;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Configuration;
 
     protected static ?int $navigationSort = 1;
 

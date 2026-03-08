@@ -34,7 +34,7 @@ class ReconciliationResource extends Resource
 
     protected static ?string $slug = 'reconciliation';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 5;
 
     /** @return Builder<Transaction> */
     public static function getEloquentQuery(): Builder

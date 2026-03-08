@@ -23,7 +23,7 @@ class RecurringPatternResource extends Resource
 
     protected static ?string $navigationLabel = 'Recurring Patterns';
 
-    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::AutomationRules;
+    protected static string|UnitEnum|null $navigationGroup = NavigationGroup::Configuration;
 
     protected static ?int $navigationSort = 3;
 
