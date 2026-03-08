@@ -10,23 +10,36 @@ use Livewire\Component;
 
 class OnboardingTour extends Component
 {
+    public string $pageId;
+
     public bool $showTour = false;
 
-    public function mount(): void
+    /** @var array<int, array{title: string, description: string, element: string|null}> */
+    public array $steps = [];
+
+    public function mount(string $pageId): void
     {
-        $this->showTour = $this->user()->toured_at === null;
+        $this->pageId = $pageId;
+        $this->steps = config("tours.{$pageId}", []);
+
+        /** @var array<string, bool> $touredPages */
+        $touredPages = $this->user()->toured_pages ?? [];
+        $this->showTour = ! isset($touredPages[$pageId]);
     }
 
     public function completeTour(): void
     {
-        $this->user()->update(['toured_at' => now()]);
+        $user = $this->user();
+        /** @var array<string, bool> $touredPages */
+        $touredPages = $user->toured_pages ?? [];
+        $touredPages[$this->pageId] = true;
+        $user->update(['toured_pages' => $touredPages]);
         $this->showTour = false;
     }
 
-    #[On('restart-tour')]
-    public function restartTour(): void
+    #[On('start-tour')]
+    public function startTour(): void
     {
-        $this->user()->update(['toured_at' => null]);
         $this->showTour = true;
     }
 

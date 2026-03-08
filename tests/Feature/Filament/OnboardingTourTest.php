@@ -4,48 +4,73 @@ use App\Livewire\OnboardingTour;
 use Livewire\Livewire;
 
 describe('Onboarding Tour', function () {
-    it('has toured_at column on users table', function () {
+    it('has toured_pages column on users table', function () {
         $user = asUser();
 
-        expect($user->toured_at)->toBeNull();
+        expect($user->toured_pages)->toBeNull();
     });
 
-    it('renders tour component for new users', function () {
+    it('auto-triggers tour for unvisited page', function () {
         $user = asUser();
 
         Livewire::actingAs($user)
-            ->test(OnboardingTour::class)
-            ->assertSet('showTour', true);
+            ->test(OnboardingTour::class, ['pageId' => 'dashboard'])
+            ->assertSet('showTour', true)
+            ->assertSet('pageId', 'dashboard');
     });
 
-    it('does not show tour for users who completed it', function () {
+    it('does not auto-trigger for visited page', function () {
         $user = asUser();
-        $user->update(['toured_at' => now()]);
+        $user->update(['toured_pages' => ['dashboard' => true]]);
 
         Livewire::actingAs($user)
-            ->test(OnboardingTour::class)
+            ->test(OnboardingTour::class, ['pageId' => 'dashboard'])
             ->assertSet('showTour', false);
     });
 
-    it('can complete the tour', function () {
+    it('marks page as toured on completion', function () {
         $user = asUser();
 
         Livewire::actingAs($user)
-            ->test(OnboardingTour::class)
+            ->test(OnboardingTour::class, ['pageId' => 'transactions'])
             ->call('completeTour');
 
-        expect($user->fresh()->toured_at)->not->toBeNull();
+        expect($user->fresh()->toured_pages)->toHaveKey('transactions');
     });
 
-    it('can restart the tour', function () {
+    it('preserves other pages when completing a tour', function () {
         $user = asUser();
-        $user->update(['toured_at' => now()]);
+        $user->update(['toured_pages' => ['dashboard' => true]]);
 
         Livewire::actingAs($user)
-            ->test(OnboardingTour::class)
-            ->call('restartTour')
-            ->assertSet('showTour', true);
+            ->test(OnboardingTour::class, ['pageId' => 'transactions'])
+            ->call('completeTour');
 
-        expect($user->fresh()->toured_at)->toBeNull();
+        $pages = $user->fresh()->toured_pages;
+        expect($pages)->toHaveKey('dashboard')
+            ->and($pages)->toHaveKey('transactions');
+    });
+
+    it('can start tour on demand via event', function () {
+        $user = asUser();
+        $user->update(['toured_pages' => ['dashboard' => true]]);
+
+        Livewire::actingAs($user)
+            ->test(OnboardingTour::class, ['pageId' => 'dashboard'])
+            ->assertSet('showTour', false)
+            ->call('startTour')
+            ->assertSet('showTour', true);
+    });
+
+    it('passes tour steps from config to the view', function () {
+        $user = asUser();
+
+        $component = Livewire::actingAs($user)
+            ->test(OnboardingTour::class, ['pageId' => 'dashboard']);
+
+        $steps = $component->get('steps');
+        expect($steps)->toBeArray()
+            ->and($steps)->not->toBeEmpty()
+            ->and($steps[0])->toHaveKeys(['title', 'description', 'element']);
     });
 });
