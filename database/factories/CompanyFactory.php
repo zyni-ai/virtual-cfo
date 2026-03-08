@@ -23,6 +23,7 @@ class CompanyFactory extends Factory
             'gst_registration_type' => 'Regular',
             'financial_year' => '2025-2026',
             'currency' => 'INR',
+            'review_confidence_threshold' => 0.80,
             'fy_start_month' => 4,
         ];
     }

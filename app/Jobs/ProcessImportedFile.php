@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\ImportCompletedNotification;
 use App\Notifications\ImportFailedNotification;
 use App\Services\DocumentProcessor\DocumentProcessor;
+use App\Services\DuplicateDetectionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -58,6 +59,7 @@ class ProcessImportedFile implements ShouldQueue
             $this->importedFile->refresh();
             $this->notifySuccess();
             $this->dispatchAutoSuggestions();
+            $this->scanForDuplicates();
         } catch (\Throwable $e) {
             Log::error('Failed to process imported file', [
                 'file_id' => $this->importedFile->id,
@@ -120,6 +122,26 @@ class ProcessImportedFile implements ShouldQueue
 
         if ($statementType === StatementType::Invoice) {
             SuggestReconciliationMatches::dispatch($this->importedFile);
+        }
+    }
+
+    private function scanForDuplicates(): void
+    {
+        try {
+            $service = app(DuplicateDetectionService::class);
+            $flags = $service->scanForDuplicates($this->importedFile);
+
+            if ($flags->isNotEmpty()) {
+                Log::info('Duplicate detection found potential duplicates', [
+                    'file_id' => $this->importedFile->id,
+                    'count' => $flags->count(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Duplicate detection failed (non-fatal)', [
+                'file_id' => $this->importedFile->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

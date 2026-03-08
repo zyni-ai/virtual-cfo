@@ -28,7 +28,7 @@ class Reports extends Page
 
     protected static ?string $navigationLabel = 'Reports';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 6;
 
     protected string $view = 'filament.pages.reports';
 

@@ -51,7 +51,9 @@ describe('Filament Resources', function () {
             ->ignoring('App\Filament\Resources\ReconciliationResource\Pages')
             ->ignoring('App\Filament\Resources\RecurringPatternResource\Pages')
             ->ignoring('App\Filament\Resources\TeamMemberResource\Pages')
-            ->ignoring('App\Filament\Resources\TransactionResource\Pages');
+            ->ignoring('App\Filament\Resources\TransactionResource\Pages')
+            ->ignoring('App\Filament\Resources\DuplicateFlags\Pages')
+            ->ignoring('App\Filament\Resources\BudgetResource\Pages');
     });
 })->group('architecture');
 
