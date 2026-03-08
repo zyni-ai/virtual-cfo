@@ -6,10 +6,10 @@ use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use App\Jobs\ProcessImportedFile;
-use App\Services\StatementClassifier;
 use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Notifications\StatementReceivedByEmailNotification;
+use App\Services\StatementClassifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -185,5 +185,4 @@ class InboundEmailController
             'status' => ImportStatus::Pending,
         ]);
     }
-
 }
