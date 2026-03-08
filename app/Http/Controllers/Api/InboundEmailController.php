@@ -219,8 +219,8 @@ class InboundEmailController
     private function classifyText(string $text): ?StatementType
     {
         $patternMap = [
-            [StatementType::Invoice, ['inv', 'invoice', 'tax[_\-\s]?invoice', 'bill', 'debit[_\-\s]?note', 'credit[_\-\s]?note']],
             [StatementType::CreditCard, ['credit[_\-\s]?card', 'cc[_\-\s]?statement']],
+            [StatementType::Invoice, ['inv', 'invoice', 'tax[_\-\s]?invoice', 'bill', 'debit[_\-\s]?note', 'credit[_\-\s]?note']],
             [StatementType::Bank, ['statement', 'bank[_\-\s]?statement', 'account[_\-\s]?statement']],
         ];
 
