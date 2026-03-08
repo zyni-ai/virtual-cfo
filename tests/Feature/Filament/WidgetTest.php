@@ -15,7 +15,7 @@ describe('RecentImports widget', function () {
         livewire(RecentImports::class)->assertSuccessful();
     });
 
-    it('shows only filename, status, and uploaded columns', function () {
+    it('shows only filename and status columns', function () {
         ImportedFile::factory()->create();
 
         $widget = livewire(RecentImports::class);
@@ -24,12 +24,11 @@ describe('RecentImports widget', function () {
             ->keys()
             ->all();
 
-        expect($columns)->toBe(['original_filename', 'status', 'created_at']);
+        expect($columns)->toBe(['original_filename', 'status']);
 
         $widget
             ->assertCanRenderTableColumn('original_filename')
-            ->assertCanRenderTableColumn('status')
-            ->assertCanRenderTableColumn('created_at');
+            ->assertCanRenderTableColumn('status');
     });
 
     it('makes rows clickable to the import detail page', function () {
