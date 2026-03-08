@@ -449,6 +449,132 @@ describe('DocumentProcessor', function () {
             expect($bankAccount->name)->toBe('Unknown Bank')
                 ->and($bankAccount->company_id)->toBe($file->company_id);
         });
+
+        it('populates account_number on auto-created BankAccount from parser', function () {
+            Storage::put('statements/new_bank.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'Axis Bank',
+                    'account_number' => '9876543210',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'SALARY', 'credit' => 50000, 'balance' => 150000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/new_bank.pdf',
+                'original_filename' => 'axis_statement.pdf',
+                'statement_type' => StatementType::Bank,
+                'status' => ImportStatus::Pending,
+                'bank_account_id' => null,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            $bankAccount = \App\Models\BankAccount::find($file->bank_account_id);
+            expect($bankAccount)->not->toBeNull()
+                ->and($bankAccount->account_number)->toBe('9876543210');
+        });
+
+        it('populates card_number on auto-created CreditCard from parser', function () {
+            Storage::put('statements/new_cc.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'HDFC CC',
+                    'account_number' => '4111111111111234',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'AMAZON', 'debit' => 2000, 'balance' => 2000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->creditCard()->create([
+                'file_path' => 'statements/new_cc.pdf',
+                'original_filename' => 'hdfc_cc.pdf',
+                'status' => ImportStatus::Pending,
+                'credit_card_id' => null,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            $creditCard = \App\Models\CreditCard::find($file->credit_card_id);
+            expect($creditCard)->not->toBeNull()
+                ->and($creditCard->card_number)->toBe('4111111111111234');
+        });
+
+        it('does not overwrite account_number on existing BankAccount during re-match', function () {
+            Storage::put('statements/existing_bank.pdf', 'fake-pdf-content');
+
+            $company = \App\Models\Company::factory()->create();
+            $bankAccount = \App\Models\BankAccount::factory()->create([
+                'company_id' => $company->id,
+                'name' => 'SBI',
+                'account_number' => 'ORIGINAL123',
+            ]);
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'SBI',
+                    'account_number' => 'DIFFERENT456',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'TRANSFER', 'debit' => 5000, 'balance' => 45000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/existing_bank.pdf',
+                'original_filename' => 'sbi_statement.pdf',
+                'statement_type' => StatementType::Bank,
+                'status' => ImportStatus::Pending,
+                'company_id' => $company->id,
+                'bank_account_id' => null,
+            ]);
+
+            $this->processor->process($file);
+
+            $bankAccount->refresh();
+            expect($bankAccount->account_number)->toBe('ORIGINAL123');
+        });
+
+        it('does not overwrite card_number on existing CreditCard during re-match', function () {
+            Storage::put('statements/existing_cc.pdf', 'fake-pdf-content');
+
+            $company = \App\Models\Company::factory()->create();
+            $creditCard = \App\Models\CreditCard::factory()->create([
+                'company_id' => $company->id,
+                'name' => 'ICICI CC',
+                'card_number' => 'ORIGINAL789',
+            ]);
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'ICICI CC',
+                    'account_number' => 'DIFFERENT012',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'SWIGGY', 'debit' => 500, 'balance' => 500],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->creditCard()->create([
+                'file_path' => 'statements/existing_cc.pdf',
+                'original_filename' => 'icici_cc.pdf',
+                'status' => ImportStatus::Pending,
+                'company_id' => $company->id,
+                'credit_card_id' => null,
+            ]);
+
+            $this->processor->process($file);
+
+            $creditCard->refresh();
+            expect($creditCard->card_number)->toBe('ORIGINAL789');
+        });
     });
 
     describe('unsupported formats', function () {
