@@ -117,6 +117,11 @@ class ImportedFileResource extends Resource
                     ->description(fn (ImportedFile $record): string => $record->statement_type->getLabel())
                     ->searchable(),
 
+                Tables\Columns\TextColumn::make('statement_period')
+                    ->label('Period')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('source')
                     ->label('Source')
                     ->badge(),

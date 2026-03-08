@@ -391,6 +391,7 @@ class DocumentProcessor
 
         $bankName = $response['bank_name'] ?? null;
         $accountNumber = $response['account_number'] ?? null;
+        $statementPeriod = $response['statement_period'] ?? null;
         $transactions = $response['transactions'];
 
         if (empty($transactions)) {
@@ -402,7 +403,7 @@ class DocumentProcessor
             return;
         }
 
-        DB::transaction(function () use ($file, $bankName, $accountNumber, $transactions) {
+        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $transactions) {
             $fileUpdates = [
                 'status' => ImportStatus::Completed,
                 'total_rows' => count($transactions),
@@ -427,6 +428,10 @@ class DocumentProcessor
 
             if ($accountNumber) {
                 $fileUpdates['account_number'] = $accountNumber;
+            }
+
+            if ($statementPeriod) {
+                $fileUpdates['statement_period'] = $statementPeriod;
             }
 
             foreach ($transactions as $row) {
