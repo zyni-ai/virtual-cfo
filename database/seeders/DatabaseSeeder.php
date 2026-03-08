@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -27,7 +28,9 @@ class DatabaseSeeder extends Seeder
                 'email' => 'admin@zysk.in',
             ]);
 
-            $company->users()->syncWithoutDetaching($user);
+            $company->users()->syncWithoutDetaching([
+                $user->id => ['role' => UserRole::Admin->value],
+            ]);
         }
     }
 }
