@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use App\Filament\Resources\ImportedFileResource;
@@ -172,6 +173,51 @@ describe('ImportedFileResource', function () {
         });
     });
 
+    it('reprocess action re-classifies statement type from source metadata', function () {
+        Queue::fake();
+
+        // File was misclassified as Invoice but source_metadata contains credit card signals
+        $file = ImportedFile::factory()
+            ->invoice()
+            ->completed(totalRows: 1, mappedRows: 0)
+            ->fromEmail()
+            ->create([
+                'source_metadata' => [
+                    'message_id' => '<test@mail.example.com>',
+                    'from' => 'bank@example.com',
+                    'subject' => 'Your Credit Card Bill for March 2026',
+                    'received_at' => now()->toIso8601String(),
+                ],
+            ]);
+
+        expect($file->statement_type)->toBe(StatementType::Invoice);
+
+        livewire(ListImportedFiles::class)
+            ->callTableAction('reprocess', $file);
+
+        $file->refresh();
+        expect($file->statement_type)->toBe(StatementType::CreditCard);
+    });
+
+    it('reprocess action keeps statement type when source metadata has no classification signals', function () {
+        Queue::fake();
+
+        $file = ImportedFile::factory()
+            ->completed(totalRows: 5, mappedRows: 3)
+            ->create([
+                'source' => ImportSource::ManualUpload,
+                'source_metadata' => null,
+            ]);
+
+        $originalType = $file->statement_type;
+
+        livewire(ListImportedFiles::class)
+            ->callTableAction('reprocess', $file);
+
+        $file->refresh();
+        expect($file->statement_type)->toBe($originalType);
+    });
+
     it('reprocess action is visible only for completed and failed files', function () {
         $completedFile = ImportedFile::factory()->completed()->create();
         $failedFile = ImportedFile::factory()->failed()->create();
@@ -243,11 +289,11 @@ describe('ImportedFileResource', function () {
     });
 
     it('can filter by source', function () {
-        $manual = ImportedFile::factory()->create(['source' => \App\Enums\ImportSource::ManualUpload]);
+        $manual = ImportedFile::factory()->create(['source' => ImportSource::ManualUpload]);
         $email = ImportedFile::factory()->fromEmail()->create();
 
         livewire(ListImportedFiles::class)
-            ->filterTable('source', \App\Enums\ImportSource::Email->value)
+            ->filterTable('source', ImportSource::Email->value)
             ->assertCanSeeTableRecords([$email])
             ->assertCanNotSeeTableRecords([$manual]);
     });

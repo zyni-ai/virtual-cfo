@@ -193,13 +193,16 @@ class ImportedFileResource extends Resource
                         ->color('warning')
                         ->requiresConfirmation()
                         ->action(function (ImportedFile $record) {
-                            \Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+                            $reclassified = (new \App\Services\StatementClassifier)->classifyFromMetadata($record);
+
+                            \Illuminate\Support\Facades\DB::transaction(function () use ($record, $reclassified) {
                                 $record->transactions()->delete();
                                 $record->update([
                                     'status' => ImportStatus::Pending,
                                     'total_rows' => 0,
                                     'mapped_rows' => 0,
                                     'error_message' => null,
+                                    ...($reclassified ? ['statement_type' => $reclassified] : []),
                                 ]);
                             });
                             ProcessImportedFile::dispatch($record);
