@@ -31,6 +31,18 @@ describe('RecentImports widget', function () {
             ->assertCanRenderTableColumn('status');
     });
 
+    it('shows at most 5 rows', function () {
+        $files = ImportedFile::factory()->count(7)->create();
+
+        $oldest = $files->sortByDesc('created_at')->take(5);
+        $hidden = $files->sortByDesc('created_at')->skip(5);
+
+        $widget = livewire(RecentImports::class);
+
+        $widget->assertCanSeeTableRecords($oldest);
+        $widget->assertCanNotSeeTableRecords($hidden);
+    });
+
     it('makes rows clickable to the import detail page', function () {
         $import = ImportedFile::factory()->create();
 
