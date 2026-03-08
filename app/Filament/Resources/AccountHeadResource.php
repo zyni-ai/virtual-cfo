@@ -44,26 +44,31 @@ class AccountHeadResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('The display name for this account head, as it appears in Tally.'),
 
                         Forms\Components\Select::make('parent_id')
                             ->label('Parent Head')
                             ->relationship('parent', 'name')
                             ->searchable()
                             ->preload()
-                            ->placeholder('None (Top Level)'),
+                            ->placeholder('None (Top Level)')
+                            ->helperText('Select a parent to create a hierarchy matching your Tally chart of accounts.'),
 
                         Forms\Components\TextInput::make('group_name')
                             ->label('Group Name')
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('The Tally group this head belongs to (e.g., Current Assets, Direct Expenses).'),
 
                         Forms\Components\TextInput::make('tally_guid')
                             ->label('Tally GUID')
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('Auto-populated when importing from Tally XML. Used to sync updates.'),
 
                         Forms\Components\Toggle::make('is_active')
                             ->label('Active')
-                            ->default(true),
+                            ->default(true)
+                            ->helperText('Inactive heads will not appear in transaction mapping suggestions.'),
                     ])
                     ->columns(2),
             ]);

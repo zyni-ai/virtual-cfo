@@ -205,7 +205,10 @@ class ReconciliationResource extends Resource
                             ->success()
                             ->send();
                     }),
-            ]);
+            ])
+            ->emptyStateHeading('No transactions to reconcile')
+            ->emptyStateDescription('Upload bank statements and invoices, then run reconciliation to match them.')
+            ->emptyStateIcon('heroicon-o-scale');
     }
 
     public static function getRelations(): array
