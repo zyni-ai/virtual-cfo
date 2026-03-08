@@ -17,7 +17,6 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Zysk Technologies Private Limited - 2025 - 2026',
                 'state' => 'Karnataka',
                 'gst_registration_type' => 'Regular',
-                'financial_year' => '2025-2026',
                 'currency' => 'INR',
             ],
         );

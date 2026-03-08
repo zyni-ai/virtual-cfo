@@ -32,39 +32,8 @@ class RegisterCompany extends RegisterTenant
                             $fail('The GSTIN format is invalid.');
                         }
                     }]),
-                Select::make('state')
-                    ->options([
-                        'Andhra Pradesh' => 'Andhra Pradesh',
-                        'Arunachal Pradesh' => 'Arunachal Pradesh',
-                        'Assam' => 'Assam',
-                        'Bihar' => 'Bihar',
-                        'Chhattisgarh' => 'Chhattisgarh',
-                        'Delhi' => 'Delhi',
-                        'Goa' => 'Goa',
-                        'Gujarat' => 'Gujarat',
-                        'Haryana' => 'Haryana',
-                        'Himachal Pradesh' => 'Himachal Pradesh',
-                        'Jharkhand' => 'Jharkhand',
-                        'Karnataka' => 'Karnataka',
-                        'Kerala' => 'Kerala',
-                        'Madhya Pradesh' => 'Madhya Pradesh',
-                        'Maharashtra' => 'Maharashtra',
-                        'Manipur' => 'Manipur',
-                        'Meghalaya' => 'Meghalaya',
-                        'Mizoram' => 'Mizoram',
-                        'Nagaland' => 'Nagaland',
-                        'Odisha' => 'Odisha',
-                        'Punjab' => 'Punjab',
-                        'Rajasthan' => 'Rajasthan',
-                        'Sikkim' => 'Sikkim',
-                        'Tamil Nadu' => 'Tamil Nadu',
-                        'Telangana' => 'Telangana',
-                        'Tripura' => 'Tripura',
-                        'Uttar Pradesh' => 'Uttar Pradesh',
-                        'Uttarakhand' => 'Uttarakhand',
-                        'West Bengal' => 'West Bengal',
-                    ])
-                    ->searchable(),
+                TextInput::make('state')
+                    ->maxLength(255),
                 Select::make('gst_registration_type')
                     ->label('GST Registration Type')
                     ->options([
@@ -73,8 +42,6 @@ class RegisterCompany extends RegisterTenant
                         'Unregistered' => 'Unregistered',
                     ])
                     ->default('Regular'),
-                TextInput::make('financial_year')
-                    ->placeholder('2025-2026'),
                 Select::make('currency')
                     ->options([
                         'INR' => 'INR',
