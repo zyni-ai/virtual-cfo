@@ -114,6 +114,25 @@ class EditCompanySettings extends EditTenantProfile
                             ->default('Regular'),
                         TextInput::make('financial_year')
                             ->placeholder('2025-2026'),
+                        Select::make('fy_start_month')
+                            ->label('Financial Year Starts In')
+                            ->options([
+                                1 => 'January',
+                                2 => 'February',
+                                3 => 'March',
+                                4 => 'April',
+                                5 => 'May',
+                                6 => 'June',
+                                7 => 'July',
+                                8 => 'August',
+                                9 => 'September',
+                                10 => 'October',
+                                11 => 'November',
+                                12 => 'December',
+                            ])
+                            ->default(4)
+                            ->required()
+                            ->helperText('The month your financial year begins (e.g., April for India/UK, January for US, July for Australia).'),
                         Select::make('currency')
                             ->options([
                                 'INR' => 'INR',

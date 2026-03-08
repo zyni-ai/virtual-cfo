@@ -27,7 +27,7 @@ describe('ReportingService', function () {
 
             expect($months)->toHaveCount(12);
 
-            // Current month (March 2026) should be in the range
+            // Current month should be in the range
             $yearMonths = $months->map->format('Y-m');
             expect($yearMonths)->toContain(now()->format('Y-m'));
         });
@@ -44,6 +44,39 @@ describe('ReportingService', function () {
 
             expect($months->first()->format('Y-m'))->toBe('2025-04')
                 ->and($months->last()->format('Y-m'))->toBe('2026-03');
+        });
+
+        it('uses company fy_start_month from tenant', function () {
+            $company = tenant();
+            $company->update(['fy_start_month' => 7]); // Australian FY: July–June
+
+            $months = $this->service->financialYearMonths(Carbon::create(2025, 9, 15));
+
+            expect($months)->toHaveCount(12)
+                ->and($months->first()->format('Y-m'))->toBe('2025-07')
+                ->and($months->last()->format('Y-m'))->toBe('2026-06');
+        });
+
+        it('uses January start month for calendar year FY', function () {
+            $company = tenant();
+            $company->update(['fy_start_month' => 1]); // US/France FY: Jan–Dec
+
+            $months = $this->service->financialYearMonths(Carbon::create(2025, 6, 15));
+
+            expect($months)->toHaveCount(12)
+                ->and($months->first()->format('Y-m'))->toBe('2025-01')
+                ->and($months->last()->format('Y-m'))->toBe('2025-12');
+        });
+
+        it('handles date before fy_start_month (previous FY)', function () {
+            $company = tenant();
+            $company->update(['fy_start_month' => 7]);
+
+            // May 2025 is before July, so it belongs to FY starting July 2024
+            $months = $this->service->financialYearMonths(Carbon::create(2025, 5, 15));
+
+            expect($months->first()->format('Y-m'))->toBe('2024-07')
+                ->and($months->last()->format('Y-m'))->toBe('2025-06');
         });
     });
 
