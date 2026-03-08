@@ -6,6 +6,7 @@ use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use App\Jobs\ProcessImportedFile;
+use App\Services\StatementClassifier;
 use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Notifications\StatementReceivedByEmailNotification;
@@ -23,6 +24,8 @@ class InboundEmailController
         'image/png',
         'image/jpeg',
     ];
+
+    public function __construct(private readonly StatementClassifier $classifier) {}
 
     public function __invoke(Request $request): JsonResponse
     {
@@ -157,7 +160,7 @@ class InboundEmailController
         Storage::disk('local')->put($storagePath, $contents);
 
         $filename = $file->getClientOriginalName();
-        $classification = $this->classifyByEmailContext($metadata) ?? $this->classifyByFilename($filename);
+        $classification = $this->classifier->classify($metadata, $filename);
 
         $attributes = [
             'company_id' => $company->id,
@@ -183,67 +186,4 @@ class InboundEmailController
         ]);
     }
 
-    /**
-     * Classify using email subject and body text.
-     * Returns null if no classification signals are found in the email context.
-     *
-     * @param  array<string, mixed>  $metadata
-     */
-    private function classifyByEmailContext(array $metadata): ?StatementType
-    {
-        $text = strtolower(trim(($metadata['subject'] ?? '').' '.($metadata['body_text'] ?? '')));
-
-        if ($text === '') {
-            return null;
-        }
-
-        return $this->classifyText($text);
-    }
-
-    /**
-     * Classify an attachment by its filename to determine the statement type.
-     * Returns null if the filename doesn't match any known pattern.
-     */
-    private function classifyByFilename(string $filename): ?StatementType
-    {
-        $name = strtolower(pathinfo($filename, PATHINFO_FILENAME));
-
-        return $this->classifyText($name);
-    }
-
-    /**
-     * Classify text (email context or filename) into a statement type.
-     * Credit card patterns are checked before generic statement patterns
-     * so "Credit Card Statement" matches CreditCard, not Bank.
-     */
-    private function classifyText(string $text): ?StatementType
-    {
-        $patternMap = [
-            [StatementType::CreditCard, ['credit[_\-\s]?card', 'cc[_\-\s]?statement']],
-            [StatementType::Invoice, ['inv', 'invoice', 'tax[_\-\s]?invoice', 'bill', 'debit[_\-\s]?note', 'credit[_\-\s]?note']],
-            [StatementType::Bank, ['statement', 'bank[_\-\s]?statement', 'account[_\-\s]?statement']],
-        ];
-
-        foreach ($patternMap as [$type, $patterns]) {
-            if ($this->matchesAny($text, $patterns)) {
-                return $type;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  list<string>  $patterns
-     */
-    private function matchesAny(string $text, array $patterns): bool
-    {
-        foreach ($patterns as $pattern) {
-            if (preg_match('/(?:^|[\W_])'.$pattern.'(?:$|[\W_\d])/', $text)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }
