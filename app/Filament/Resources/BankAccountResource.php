@@ -40,25 +40,30 @@ class BankAccountResource extends Resource
                         Forms\Components\TextInput::make('name')
                             ->label('Bank Name')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('e.g., HDFC Bank, ICICI Bank, State Bank of India'),
 
                         Forms\Components\TextInput::make('account_number')
                             ->label('Account Number')
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('Stored securely. Used to auto-detect the account when parsing statements.'),
 
                         Forms\Components\TextInput::make('ifsc_code')
                             ->label('IFSC Code')
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('The 11-character IFSC code for this branch (e.g., HDFC0001234).'),
 
                         Forms\Components\TextInput::make('branch')
                             ->label('Branch')
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('Branch name for your reference.'),
 
                         Forms\Components\Select::make('account_type')
                             ->label('Account Type')
                             ->options(AccountType::class)
                             ->default(AccountType::Current)
-                            ->required(),
+                            ->required()
+                            ->helperText('Select the type of bank account.'),
 
                         Forms\Components\TextInput::make('pdf_password')
                             ->label('PDF Password')
@@ -125,7 +130,10 @@ class BankAccountResource extends Resource
                     Actions\ForceDeleteBulkAction::make(),
                     Actions\RestoreBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->emptyStateHeading('No bank accounts yet')
+            ->emptyStateDescription('Add your bank accounts to start uploading and processing statements.')
+            ->emptyStateIcon('heroicon-o-building-library');
     }
 
     /** @return Builder<BankAccount> */

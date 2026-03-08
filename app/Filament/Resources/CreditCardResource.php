@@ -46,11 +46,13 @@ class CreditCardResource extends Resource
                         Forms\Components\TextInput::make('name')
                             ->label('Card Name')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('A descriptive name for this card (e.g., HDFC Regalia, ICICI Amazon Pay).'),
 
                         Forms\Components\TextInput::make('card_number')
                             ->label('Card Number')
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText('Stored securely. Only the last 4 digits are displayed in the UI.'),
 
                         Forms\Components\TextInput::make('pdf_password')
                             ->label('PDF Password')
@@ -166,7 +168,10 @@ class CreditCardResource extends Resource
                             ->send();
                     }),
             ])
-            ->bulkActions([]);
+            ->bulkActions([])
+            ->emptyStateHeading('No credit cards yet')
+            ->emptyStateDescription('Add your credit cards to upload and process credit card statements.')
+            ->emptyStateIcon('heroicon-o-credit-card');
     }
 
     /** @return Builder<CreditCard> */

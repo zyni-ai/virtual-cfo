@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 class ReportingService
 {
     /**
-     * Return 12 Carbon instances for the Indian financial year (April–March).
+     * Return 12 Carbon instances for the financial year based on tenant's fy_start_month.
      *
      * @return Collection<int, Carbon>
      */
@@ -20,11 +20,14 @@ class ReportingService
     {
         $ref ??= now();
 
-        // FY starts in April: if month < 4, FY started previous calendar year
-        $fyStartYear = $ref->month >= 4 ? $ref->year : $ref->year - 1;
+        /** @var \App\Models\Company|null $tenant */
+        $tenant = Filament::getTenant();
+        $fyStartMonth = (int) ($tenant?->fy_start_month ?: 4);
+
+        $fyStartYear = $ref->month >= $fyStartMonth ? $ref->year : $ref->year - 1;
 
         return collect(range(0, 11))->map(
-            fn (int $i) => Carbon::create($fyStartYear, 4, 1)->addMonths($i)->startOfMonth()
+            fn (int $i) => Carbon::create($fyStartYear, $fyStartMonth, 1)->addMonths($i)->startOfMonth()
         );
     }
 

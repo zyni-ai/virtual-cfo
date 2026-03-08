@@ -127,7 +127,10 @@ class RecurringPatternResource extends Resource
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->emptyStateHeading('No recurring patterns yet')
+            ->emptyStateDescription('Recurring patterns are auto-detected from your transactions over time. They help predict and auto-map future entries.')
+            ->emptyStateIcon('heroicon-o-arrow-path');
     }
 
     public static function getRelations(): array

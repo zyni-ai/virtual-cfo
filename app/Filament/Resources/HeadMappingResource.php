@@ -54,14 +54,16 @@ class HeadMappingResource extends Resource
                             ->label('Match Type')
                             ->options(MatchType::class)
                             ->default(MatchType::Contains)
-                            ->required(),
+                            ->required()
+                            ->helperText('Contains: partial match. Exact: full match. Regex: advanced pattern.'),
 
                         Forms\Components\Select::make('account_head_id')
                             ->label('Account Head')
                             ->relationship('accountHead', 'name')
                             ->searchable()
                             ->preload()
-                            ->required(),
+                            ->required()
+                            ->helperText('The account head to assign when this rule matches a transaction.'),
 
                         Forms\Components\Select::make('bank_name')
                             ->label('Bank Name')
@@ -158,7 +160,10 @@ class HeadMappingResource extends Resource
                 Actions\BulkActionGroup::make([
                     Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->emptyStateHeading('No mapping rules yet')
+            ->emptyStateDescription('Create rules to automatically map transactions to account heads. You can also create rules directly from the Transactions page.')
+            ->emptyStateIcon('heroicon-o-arrow-path-rounded-square');
     }
 
     public static function getRelations(): array
