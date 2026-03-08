@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages\Tenancy;
 
+use App\Enums\UserRole;
 use App\Models\Company;
 use App\Support\GstinValidator;
 use Filament\Forms\Components\Select;
@@ -89,7 +90,7 @@ class RegisterCompany extends RegisterTenant
     {
         $company = Company::create($data);
 
-        $company->users()->attach(auth()->user());
+        $company->users()->attach(auth()->user(), ['role' => UserRole::Admin->value]);
 
         $company->update([
             'inbox_address' => $this->generateInboxAddress($company),

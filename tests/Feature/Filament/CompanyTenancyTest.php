@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Filament\Pages\Tenancy\EditCompanySettings;
 use App\Filament\Pages\Tenancy\RegisterCompany;
 use App\Models\AccountHead;
@@ -123,7 +124,8 @@ describe('Register Company page', function () {
         $company = Company::where('name', 'Acme Corp')->first();
         expect($company)->not->toBeNull()
             ->and($company->gstin)->toBe('29AABCZ5012F1ZG')
-            ->and($company->users->pluck('id'))->toContain($this->user->id);
+            ->and($company->users->pluck('id'))->toContain($this->user->id)
+            ->and($this->user->roleForCompany($company))->toBe(UserRole::Admin);
     });
 
     it('generates an inbox_address on company registration', function () {
