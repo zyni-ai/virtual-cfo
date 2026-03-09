@@ -5,6 +5,9 @@ use App\Ai\Agents\StatementParser;
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
 use App\Enums\StatementType;
+use App\Models\BankAccount;
+use App\Models\Company;
+use App\Models\CreditCard;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\DocumentProcessor\DocumentProcessor;
@@ -389,8 +392,8 @@ describe('DocumentProcessor', function () {
         it('auto-sets bank_account_id when AI-detected bank_name matches a BankAccount', function () {
             Storage::put('statements/bank.pdf', 'fake-pdf-content');
 
-            $company = \App\Models\Company::factory()->create();
-            $bankAccount = \App\Models\BankAccount::factory()->create([
+            $company = Company::factory()->create();
+            $bankAccount = BankAccount::factory()->create([
                 'company_id' => $company->id,
                 'name' => 'HDFC Bank',
             ]);
@@ -445,7 +448,7 @@ describe('DocumentProcessor', function () {
             $file->refresh();
             expect($file->bank_account_id)->not->toBeNull();
 
-            $bankAccount = \App\Models\BankAccount::find($file->bank_account_id);
+            $bankAccount = BankAccount::find($file->bank_account_id);
             expect($bankAccount->name)->toBe('Unknown Bank')
                 ->and($bankAccount->company_id)->toBe($file->company_id);
         });
@@ -474,7 +477,7 @@ describe('DocumentProcessor', function () {
             $this->processor->process($file);
 
             $file->refresh();
-            $bankAccount = \App\Models\BankAccount::find($file->bank_account_id);
+            $bankAccount = BankAccount::find($file->bank_account_id);
             expect($bankAccount)->not->toBeNull()
                 ->and($bankAccount->account_number)->toBe('9876543210');
         });
@@ -502,7 +505,7 @@ describe('DocumentProcessor', function () {
             $this->processor->process($file);
 
             $file->refresh();
-            $creditCard = \App\Models\CreditCard::find($file->credit_card_id);
+            $creditCard = CreditCard::find($file->credit_card_id);
             expect($creditCard)->not->toBeNull()
                 ->and($creditCard->card_number)->toBe('4111111111111234');
         });
@@ -510,8 +513,8 @@ describe('DocumentProcessor', function () {
         it('does not overwrite account_number on existing BankAccount during re-match', function () {
             Storage::put('statements/existing_bank.pdf', 'fake-pdf-content');
 
-            $company = \App\Models\Company::factory()->create();
-            $bankAccount = \App\Models\BankAccount::factory()->create([
+            $company = Company::factory()->create();
+            $bankAccount = BankAccount::factory()->create([
                 'company_id' => $company->id,
                 'name' => 'SBI',
                 'account_number' => 'ORIGINAL123',
@@ -545,8 +548,8 @@ describe('DocumentProcessor', function () {
         it('does not overwrite card_number on existing CreditCard during re-match', function () {
             Storage::put('statements/existing_cc.pdf', 'fake-pdf-content');
 
-            $company = \App\Models\Company::factory()->create();
-            $creditCard = \App\Models\CreditCard::factory()->create([
+            $company = Company::factory()->create();
+            $creditCard = CreditCard::factory()->create([
                 'company_id' => $company->id,
                 'name' => 'ICICI CC',
                 'card_number' => 'ORIGINAL789',
