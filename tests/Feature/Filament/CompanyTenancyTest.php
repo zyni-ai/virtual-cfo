@@ -139,7 +139,7 @@ describe('Register Company page', function () {
             ->assertHasNoFormErrors();
 
         $company = Company::where('name', 'Test Inbox Corp')->first();
-        $domain = config('services.mailgun.inbox_domain');
+        $domain = config('services.mailgun.domain');
 
         expect($company->inbox_address)->not->toBeNull()
             ->and($company->inbox_address)->toContain('test-inbox-corp')

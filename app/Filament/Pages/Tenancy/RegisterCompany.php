@@ -70,7 +70,7 @@ class RegisterCompany extends RegisterTenant
     {
         $slug = Str::slug($company->name);
         $hash = substr(hash_hmac('sha256', (string) $company->id, config('app.key')), 0, 6);
-        $domain = config('services.mailgun.inbox_domain');
+        $domain = config('services.mailgun.domain');
 
         return "{$slug}-{$hash}@{$domain}";
     }
