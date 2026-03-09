@@ -430,7 +430,7 @@ class DocumentProcessor
                 $fileUpdates['account_number'] = $accountNumber;
             }
 
-            if ($statementPeriod) {
+            if ($statementPeriod !== null) {
                 $fileUpdates['statement_period'] = $statementPeriod;
             }
 
