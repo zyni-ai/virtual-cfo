@@ -187,6 +187,30 @@ class ImportedFileResource extends Resource
                         })
                         ->visible(fn (ImportedFile $record) => $record->status === ImportStatus::NeedsPassword),
 
+                    Actions\Action::make('changeType')
+                        ->label('Change Type')
+                        ->icon('heroicon-o-arrow-path-rounded-square')
+                        ->color('gray')
+                        ->schema([
+                            Forms\Components\Select::make('statement_type')
+                                ->label('Statement Type')
+                                ->options(StatementType::class)
+                                ->required(),
+                        ])
+                        ->fillForm(fn (ImportedFile $record): array => [
+                            'statement_type' => $record->statement_type,
+                        ])
+                        ->modalHeading('Change Statement Type')
+                        ->modalDescription('Change the statement type for this file. This will not trigger reprocessing — use Re-process separately if needed.')
+                        ->modalSubmitActionLabel('Update Type')
+                        ->action(fn (ImportedFile $record, array $data) => $record->update([
+                            'statement_type' => $data['statement_type'],
+                        ]))
+                        ->visible(fn (ImportedFile $record) => in_array($record->status, [
+                            ImportStatus::Completed,
+                            ImportStatus::Failed,
+                        ])),
+
                     Actions\Action::make('reprocess')
                         ->label('Re-process')
                         ->icon('heroicon-o-arrow-path')

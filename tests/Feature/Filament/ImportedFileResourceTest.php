@@ -304,4 +304,67 @@ describe('ImportedFileResource', function () {
         livewire(ListImportedFiles::class)
             ->assertSuccessful();
     });
+
+    it('changeType action is visible only for completed and failed files', function () {
+        $completedFile = ImportedFile::factory()->completed()->create();
+        $failedFile = ImportedFile::factory()->failed()->create();
+        $pendingFile = ImportedFile::factory()->create(['status' => ImportStatus::Pending]);
+        $processingFile = ImportedFile::factory()->processing()->create();
+        $needsPasswordFile = ImportedFile::factory()->create(['status' => ImportStatus::NeedsPassword]);
+
+        livewire(ListImportedFiles::class)
+            ->assertTableActionVisible('changeType', $completedFile)
+            ->assertTableActionVisible('changeType', $failedFile)
+            ->assertTableActionHidden('changeType', $pendingFile)
+            ->assertTableActionHidden('changeType', $processingFile)
+            ->assertTableActionHidden('changeType', $needsPasswordFile);
+    });
+
+    it('changeType action updates statement_type on the record', function () {
+        $file = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->callTableAction('changeType', $file, data: [
+                'statement_type' => StatementType::CreditCard->value,
+            ]);
+
+        $file->refresh();
+        expect($file->statement_type)->toBe(StatementType::CreditCard);
+    });
+
+    it('changeType action does not auto-reprocess the file', function () {
+        Queue::fake();
+
+        $file = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->callTableAction('changeType', $file, data: [
+                'statement_type' => StatementType::CreditCard->value,
+            ]);
+
+        $file->refresh();
+        expect($file->status)->toBe(ImportStatus::Completed);
+
+        Queue::assertNotPushed(ProcessImportedFile::class);
+    });
+
+    it('changeType action logs the change via activity log', function () {
+        $file = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->callTableAction('changeType', $file, data: [
+                'statement_type' => StatementType::CreditCard->value,
+            ]);
+
+        $activity = $file->activities()->where('description', 'updated')->latest()->first();
+        expect($activity)->not->toBeNull()
+            ->and($activity->properties['old']['statement_type'])->toBe('bank')
+            ->and($activity->properties['attributes']['statement_type'])->toBe('credit_card');
+    });
 });
