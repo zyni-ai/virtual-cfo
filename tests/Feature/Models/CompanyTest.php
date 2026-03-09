@@ -20,10 +20,8 @@ describe('Company factory', function () {
             ->and($company->currency)->toBe('INR');
     });
 
-    it('does not have financial_year attribute', function () {
-        $company = Company::factory()->create();
-
-        expect(in_array('financial_year', $company->getFillable()))->toBeFalse();
+    it('does not have financial_year column in database', function () {
+        expect(Illuminate\Support\Facades\Schema::hasColumn('companies', 'financial_year'))->toBeFalse();
     });
 
     it('creates a zysk company with known defaults', function () {
