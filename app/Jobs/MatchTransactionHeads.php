@@ -58,6 +58,7 @@ class MatchTransactionHeads implements ShouldQueue
                 'unmatched' => $results['unmatched'],
             ]);
 
+            $this->importedFile->update(['is_matching' => false]);
             $this->notifyCompletion($results);
         } catch (\Throwable $e) {
             Log::error('Failed to match transaction heads', [
@@ -74,6 +75,8 @@ class MatchTransactionHeads implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
+        $this->importedFile->update(['is_matching' => false]);
+
         Log::error('MatchTransactionHeads permanently failed', [
             'file_id' => $this->importedFile->id,
             'exception' => $exception->getMessage(),

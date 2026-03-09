@@ -2,10 +2,8 @@
 
 namespace App\Filament\Resources\ImportedFileResource\Pages;
 
-use App\Enums\ImportStatus;
 use App\Filament\Resources\ImportedFileResource;
 use App\Filament\Widgets\ImportedFileStatsOverview;
-use App\Models\ImportedFile;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Contracts\View\View;
@@ -13,13 +11,6 @@ use Illuminate\Contracts\View\View;
 class ListImportedFiles extends ListRecords
 {
     protected static string $resource = ImportedFileResource::class;
-
-    protected function getTablePollingInterval(): ?string
-    {
-        return ImportedFile::whereIn('status', [ImportStatus::Pending, ImportStatus::Processing])->exists()
-            ? '10s'
-            : null;
-    }
 
     public function getSubheading(): ?string
     {

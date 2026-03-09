@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -67,6 +68,7 @@ class ImportedFile extends Model
         'processed_at',
         'bank_account_id',
         'credit_card_id',
+        'is_matching',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -102,6 +104,7 @@ class ImportedFile extends Model
             'processed_at' => 'datetime',
             'total_rows' => 'integer',
             'mapped_rows' => 'integer',
+            'is_matching' => 'boolean',
         ];
     }
 
@@ -132,6 +135,23 @@ class ImportedFile extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    private const ACTIVE_STATUSES = [ImportStatus::Pending, ImportStatus::Processing];
+
+    /** @param Builder<self> $query */
+    public function scopeActivelyProcessing(Builder $query): void
+    {
+        $query->where(function (Builder $q) {
+            $q->whereIn('status', self::ACTIVE_STATUSES)
+                ->orWhere('is_matching', true);
+        });
+    }
+
+    public function isProcessing(): bool
+    {
+        return in_array($this->status, self::ACTIVE_STATUSES)
+            || $this->is_matching;
     }
 
     public function getMappedPercentageAttribute(): float

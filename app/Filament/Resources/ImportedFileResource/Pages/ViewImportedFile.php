@@ -10,6 +10,7 @@ use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
+/** @property ImportedFile $record */
 class ViewImportedFile extends ViewRecord
 {
     protected static string $resource = ImportedFileResource::class;
@@ -31,6 +32,7 @@ class ViewImportedFile extends ViewRecord
         return $schema
             ->schema([
                 Section::make('File Details')
+                    ->poll(fn (): ?string => $this->record->isProcessing() ? '10s' : null)
                     ->schema([
                         Infolists\Components\TextEntry::make('original_filename')
                             ->label('Filename'),
