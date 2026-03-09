@@ -11,6 +11,13 @@ class ImportedFileStatsOverview extends BaseWidget
 {
     protected static bool $isDiscovered = false;
 
+    protected function getPollingInterval(): ?string
+    {
+        return ImportedFile::whereIn('status', [ImportStatus::Pending, ImportStatus::Processing])->exists()
+            ? '10s'
+            : null;
+    }
+
     protected function getStats(): array
     {
         $totalFiles = ImportedFile::count();
