@@ -418,8 +418,8 @@ class DocumentProcessor
                 $statementType = $file->statement_type;
 
                 $fkUpdate = $statementType === StatementType::CreditCard
-                    ? $this->autoMatchFinancialAccount($file, $bankName, CreditCard::class, 'credit_card_id')
-                    : $this->autoMatchFinancialAccount($file, $bankName, BankAccount::class, 'bank_account_id');
+                    ? $this->autoMatchFinancialAccount($file, $bankName, CreditCard::class, 'credit_card_id', $accountNumber)
+                    : $this->autoMatchFinancialAccount($file, $bankName, BankAccount::class, 'bank_account_id', $accountNumber);
 
                 if ($fkUpdate !== null) {
                     $fileUpdates = array_merge($fileUpdates, $fkUpdate);
@@ -460,14 +460,22 @@ class DocumentProcessor
      * @param  class-string<BankAccount|CreditCard>  $modelClass
      * @return array<string, int>|null
      */
-    protected function autoMatchFinancialAccount(ImportedFile $file, string $bankName, string $modelClass, string $fkColumn): ?array
+    protected function autoMatchFinancialAccount(ImportedFile $file, string $bankName, string $modelClass, string $fkColumn, ?string $accountNumber = null): ?array
     {
         if ($file->{$fkColumn}) {
             return null;
         }
 
+        $numberColumn = $modelClass === CreditCard::class ? 'card_number' : 'account_number';
+
+        $creationDefaults = [];
+        if ($accountNumber) {
+            $creationDefaults[$numberColumn] = $accountNumber;
+        }
+
         $account = $modelClass::firstOrCreate(
             ['company_id' => $file->company_id, 'name' => $bankName],
+            $creationDefaults,
         );
 
         return [$fkColumn => $account->id];
