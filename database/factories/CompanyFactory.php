@@ -21,7 +21,6 @@ class CompanyFactory extends Factory
             'gstin' => str_pad($stateCode, 2, '0', STR_PAD_LEFT).strtoupper(fake()->bothify('?????####?')).'1Z'.strtoupper(fake()->randomLetter()),
             'state' => fake()->randomElement(['Karnataka', 'Maharashtra', 'Tamil Nadu', 'Delhi', 'Gujarat']),
             'gst_registration_type' => 'Regular',
-            'financial_year' => '2025-2026',
             'currency' => 'INR',
             'review_confidence_threshold' => 0.80,
             'fy_start_month' => 4,
@@ -45,7 +44,6 @@ class CompanyFactory extends Factory
             'gstin' => '29AABCZ5012F1ZG',
             'state' => 'Karnataka',
             'gst_registration_type' => 'Regular',
-            'financial_year' => '2025-2026',
             'currency' => 'INR',
         ]);
     }

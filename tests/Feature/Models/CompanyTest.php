@@ -17,8 +17,11 @@ describe('Company factory', function () {
             ->and($company->gstin)->toBeString()
             ->and($company->state)->toBeString()
             ->and($company->gst_registration_type)->toBe('Regular')
-            ->and($company->financial_year)->toBe('2025-2026')
             ->and($company->currency)->toBe('INR');
+    });
+
+    it('does not have financial_year column in database', function () {
+        expect(Illuminate\Support\Facades\Schema::hasColumn('companies', 'financial_year'))->toBeFalse();
     });
 
     it('creates a zysk company with known defaults', function () {

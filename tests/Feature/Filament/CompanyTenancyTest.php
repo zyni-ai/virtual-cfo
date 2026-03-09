@@ -9,6 +9,7 @@ use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Models\User;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\TextInput;
 
 use function Pest\Livewire\livewire;
 
@@ -115,7 +116,6 @@ describe('Register Company page', function () {
                 'gstin' => '29AABCZ5012F1ZG',
                 'state' => 'Karnataka',
                 'gst_registration_type' => 'Regular',
-                'financial_year' => '2025-2026',
                 'currency' => 'INR',
             ])
             ->call('register')
@@ -164,6 +164,18 @@ describe('Register Company page', function () {
             ->call('register')
             ->assertHasFormErrors(['gstin']);
     });
+
+    it('does not have financial_year field', function () {
+        livewire(RegisterCompany::class)
+            ->assertFormFieldDoesNotExist('financial_year');
+    });
+
+    it('has state as a free-text field', function () {
+        livewire(RegisterCompany::class)
+            ->assertFormFieldExists('state', function (TextInput $field): bool {
+                return $field->getName() === 'state';
+            });
+    });
 });
 
 describe('Edit Company Settings page', function () {
@@ -203,5 +215,30 @@ describe('Edit Company Settings page', function () {
         livewire(EditCompanySettings::class)
             ->assertFormFieldIsDisabled('inbox_address')
             ->assertSuccessful();
+    });
+
+    it('does not have financial_year field', function () {
+        livewire(EditCompanySettings::class)
+            ->assertFormFieldDoesNotExist('financial_year');
+    });
+
+    it('has state as a free-text field', function () {
+        livewire(EditCompanySettings::class)
+            ->assertFormFieldExists('state', function (TextInput $field): bool {
+                return $field->getName() === 'state';
+            });
+    });
+
+    it('can save a non-Indian state value', function () {
+        livewire(EditCompanySettings::class)
+            ->fillForm([
+                'name' => tenant()->name,
+                'state' => 'California',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        tenant()->refresh();
+        expect(tenant()->state)->toBe('California');
     });
 });
