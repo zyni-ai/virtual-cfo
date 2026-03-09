@@ -9,3 +9,5 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('connectors:sync-zoho')->hourly();
+Schedule::command('queue:prune-failed --hours=72')->daily();
+Schedule::command('activitylog:clean')->daily();
