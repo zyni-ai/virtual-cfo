@@ -51,6 +51,7 @@ class ImportedFile extends Model
         'company_id',
         'bank_name',
         'account_number',
+        'statement_period',
         'statement_type',
         'file_path',
         'original_filename',
@@ -73,6 +74,7 @@ class ImportedFile extends Model
         return LogOptions::defaults()
             ->logOnly([
                 'bank_name',
+                'statement_period',
                 'statement_type',
                 'file_path',
                 'original_filename',

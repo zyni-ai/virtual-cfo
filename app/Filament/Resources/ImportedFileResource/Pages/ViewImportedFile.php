@@ -37,6 +37,9 @@ class ViewImportedFile extends ViewRecord
                         Infolists\Components\TextEntry::make('bank_name')
                             ->label('Detected Bank')
                             ->placeholder('Not detected'),
+                        Infolists\Components\TextEntry::make('statement_period')
+                            ->label('Statement Period')
+                            ->placeholder('Not detected'),
                         Infolists\Components\TextEntry::make('bankAccount.name')
                             ->label('Bank Account')
                             ->visible(fn (ImportedFile $record): bool => $record->bank_account_id !== null),

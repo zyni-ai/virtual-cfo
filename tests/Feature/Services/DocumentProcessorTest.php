@@ -343,6 +343,84 @@ describe('DocumentProcessor', function () {
                 ->and($transaction->debit)->toBe('200');
         });
 
+        it('stores statement_period from bank statement response', function () {
+            Storage::put('statements/period_bank.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'HDFC Bank',
+                    'account_number' => '1234567890',
+                    'statement_period' => '2024-01-01 to 2024-01-31',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'SALARY', 'credit' => 50000, 'balance' => 150000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/period_bank.pdf',
+                'original_filename' => 'bank_period.pdf',
+                'statement_type' => StatementType::Bank,
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->statement_period)->toBe('2024-01-01 to 2024-01-31');
+        });
+
+        it('stores statement_period from credit card statement response', function () {
+            Storage::put('statements/period_cc.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'ICICI CC',
+                    'statement_period' => 'Feb 2024',
+                    'transactions' => [
+                        ['date' => '2024-02-05', 'description' => 'AMAZON', 'debit' => 2000, 'balance' => 2000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->creditCard()->create([
+                'file_path' => 'statements/period_cc.pdf',
+                'original_filename' => 'cc_period.pdf',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->statement_period)->toBe('Feb 2024');
+        });
+
+        it('handles null statement_period gracefully', function () {
+            Storage::put('statements/no_period.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'SBI',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'PAYMENT', 'debit' => 1000, 'balance' => 9000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/no_period.pdf',
+                'original_filename' => 'no_period.pdf',
+                'statement_type' => StatementType::Bank,
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->statement_period)->toBeNull()
+                ->and($file->status)->toBe(ImportStatus::Completed);
+        });
+
         it('marks file as failed when PDF has no transactions', function () {
             Storage::put('statements/empty.pdf', 'fake-pdf-content');
 
