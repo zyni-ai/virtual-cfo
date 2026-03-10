@@ -13,7 +13,7 @@ class ImportedFileStatsOverview extends BaseWidget
 
     protected function getPollingInterval(): ?string
     {
-        return ImportedFile::whereIn('status', [ImportStatus::Pending, ImportStatus::Processing])->exists()
+        return ImportedFile::activelyProcessing()->exists()
             ? '10s'
             : null;
     }

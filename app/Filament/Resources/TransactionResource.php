@@ -61,6 +61,7 @@ class TransactionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll(fn (): ?string => ImportedFile::activelyProcessing()->exists() ? '10s' : null)
             ->columns([
                 Tables\Columns\TextColumn::make('date')
                     ->date('d M Y')
@@ -362,7 +363,9 @@ class TransactionResource extends Resource
                     ->action(function () {
                         $files = ImportedFile::whereHas('transactions', function (Builder $q) {
                             $q->where('mapping_type', MappingType::Unmapped);
-                        })->get();
+                        })->where('is_matching', false)->get();
+
+                        ImportedFile::whereIn('id', $files->pluck('id'))->update(['is_matching' => true]);
 
                         foreach ($files as $file) {
                             MatchTransactionHeads::dispatch($file);
