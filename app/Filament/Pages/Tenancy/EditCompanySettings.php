@@ -275,7 +275,7 @@ class EditCompanySettings extends EditTenantProfile
                 ->color('success'),
             TextEntry::make('zoho_last_synced')
                 ->label('Last Synced')
-                ->state(fn (): string => $connector->last_synced_at?->diffForHumans() ?? 'Never'),
+                ->state(fn (): string => $connector->last_synced_at?->setTimezone(config('app.display_timezone'))->diffForHumans() ?? 'Never'),
         ];
     }
 
