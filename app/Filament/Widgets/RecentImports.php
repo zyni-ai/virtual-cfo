@@ -33,7 +33,7 @@ class RecentImports extends BaseWidget
                         $record->statement_type->getLabel(),
                         $record->bank_name,
                     ])->filter()->implode(' · '))
-                    ->description(fn (ImportedFile $record): string => 'Uploaded by '.($record->uploader?->name ?? 'System').' '.$record->created_at->diffForHumans()),
+                    ->description(fn (ImportedFile $record): string => 'Uploaded by '.($record->uploader?->name ?? 'System').' '.$record->created_at->setTimezone(config('app.display_timezone'))->diffForHumans()),
 
                 Tables\Columns\TextColumn::make('status')
                     ->badge(),
