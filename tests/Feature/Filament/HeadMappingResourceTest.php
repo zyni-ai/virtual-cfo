@@ -1,10 +1,12 @@
 <?php
 
 use App\Enums\MatchType;
+use App\Filament\Resources\HeadMappingResource;
 use App\Filament\Resources\HeadMappingResource\Pages\CreateHeadMapping;
 use App\Filament\Resources\HeadMappingResource\Pages\EditHeadMapping;
 use App\Filament\Resources\HeadMappingResource\Pages\ListHeadMappings;
 use App\Models\AccountHead;
+use App\Models\BankAccount;
 use App\Models\HeadMapping;
 
 use function Pest\Livewire\livewire;
@@ -91,6 +93,28 @@ describe('HeadMappingResource', function () {
         expect($mapping->fresh()->pattern)->toBe('NEW_PATTERN');
     });
 
+    it('redirects to the list after creating a head mapping', function () {
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+
+        livewire(CreateHeadMapping::class)
+            ->fillForm([
+                'pattern' => 'REDIRECT_TEST',
+                'match_type' => MatchType::Contains->value,
+                'account_head_id' => $head->id,
+            ])
+            ->call('create')
+            ->assertRedirect(HeadMappingResource::getUrl('index'));
+    });
+
+    it('redirects to the list after editing a head mapping', function () {
+        $mapping = HeadMapping::factory()->create(['company_id' => tenant()->id]);
+
+        livewire(EditHeadMapping::class, ['record' => $mapping->getRouteKey()])
+            ->fillForm(['pattern' => 'UPDATED_PATTERN'])
+            ->call('save')
+            ->assertRedirect(HeadMappingResource::getUrl('index'));
+    });
+
     it('can delete a head mapping from the table', function () {
         $mapping = HeadMapping::factory()->create(['company_id' => tenant()->id]);
 
@@ -154,7 +178,7 @@ describe('HeadMappingResource', function () {
 
     it('can create a mapping with bank name from select', function () {
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
-        \App\Models\BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'ICICI Bank']);
+        BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'ICICI Bank']);
 
         livewire(CreateHeadMapping::class)
             ->fillForm([

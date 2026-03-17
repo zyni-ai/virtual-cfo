@@ -118,6 +118,26 @@ describe('AccountHeadResource', function () {
             ->assertCanNotSeeTableRecords([$inactive]);
     });
 
+    it('redirects to the list after creating an account head', function () {
+        livewire(CreateAccountHead::class)
+            ->fillForm([
+                'name' => 'Redirect Test Head',
+                'group_name' => 'Current Assets',
+                'is_active' => true,
+            ])
+            ->call('create')
+            ->assertRedirect(AccountHeadResource::getUrl('index'));
+    });
+
+    it('redirects to the list after editing an account head', function () {
+        $head = AccountHead::factory()->create();
+
+        livewire(EditAccountHead::class, ['record' => $head->getRouteKey()])
+            ->fillForm(['name' => 'Updated Name'])
+            ->call('save')
+            ->assertRedirect(AccountHeadResource::getUrl('index'));
+    });
+
     it('shows empty state with import guidance when no heads exist', function () {
         livewire(ListAccountHeads::class)
             ->assertSee('No account heads yet')
