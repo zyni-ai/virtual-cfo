@@ -18,9 +18,11 @@ use Maatwebsite\Excel\Concerns\WithMapping;
  */
 class TransactionCsvExport implements FromQuery, WithHeadings, WithMapping
 {
+    /** @param Builder<Transaction>|null $baseQuery */
     public function __construct(
         public ?string $from = null,
         public ?string $until = null,
+        public ?Builder $baseQuery = null,
     ) {}
 
     /**
@@ -28,14 +30,22 @@ class TransactionCsvExport implements FromQuery, WithHeadings, WithMapping
      */
     public function query(): Builder
     {
-        /** @var Company $tenant */
-        $tenant = Filament::getTenant();
+        if ($this->baseQuery) {
+            $query = $this->baseQuery
+                ->clone()
+                ->whereNotNull('account_head_id')
+                ->with(['accountHead', 'importedFile'])
+                ->orderBy('date');
+        } else {
+            /** @var Company $tenant */
+            $tenant = Filament::getTenant();
 
-        $query = Transaction::query()
-            ->where('company_id', $tenant->id)
-            ->whereNotNull('account_head_id')
-            ->with(['accountHead', 'importedFile'])
-            ->orderBy('date');
+            $query = Transaction::query()
+                ->where('company_id', $tenant->id)
+                ->whereNotNull('account_head_id')
+                ->with(['accountHead', 'importedFile'])
+                ->orderBy('date');
+        }
 
         if ($this->from) {
             $query->whereDate('date', '>=', $this->from);

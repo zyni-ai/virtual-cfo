@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\MappingType;
+use App\Enums\MatchMethod;
 use App\Enums\MatchStatus;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
@@ -11,7 +12,9 @@ use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
+use App\Services\TallyExport\TallyExportService;
 use Illuminate\Support\Facades\Queue;
+use Maatwebsite\Excel\Facades\Excel;
 
 use function Pest\Livewire\livewire;
 
@@ -136,6 +139,68 @@ describe('TransactionResource', function () {
         });
     });
 
+    describe('export actions respect active table filters', function () {
+        it('tally export exports only transactions matching active account head filter', function () {
+            $head = AccountHead::factory()->create();
+            $other = AccountHead::factory()->create();
+
+            Transaction::factory()->count(3)->mapped($head)->create(['date' => now()]);
+            Transaction::factory()->count(2)->mapped($other)->create(['date' => now()]);
+
+            $capturedTransactions = null;
+            $mock = Mockery::mock(TallyExportService::class);
+            $mock->shouldReceive('exportTransactions')
+                ->once()
+                ->andReturnUsing(function ($transactions) use (&$capturedTransactions) {
+                    $capturedTransactions = $transactions;
+
+                    return '<?xml version="1.0"?><ENVELOPE></ENVELOPE>';
+                });
+            app()->instance(TallyExportService::class, $mock);
+
+            livewire(ListTransactions::class)
+                ->filterTable('account_head_id', $head->id)
+                ->callTableAction('export_tally', data: [
+                    'from' => now()->subMonth()->toDateString(),
+                    'until' => now()->addDay()->toDateString(),
+                ])
+                ->assertHasNoTableActionErrors();
+
+            expect($capturedTransactions)->toHaveCount(3)
+                ->and($capturedTransactions->pluck('account_head_id')->unique()->first())->toBe($head->id);
+        });
+
+        it('csv export action succeeds with active account head filter applied', function () {
+            Excel::fake();
+
+            $head = AccountHead::factory()->create();
+            $other = AccountHead::factory()->create();
+
+            Transaction::factory()->count(3)->mapped($head)->create();
+            Transaction::factory()->count(2)->mapped($other)->create();
+
+            livewire(ListTransactions::class)
+                ->filterTable('account_head_id', $head->id)
+                ->callTableAction('export_csv', data: ['from' => null, 'until' => null])
+                ->assertHasNoTableActionErrors();
+        });
+
+        it('excel export action succeeds with active account head filter applied', function () {
+            Excel::fake();
+
+            $head = AccountHead::factory()->create();
+            $other = AccountHead::factory()->create();
+
+            Transaction::factory()->count(3)->mapped($head)->create();
+            Transaction::factory()->count(2)->mapped($other)->create();
+
+            livewire(ListTransactions::class)
+                ->filterTable('account_head_id', $head->id)
+                ->callTableAction('export_excel', data: ['from' => null, 'until' => null])
+                ->assertHasNoTableActionErrors();
+        });
+    });
+
     it('can match a bank transaction to an invoice via match_invoice action', function () {
         $bankFile = ImportedFile::factory()->completed()->create([
             'statement_type' => StatementType::Bank,
@@ -166,7 +231,7 @@ describe('TransactionResource', function () {
         $match = ReconciliationMatch::first();
         expect($match->bank_transaction_id)->toBe($bankTxn->id)
             ->and($match->invoice_transaction_id)->toBe($invoiceTxn->id)
-            ->and($match->match_method)->toBe(\App\Enums\MatchMethod::Manual)
+            ->and($match->match_method)->toBe(MatchMethod::Manual)
             ->and($match->status)->toBe(MatchStatus::Confirmed);
 
         $bankTxn->refresh();
