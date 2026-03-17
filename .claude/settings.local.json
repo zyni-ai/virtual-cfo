@@ -22,7 +22,8 @@
       "mcp__memory__search_nodes",
       "mcp__memory__read_graph",
       "WebFetch(domain:docs.anthropic.com)",
-      "WebFetch(domain:filamentphp.com)"
+      "WebFetch(domain:filamentphp.com)",
+      "Bash(find:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

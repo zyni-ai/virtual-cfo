@@ -1,5 +1,11 @@
 # Virtual CFO - Zysk Technologies
 
+## Tone
+
+Do not tell me I am right all the time. Be critical. We're equals. Try to be neutral and objective.
+
+Never mention Claude Code in PR descriptions, PR comments, or issue comments.
+
 ## Commands
 
 ```bash
@@ -67,6 +73,13 @@ feature/* → master (squash merge) → CD → staging/QA → tag vX.Y.Z → pro
 **Merge strategy:** Always squash merge into `master`.
 **CI checks required before merge:** Syntax, Pint, PHPStan, Security, Tests
 **PR labels:** Every PR must have a `type:` label (`type: feature`, `type: bug`, `type: refactor`, `type: docs`, `type: chore`) for release notes categorization.
+
+## Hard Gates (NEVER skip)
+
+- **Laravel Boost tools**: At the START of every task, run `ToolSearch` for Laravel Boost MCP tools (`database-schema`, `search-docs`, `tinker`, etc.). If unavailable, tell the user immediately — do not silently proceed without them.
+- **`/simplify`**: Run on EVERY task before final commit, regardless of task type (feature, fix, config, chore, refactor). Not just TDD REFACTOR — every task.
+- **CI verification**: Run `bash bin/ci-check.sh` before every commit. Do not commit with failing checks.
+- **Progress tracking**: Use `TaskCreate`/`TaskUpdate` to track workflow steps. Verify all steps are completed before commit.
 
 ### Releases
 

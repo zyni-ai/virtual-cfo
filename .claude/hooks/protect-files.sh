@@ -23,4 +23,16 @@ if [[ "$(basename "$file_path")" == "composer.lock" ]]; then
   exit 2
 fi
 
+# Protect phpunit.xml (CI uses DB_PASSWORD=postgres; local may differ — edit manually and revert before committing)
+if [[ "$(basename "$file_path")" == "phpunit.xml" ]]; then
+  echo "BLOCKED: phpunit.xml contains CI-specific values (DB_PASSWORD). Edit manually and revert before committing." >&2
+  exit 2
+fi
+
+# Protect source-of-truth SQL schemas
+if [[ "$file_path" == */docs/schema/*.sql ]]; then
+  echo "BLOCKED: docs/schema/*.sql are source-of-truth references. Edit migrations instead." >&2
+  exit 2
+fi
+
 exit 0
