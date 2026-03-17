@@ -14,6 +14,7 @@ enum ImportStatus: string implements HasColor, HasIcon, HasLabel
     case Failed = 'failed';
     case Skipped = 'skipped';
     case NeedsPassword = 'needs_password';
+    case Duplicate = 'duplicate';
 
     public function getLabel(): string
     {
@@ -24,6 +25,7 @@ enum ImportStatus: string implements HasColor, HasIcon, HasLabel
             self::Failed => 'Failed',
             self::Skipped => 'Skipped',
             self::NeedsPassword => 'Needs Password',
+            self::Duplicate => 'Duplicate',
         };
     }
 
@@ -36,6 +38,7 @@ enum ImportStatus: string implements HasColor, HasIcon, HasLabel
             self::Failed => 'danger',
             self::Skipped => 'info',
             self::NeedsPassword => 'warning',
+            self::Duplicate => 'gray',
         };
     }
 
@@ -48,6 +51,7 @@ enum ImportStatus: string implements HasColor, HasIcon, HasLabel
             self::Failed => 'heroicon-m-x-circle',
             self::Skipped => 'heroicon-m-forward',
             self::NeedsPassword => 'heroicon-m-lock-closed',
+            self::Duplicate => 'heroicon-m-document-duplicate',
         };
     }
 }

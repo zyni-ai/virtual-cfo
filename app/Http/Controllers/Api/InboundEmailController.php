@@ -6,6 +6,7 @@ use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use App\Jobs\ProcessImportedFile;
+use App\Mail\DuplicateImportMail;
 use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Notifications\StatementReceivedByEmailNotification;
@@ -13,6 +14,7 @@ use App\Services\StatementClassifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
@@ -39,6 +41,18 @@ class InboundEmailController
         $messageId = $request->input('Message-Id');
 
         if ($messageId && $this->isDuplicate($company, $messageId)) {
+            $original = ImportedFile::query()
+                ->where('company_id', $company->id)
+                ->where('message_id', $messageId)
+                ->first();
+
+            $this->notifySenderOfDuplicate(
+                senderFrom: $request->input('from', $request->input('sender')),
+                filename: null,
+                company: $company,
+                original: $original,
+            );
+
             return response()->json(['status' => 'ok', 'files_processed' => 0]);
         }
 
@@ -55,19 +69,15 @@ class InboundEmailController
 
         foreach ($attachments as $attachment) {
             $importedFile = $this->storeAttachment($attachment, $company, $metadata);
+            $filesProcessed++;
 
-            if ($importedFile) {
-                $filesProcessed++;
+            $status = $importedFile->status;
 
-                /** @var ImportStatus $status */
-                $status = $importedFile->status;
-
-                if ($status !== ImportStatus::Skipped) {
-                    ProcessImportedFile::dispatch($importedFile);
-                }
-
-                $this->notifyAdmins($company, $importedFile, $metadata);
+            if ($status !== ImportStatus::Skipped && $status !== ImportStatus::Duplicate) {
+                ProcessImportedFile::dispatch($importedFile);
             }
+
+            $this->notifyAdmins($company, $importedFile, $metadata);
         }
 
         return response()->json([
@@ -103,6 +113,38 @@ class InboundEmailController
         }
 
         return mb_substr((string) $body, 0, 2000);
+    }
+
+    private function notifySenderOfDuplicate(
+        ?string $senderFrom,
+        ?string $filename,
+        Company $company,
+        ?ImportedFile $original = null,
+    ): void {
+        $senderEmail = $this->extractEmail($senderFrom);
+
+        if (! $senderEmail) {
+            return;
+        }
+
+        Mail::to($senderEmail)->queue(new DuplicateImportMail(
+            filename: $filename ?? $original?->original_filename ?? 'unknown',
+            companyName: $company->name,
+            originalImportedAt: $original?->created_at->toFormattedDateString() ?? now()->toFormattedDateString(),
+        ));
+    }
+
+    private function extractEmail(?string $from): ?string
+    {
+        if (! $from) {
+            return null;
+        }
+
+        if (preg_match('/<([^>]+)>/', $from, $matches)) {
+            return $matches[1];
+        }
+
+        return filter_var($from, FILTER_VALIDATE_EMAIL) ? $from : null;
     }
 
     private function isDuplicate(Company $company, string $messageId): bool
@@ -146,12 +188,37 @@ class InboundEmailController
         UploadedFile $file,
         Company $company,
         array $metadata,
-    ): ?ImportedFile {
+    ): ImportedFile {
         $contents = $file->getContent();
         $fileHash = hash('sha256', $contents);
 
-        if (ImportedFile::query()->where('company_id', $company->id)->where('file_hash', $fileHash)->exists()) {
-            return null;
+        $original = ImportedFile::query()
+            ->where('company_id', $company->id)
+            ->where('file_hash', $fileHash)
+            ->first();
+
+        if ($original) {
+            $filename = $file->getClientOriginalName();
+
+            $this->notifySenderOfDuplicate(
+                senderFrom: $metadata['from'] ?? null,
+                filename: $filename,
+                company: $company,
+                original: $original,
+            );
+
+            return ImportedFile::create([
+                'company_id' => $company->id,
+                'file_path' => $original->file_path,
+                'original_filename' => $filename,
+                'file_hash' => $fileHash,
+                'source' => ImportSource::Email,
+                'source_metadata' => $metadata,
+                'message_id' => $metadata['message_id'] ?? null,
+                'statement_type' => $original->statement_type,
+                'status' => ImportStatus::Duplicate,
+                'error_message' => "Duplicate of file imported on {$original->created_at->toDateString()}.",
+            ]);
         }
 
         $extension = $file->getClientOriginalExtension() ?: 'pdf';
