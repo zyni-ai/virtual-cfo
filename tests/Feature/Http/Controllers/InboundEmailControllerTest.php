@@ -353,7 +353,7 @@ describe('InboundEmailController filename classification', function () {
             ->and($importedFile->status)->toBe(ImportStatus::Pending);
     });
 
-    it('marks unrecognized filenames as Skipped when email has no signals', function () {
+    it('imports PDFs with unrecognized filenames as Pending rather than Skipped', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
         $pdf = UploadedFile::fake()->create('monthly_report.pdf', 100, 'application/pdf');
@@ -364,8 +364,7 @@ describe('InboundEmailController filename classification', function () {
         ));
 
         $importedFile = ImportedFile::first();
-        expect($importedFile->status)->toBe(ImportStatus::Skipped)
-            ->and($importedFile->error_message)->toContain('monthly_report.pdf');
+        expect($importedFile->status)->toBe(ImportStatus::Pending);
     });
 
     it('recognizes bill filenames as Invoice type', function () {
@@ -424,7 +423,7 @@ describe('InboundEmailController filename classification', function () {
         expect($importedFile->statement_type)->toBe(StatementType::Invoice);
     });
 
-    it('does not dispatch ProcessImportedFile for skipped files', function () {
+    it('dispatches ProcessImportedFile for PDFs with unrecognized filenames', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
         $pdf = UploadedFile::fake()->create('balance_sheet.pdf', 100, 'application/pdf');
@@ -434,10 +433,10 @@ describe('InboundEmailController filename classification', function () {
             ['attachment-1' => $pdf],
         ));
 
-        Queue::assertNotPushed(ProcessImportedFile::class);
+        Queue::assertPushed(ProcessImportedFile::class);
 
         $importedFile = ImportedFile::first();
-        expect($importedFile->status)->toBe(ImportStatus::Skipped);
+        expect($importedFile->status)->toBe(ImportStatus::Pending);
     });
 
     it('counts skipped files in files_processed', function () {
@@ -663,6 +662,69 @@ describe('InboundEmailController job dispatch', function () {
         ));
 
         Queue::assertPushed(ProcessImportedFile::class, 1);
+    });
+});
+
+describe('InboundEmailController non-standard filenames', function () {
+    it('imports a PDF with a generic scanned filename as Pending', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('scan001.pdf', 100, 'application/pdf');
+
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'subject' => 'Fwd: please see attached']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $response->assertSuccessful()->assertJson(['files_processed' => 1]);
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile)->not->toBeNull()
+            ->and($importedFile->status)->toBe(ImportStatus::Pending)
+            ->and($importedFile->original_filename)->toBe('scan001.pdf');
+    });
+
+    it('imports a PDF named document.pdf as Pending', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'subject' => 'Fwd: docs']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $response->assertSuccessful()->assertJson(['files_processed' => 1]);
+
+        expect(ImportedFile::first()->status)->toBe(ImportStatus::Pending);
+    });
+
+    it('dispatches ProcessImportedFile for a PDF with a generic filename', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('scan001.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'subject' => 'Fwd: please see attached']),
+            ['attachment-1' => $pdf],
+        ));
+
+        Queue::assertPushed(ProcessImportedFile::class);
+    });
+
+    it('imports a PNG image with a generic filename as Pending', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $img = UploadedFile::fake()->image('photo001.png');
+
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'subject' => 'Fwd: please see attached']),
+            ['attachment-1' => $img],
+        ));
+
+        $response->assertSuccessful()->assertJson(['files_processed' => 1]);
+
+        expect(ImportedFile::first()->status)->toBe(ImportStatus::Pending);
     });
 });
 

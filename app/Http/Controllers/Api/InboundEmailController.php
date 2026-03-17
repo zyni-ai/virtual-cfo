@@ -58,14 +58,7 @@ class InboundEmailController
 
             if ($importedFile) {
                 $filesProcessed++;
-
-                /** @var ImportStatus $status */
-                $status = $importedFile->status;
-
-                if ($status !== ImportStatus::Skipped) {
-                    ProcessImportedFile::dispatch($importedFile);
-                }
-
+                ProcessImportedFile::dispatch($importedFile);
                 $this->notifyAdmins($company, $importedFile, $metadata);
             }
         }
@@ -172,16 +165,8 @@ class InboundEmailController
             'message_id' => $metadata['message_id'] ?? null,
         ];
 
-        if ($classification === null) {
-            return ImportedFile::create($attributes + [
-                'statement_type' => StatementType::Invoice,
-                'status' => ImportStatus::Skipped,
-                'error_message' => "Filename does not appear to be an invoice or statement: {$filename}",
-            ]);
-        }
-
         return ImportedFile::create($attributes + [
-            'statement_type' => $classification,
+            'statement_type' => $classification ?? StatementType::Invoice,
             'status' => ImportStatus::Pending,
         ]);
     }
