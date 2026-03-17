@@ -5,6 +5,8 @@ namespace App\Filament\Pages\Tenancy;
 use App\Enums\UserRole;
 use App\Models\Company;
 use App\Support\GstinValidator;
+use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Pages\Tenancy\RegisterTenant;
@@ -51,6 +53,22 @@ class RegisterCompany extends RegisterTenant
                     ])
                     ->default('INR'),
             ]);
+    }
+
+    protected function getFormActions(): array
+    {
+        return [
+            ...parent::getFormActions(),
+            $this->cancelAction(),
+        ];
+    }
+
+    public function cancelAction(): Action
+    {
+        return Action::make('cancel')
+            ->label('Cancel')
+            ->color('gray')
+            ->action(fn () => $this->redirect(Filament::getLoginUrl()));
     }
 
     protected function handleRegistration(array $data): Company
