@@ -16,14 +16,18 @@ class ImportedFileDownloadController
     {
         $this->authorize('view', $importedFile);
 
-        if (! Storage::disk('local')->exists($importedFile->file_path)) {
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists($importedFile->file_path)) {
             throw new NotFoundHttpException('File not found on disk.');
         }
 
-        return Storage::disk('local')->download(
+        $mimeType = $disk->mimeType($importedFile->file_path) ?: 'application/octet-stream';
+
+        return $disk->download(
             $importedFile->file_path,
             $importedFile->original_filename,
-            ['Content-Type' => 'application/pdf']
+            ['Content-Type' => $mimeType]
         );
     }
 }
