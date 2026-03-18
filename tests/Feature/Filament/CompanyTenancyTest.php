@@ -176,6 +176,17 @@ describe('Register Company page', function () {
                 return $field->getName() === 'state';
             });
     });
+
+    it('renders a cancel button on the company registration page', function () {
+        livewire(RegisterCompany::class)
+            ->assertActionExists('cancel');
+    });
+
+    it('redirects to login when cancel is clicked on the company registration page', function () {
+        livewire(RegisterCompany::class)
+            ->callAction('cancel')
+            ->assertRedirect(route('filament.admin.auth.login'));
+    });
 });
 
 describe('Edit Company Settings page', function () {
