@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
+use App\Enums\UserRole;
 use App\Jobs\ProcessImportedFile;
 use App\Models\Company;
 use App\Models\ImportedFile;
+use App\Models\User;
 use App\Notifications\StatementReceivedByEmailNotification;
 use App\Services\StatementClassifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
@@ -52,6 +55,7 @@ class InboundEmailController
 
         $filesProcessed = 0;
         $attachments = $this->extractAttachments($request);
+        $admins = null;
 
         foreach ($attachments as $attachment) {
             $importedFile = $this->storeAttachment($attachment, $company, $metadata);
@@ -59,7 +63,8 @@ class InboundEmailController
             if ($importedFile) {
                 $filesProcessed++;
                 ProcessImportedFile::dispatch($importedFile);
-                $this->notifyAdmins($company, $importedFile, $metadata);
+                $admins ??= $company->users()->wherePivot('role', UserRole::Admin->value)->get();
+                $this->notifyAdmins($company, $admins, $importedFile, $metadata);
             }
         }
 
@@ -70,12 +75,11 @@ class InboundEmailController
     }
 
     /**
+     * @param  Collection<int, User>  $admins
      * @param  array<string, mixed>  $metadata
      */
-    private function notifyAdmins(Company $company, ImportedFile $importedFile, array $metadata): void
+    private function notifyAdmins(Company $company, Collection $admins, ImportedFile $importedFile, array $metadata): void
     {
-        $admins = $company->users()->wherePivot('role', 'admin')->get();
-
         if ($admins->isEmpty()) {
             return;
         }
