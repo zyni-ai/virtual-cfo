@@ -7,11 +7,14 @@ use App\Enums\MatchMethod;
 use App\Enums\MatchType;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
+use App\Enums\UserRole;
 use App\Exports\TransactionCsvExport;
 use App\Exports\TransactionExcelExport;
 use App\Filament\Resources\TransactionResource\Pages;
 use App\Jobs\MatchTransactionHeads;
 use App\Models\AccountHead;
+use App\Models\Company;
+use App\Models\CreditCard;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
@@ -19,17 +22,20 @@ use App\Services\Reconciliation\ReconciliationService;
 use App\Services\TallyExport\TallyExportService;
 use BackedEnum;
 use Filament\Actions;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Livewire\Component;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -298,13 +304,13 @@ class TransactionResource extends Resource
                                 ->label('Target Company')
                                 ->options(function () {
                                     $user = Auth::user();
-                                    /** @var \App\Models\Company|null $currentTenant */
-                                    $currentTenant = \Filament\Facades\Filament::getTenant();
+                                    /** @var Company|null $currentTenant */
+                                    $currentTenant = Filament::getTenant();
 
-                                    return \App\Models\Company::query()
+                                    return Company::query()
                                         ->whereHas('users', function (Builder $q) use ($user) {
                                             $q->where('users.id', $user->id)
-                                                ->where('company_user.role', \App\Enums\UserRole::Admin->value);
+                                                ->where('company_user.role', UserRole::Admin->value);
                                         })
                                         ->when($currentTenant, fn (Builder $q) => $q->where('companies.id', '!=', $currentTenant->id))
                                         ->pluck('name', 'id');
@@ -313,7 +319,7 @@ class TransactionResource extends Resource
                                 ->required(),
                         ])
                         ->action(function (Collection $records, array $data) {
-                            $targetCompany = \App\Models\Company::find($data['target_company_id']);
+                            $targetCompany = Company::find($data['target_company_id']);
 
                             $creditCardIds = $records->pluck('imported_file_id')
                                 ->map(fn ($fileId) => ImportedFile::find($fileId)?->credit_card_id)
@@ -321,7 +327,7 @@ class TransactionResource extends Resource
                                 ->unique();
 
                             $allShared = $creditCardIds->every(function ($cardId) use ($targetCompany) {
-                                $card = \App\Models\CreditCard::find($cardId);
+                                $card = CreditCard::find($cardId);
 
                                 return $card && $card->isSharedWith($targetCompany);
                             });
@@ -387,9 +393,12 @@ class TransactionResource extends Resource
                             Forms\Components\DatePicker::make('until')
                                 ->label('Until Date'),
                         ])
-                        ->action(function (array $data): StreamedResponse {
-                            $query = Transaction::whereNotNull('account_head_id')
-                                ->with(['accountHead', 'importedFile.company', 'importedFile.bankAccount'])
+                        ->action(function (array $data, Component $livewire): StreamedResponse {
+                            $query = $livewire instanceof HasTable
+                                ? $livewire->getTableQueryForExport()->whereNotNull('account_head_id')
+                                : Transaction::whereNotNull('account_head_id');
+
+                            $query->with(['accountHead', 'importedFile.company', 'importedFile.bankAccount'])
                                 ->orderBy('date');
 
                             if (! empty($data['from'])) {
@@ -402,7 +411,7 @@ class TransactionResource extends Resource
 
                             $transactions = $query->get();
 
-                            $service = new TallyExportService;
+                            $service = app(TallyExportService::class);
                             $xml = $service->exportTransactions($transactions);
 
                             return response()->streamDownload(
@@ -421,10 +430,11 @@ class TransactionResource extends Resource
                             Forms\Components\DatePicker::make('until')
                                 ->label('Until Date'),
                         ])
-                        ->action(function (array $data): BinaryFileResponse {
+                        ->action(function (array $data, Component $livewire): BinaryFileResponse {
                             $export = new TransactionCsvExport(
                                 from: $data['from'] ?? null,
                                 until: $data['until'] ?? null,
+                                baseQuery: self::resolveExportBaseQuery($livewire),
                             );
 
                             return Excel::download(
@@ -442,10 +452,11 @@ class TransactionResource extends Resource
                             Forms\Components\DatePicker::make('until')
                                 ->label('Until Date'),
                         ])
-                        ->action(function (array $data): BinaryFileResponse {
+                        ->action(function (array $data, Component $livewire): BinaryFileResponse {
                             $export = new TransactionExcelExport(
                                 from: $data['from'] ?? null,
                                 until: $data['until'] ?? null,
+                                baseQuery: self::resolveExportBaseQuery($livewire),
                             );
 
                             return Excel::download(
@@ -462,6 +473,14 @@ class TransactionResource extends Resource
             ->emptyStateHeading('No transactions yet')
             ->emptyStateDescription('Transactions appear here after you upload and process a bank statement or invoice.')
             ->emptyStateIcon('heroicon-o-banknotes');
+    }
+
+    /** @return Builder<Transaction>|null */
+    private static function resolveExportBaseQuery(Component $livewire): ?Builder
+    {
+        return $livewire instanceof HasTable
+            ? $livewire->getTableQueryForExport()
+            : null;
     }
 
     public static function getRelations(): array

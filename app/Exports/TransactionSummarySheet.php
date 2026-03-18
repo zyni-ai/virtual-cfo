@@ -6,6 +6,7 @@ use App\Models\AccountHead;
 use App\Models\Company;
 use App\Models\Transaction;
 use Filament\Facades\Filament;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -13,9 +14,11 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 
 class TransactionSummarySheet implements FromCollection, WithHeadings, WithTitle
 {
+    /** @param Builder<Transaction>|null $baseQuery */
     public function __construct(
         public ?string $from = null,
         public ?string $until = null,
+        public ?Builder $baseQuery = null,
     ) {}
 
     public function title(): string
@@ -42,13 +45,20 @@ class TransactionSummarySheet implements FromCollection, WithHeadings, WithTitle
      */
     public function collection(): Collection
     {
-        /** @var Company $tenant */
-        $tenant = Filament::getTenant();
+        if ($this->baseQuery) {
+            $query = $this->baseQuery
+                ->clone()
+                ->whereNotNull('account_head_id')
+                ->with('accountHead');
+        } else {
+            /** @var Company $tenant */
+            $tenant = Filament::getTenant();
 
-        $query = Transaction::query()
-            ->where('company_id', $tenant->id)
-            ->whereNotNull('account_head_id')
-            ->with('accountHead');
+            $query = Transaction::query()
+                ->where('company_id', $tenant->id)
+                ->whereNotNull('account_head_id')
+                ->with('accountHead');
+        }
 
         if ($this->from) {
             $query->whereDate('date', '>=', $this->from);
