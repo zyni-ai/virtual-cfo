@@ -15,6 +15,79 @@ use Illuminate\Support\Facades\Queue;
 
 use function Pest\Livewire\livewire;
 
+describe('ImportedFileResource pdf_password autocomplete', function () {
+    beforeEach(function () {
+        asUser();
+    });
+
+    it('pdf_password field on create form has autocomplete="new-password"', function () {
+        livewire(CreateImportedFile::class)
+            ->assertSeeHtml('autocomplete="new-password"');
+    });
+
+    it('pdf_password field in setPassword header action accepts a typed password', function () {
+        Queue::fake();
+
+        $file = ImportedFile::factory()->create(['status' => ImportStatus::NeedsPassword]);
+
+        livewire(ViewImportedFile::class, ['record' => $file->getRouteKey()])
+            ->callAction('setPassword', data: ['pdf_password' => 'typed-password']);
+
+        $file->refresh();
+        expect($file->source_metadata['manual_password'])->toBe('typed-password');
+    });
+});
+
+describe('ImportedFileResource view page setPassword header action', function () {
+    beforeEach(function () {
+        asUser();
+    });
+
+    it('shows setPassword header action when status is NeedsPassword', function () {
+        $file = ImportedFile::factory()->create(['status' => ImportStatus::NeedsPassword]);
+
+        livewire(ViewImportedFile::class, ['record' => $file->getRouteKey()])
+            ->assertActionVisible('setPassword');
+    });
+
+    it('hides setPassword header action when status is not NeedsPassword', function () {
+        $file = ImportedFile::factory()->completed()->create();
+
+        livewire(ViewImportedFile::class, ['record' => $file->getRouteKey()])
+            ->assertActionHidden('setPassword');
+    });
+
+    it('hides setPassword header action when status is Pending', function () {
+        $file = ImportedFile::factory()->create(['status' => ImportStatus::Pending]);
+
+        livewire(ViewImportedFile::class, ['record' => $file->getRouteKey()])
+            ->assertActionHidden('setPassword');
+    });
+
+    it('setPassword header action saves password, resets status, and dispatches job', function () {
+        Queue::fake();
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::NeedsPassword,
+            'error_message' => 'This PDF is password-protected.',
+            'total_rows' => 5,
+            'mapped_rows' => 2,
+        ]);
+
+        livewire(ViewImportedFile::class, ['record' => $file->getRouteKey()])
+            ->callAction('setPassword', data: ['pdf_password' => 'secret123']);
+
+        $file->refresh();
+        expect($file->status)->toBe(ImportStatus::Pending)
+            ->and($file->error_message)->toBeNull()
+            ->and($file->total_rows)->toBe(0)
+            ->and($file->mapped_rows)->toBe(0)
+            ->and($file->source_metadata['manual_password'])->toBe('secret123');
+
+        Queue::assertPushed(ProcessImportedFile::class, fn ($job) => $job->importedFile->id === $file->id);
+    });
+});
+
 describe('ImportedFileResource reactive form', function () {
     beforeEach(function () {
         asUser();
@@ -266,7 +339,7 @@ describe('ImportedFileResource', function () {
     });
 
     it('shows linked bank account name in table', function () {
-        $account = \App\Models\BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'HDFC Bank']);
+        $account = BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'HDFC Bank']);
         ImportedFile::factory()->create([
             'company_id' => tenant()->id,
             'bank_account_id' => $account->id,
