@@ -8,6 +8,7 @@ use App\Enums\StatementType;
 use App\Filament\Resources\ImportedFileResource\Pages;
 use App\Jobs\ProcessImportedFile;
 use App\Models\ImportedFile;
+use App\Services\StatementClassifier;
 use BackedEnum;
 use Filament\Actions;
 use Filament\Forms;
@@ -20,6 +21,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 
 class ImportedFileResource extends Resource
 {
@@ -79,6 +81,7 @@ class ImportedFileResource extends Resource
                             ->label('PDF Password (optional)')
                             ->password()
                             ->revealable()
+                            ->extraInputAttributes(['autocomplete' => 'new-password'])
                             ->helperText('If the PDF is password-protected, enter the password here.')
                             ->columnSpanFull(),
 
@@ -160,38 +163,7 @@ class ImportedFileResource extends Resource
                         ->url(fn (ImportedFile $record): string => route('imported-files.download', $record))
                         ->openUrlInNewTab(),
 
-                    Actions\Action::make('setPassword')
-                        ->label('Set Password')
-                        ->icon('heroicon-o-key')
-                        ->color('warning')
-                        ->schema([
-                            Forms\Components\TextInput::make('pdf_password')
-                                ->label('PDF Password')
-                                ->password()
-                                ->revealable()
-                                ->required(),
-                        ])
-                        ->modalHeading('Set PDF Password')
-                        ->modalDescription('Enter the password for this PDF. The file will be re-processed automatically.')
-                        ->modalSubmitActionLabel('Decrypt & Process')
-                        ->action(function (ImportedFile $record, array $data) {
-                            $metadata = $record->source_metadata ?? [];
-                            $metadata['manual_password'] = $data['pdf_password'];
-
-                            \Illuminate\Support\Facades\DB::transaction(function () use ($record, $metadata) {
-                                $record->transactions()->delete();
-                                $record->update([
-                                    'source_metadata' => $metadata,
-                                    'status' => ImportStatus::Pending,
-                                    'total_rows' => 0,
-                                    'mapped_rows' => 0,
-                                    'error_message' => null,
-                                ]);
-                            });
-
-                            ProcessImportedFile::dispatch($record);
-                        })
-                        ->visible(fn (ImportedFile $record) => $record->status === ImportStatus::NeedsPassword),
+                    static::makeSetPasswordAction(),
 
                     Actions\Action::make('changeType')
                         ->label('Change Type')
@@ -223,9 +195,9 @@ class ImportedFileResource extends Resource
                         ->color('warning')
                         ->requiresConfirmation()
                         ->action(function (ImportedFile $record) {
-                            $reclassified = (new \App\Services\StatementClassifier)->classifyFromMetadata($record);
+                            $reclassified = (new StatementClassifier)->classifyFromMetadata($record);
 
-                            \Illuminate\Support\Facades\DB::transaction(function () use ($record, $reclassified) {
+                            DB::transaction(function () use ($record, $reclassified) {
                                 $record->transactions()->delete();
                                 $record->update([
                                     'status' => ImportStatus::Pending,
@@ -271,6 +243,43 @@ class ImportedFileResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    public static function makeSetPasswordAction(): Actions\Action
+    {
+        return Actions\Action::make('setPassword')
+            ->label('Set Password')
+            ->icon('heroicon-o-key')
+            ->color('warning')
+            ->schema([
+                Forms\Components\TextInput::make('pdf_password')
+                    ->label('PDF Password')
+                    ->password()
+                    ->revealable()
+                    ->extraInputAttributes(['autocomplete' => 'new-password'])
+                    ->required(),
+            ])
+            ->modalHeading('Set PDF Password')
+            ->modalDescription('Enter the password for this PDF. The file will be re-processed automatically.')
+            ->modalSubmitActionLabel('Decrypt & Process')
+            ->action(function (ImportedFile $record, array $data): void {
+                $metadata = $record->source_metadata ?? [];
+                $metadata['manual_password'] = $data['pdf_password'];
+
+                DB::transaction(function () use ($record, $metadata): void {
+                    $record->transactions()->delete();
+                    $record->update([
+                        'source_metadata' => $metadata,
+                        'status' => ImportStatus::Pending,
+                        'total_rows' => 0,
+                        'mapped_rows' => 0,
+                        'error_message' => null,
+                    ]);
+                });
+
+                ProcessImportedFile::dispatch($record);
+            })
+            ->visible(fn (ImportedFile $record): bool => $record->status === ImportStatus::NeedsPassword);
     }
 
     public static function getRelations(): array

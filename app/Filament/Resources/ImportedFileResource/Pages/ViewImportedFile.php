@@ -24,6 +24,8 @@ class ViewImportedFile extends ViewRecord
                 ->color('gray')
                 ->url(fn (): string => route('imported-files.download', $this->record))
                 ->openUrlInNewTab(),
+
+            ImportedFileResource::makeSetPasswordAction(),
         ];
     }
 
