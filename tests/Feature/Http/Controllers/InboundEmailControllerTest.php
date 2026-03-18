@@ -7,7 +7,11 @@ use App\Http\Middleware\VerifyMailgunSignature;
 use App\Jobs\ProcessImportedFile;
 use App\Models\Company;
 use App\Models\ImportedFile;
+use App\Models\User;
+use App\Notifications\StatementReceivedByEmailNotification;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -840,5 +844,53 @@ describe('InboundEmailController multi-tenant isolation', function () {
         ));
 
         $response->assertSuccessful()->assertJson(['files_processed' => 1]);
+    });
+});
+
+describe('InboundEmailController admin notification query count', function () {
+    it('queries admin users only once regardless of attachment count', function () {
+        Notification::fake();
+
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+        $admin = User::factory()->create();
+        $company->users()->attach($admin, ['role' => 'admin']);
+
+        $img1 = UploadedFile::fake()->image('invoice1.png', 100, 100);
+        $img2 = UploadedFile::fake()->image('invoice2.png', 200, 200);
+
+        $pivotQueryCount = 0;
+        DB::listen(function ($query) use (&$pivotQueryCount) {
+            if (str_contains($query->sql, 'company_user')) {
+                $pivotQueryCount++;
+            }
+        });
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '2']),
+            ['attachment-1' => $img1, 'attachment-2' => $img2],
+        ));
+
+        expect($pivotQueryCount)->toBe(1);
+    });
+
+    it('still notifies admins for each processed attachment', function () {
+        Notification::fake();
+
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+        $admin = User::factory()->create();
+        $company->users()->attach($admin, ['role' => 'admin']);
+
+        $img1 = UploadedFile::fake()->image('invoice1.png', 100, 100);
+        $img2 = UploadedFile::fake()->image('invoice2.png', 200, 200);
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '2']),
+            ['attachment-1' => $img1, 'attachment-2' => $img2],
+        ));
+
+        Notification::assertSentTimes(
+            StatementReceivedByEmailNotification::class,
+            2
+        );
     });
 });
