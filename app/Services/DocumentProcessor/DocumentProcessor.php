@@ -16,7 +16,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Files\Document;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class DocumentProcessor
 {
@@ -90,9 +92,20 @@ class DocumentProcessor
             return;
         }
 
-        DB::transaction(function () use ($file, $rows) {
+        $imported = 0;
+
+        DB::transaction(function () use ($file, $rows, &$imported) {
             foreach ($rows as $row) {
                 $normalized = $this->normalizeStructuredRow($row);
+
+                if ($normalized['date'] === null) {
+                    Log::warning('Skipping row with unparseable date in structured import', [
+                        'file_id' => $file->id,
+                        'row' => $row,
+                    ]);
+
+                    continue;
+                }
 
                 Transaction::create([
                     'company_id' => $file->company_id,
@@ -107,11 +120,13 @@ class DocumentProcessor
                     'raw_data' => $row,
                     'bank_format' => $file->bank_name,
                 ]);
+
+                $imported++;
             }
 
             $file->update([
                 'status' => ImportStatus::Completed,
-                'total_rows' => count($rows),
+                'total_rows' => $imported,
                 'mapped_rows' => 0,
                 'processed_at' => now(),
             ]);
@@ -131,14 +146,48 @@ class DocumentProcessor
             $normalized[strtolower(trim((string) $key))] = $value;
         }
 
+        $rawDate = $this->extractField($normalized, ['date', 'transaction_date', 'txn_date', 'value_date', 'posting_date']);
+
         return [
-            'date' => $this->extractField($normalized, ['date', 'transaction_date', 'txn_date', 'value_date', 'posting_date']),
+            'date' => $this->parseDateField($rawDate),
             'description' => $this->extractField($normalized, ['description', 'narration', 'particulars', 'details', 'transaction_description']),
             'reference' => $this->extractField($normalized, ['reference', 'ref', 'reference_number', 'ref_no', 'cheque_no', 'chq_no']),
             'debit' => $this->extractNumericField($normalized, ['debit', 'debit_amount', 'withdrawal', 'withdrawals', 'dr']),
             'credit' => $this->extractNumericField($normalized, ['credit', 'credit_amount', 'deposit', 'deposits', 'cr']),
             'balance' => $this->extractNumericField($normalized, ['balance', 'closing_balance', 'running_balance', 'available_balance']),
         ];
+    }
+
+    /**
+     * Parse a date value that may be an Excel serial number, a DateTime object, or a date string.
+     *
+     * Returns a Carbon date string (Y-m-d) on success, or null if the value cannot be parsed.
+     */
+    protected function parseDateField(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof \DateTime) {
+            return Carbon::instance($value)->toDateString();
+        }
+
+        if (is_numeric($value)) {
+            try {
+                $dateTime = ExcelDate::excelToDateTimeObject((float) $value);
+
+                return Carbon::instance($dateTime)->toDateString();
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        try {
+            return Carbon::parse((string) $value)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
@@ -510,7 +559,7 @@ class DocumentProcessor
         $totalAmount = $response['total_amount'] ?? null;
         $currency = $response['currency'] ?? null;
 
-        /** @var \Laravel\Ai\Responses\StructuredAgentResponse $response */
+        /** @var StructuredAgentResponse $response */
         $rawData = $response->toArray();
 
         DB::transaction(function () use ($file, $rawData, $vendorName, $invoiceNumber, $invoiceDate, $totalAmount, $currency) {
