@@ -19,9 +19,11 @@ use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\Reconciliation\ReconciliationService;
+use App\Services\RuleSuggestion\RuleSuggestionService;
 use App\Services\TallyExport\TallyExportService;
 use BackedEnum;
 use Filament\Actions;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -139,7 +141,7 @@ class TransactionResource extends Resource
                     ),
             ])
             ->actions([
-                Actions\Action::make('assign_head')
+                Action::make('assign_head')
                     ->label('Assign Head')
                     ->icon('heroicon-o-tag')
                     ->form([
@@ -164,10 +166,13 @@ class TransactionResource extends Resource
                                     ->count(),
                             ]);
                         });
+
+                        $record->refresh();
+                        self::sendRuleSuggestionNotification($record);
                     }),
 
                 Actions\ActionGroup::make([
-                    Actions\Action::make('create_rule')
+                    Action::make('create_rule')
                         ->label('Create Rule')
                         ->icon('heroicon-o-plus-circle')
                         ->color('info')
@@ -209,7 +214,7 @@ class TransactionResource extends Resource
                         })
                         ->visible(fn (Transaction $record) => $record->account_head_id !== null),
 
-                    Actions\Action::make('match_invoice')
+                    Action::make('match_invoice')
                         ->label('Match Invoice')
                         ->icon('heroicon-o-link')
                         ->color('warning')
@@ -292,6 +297,13 @@ class TransactionResource extends Resource
                                     }
                                 }
                             });
+
+                            /** @var Transaction|null $first */
+                            $first = $records->first();
+                            if ($first) {
+                                $first->refresh();
+                                self::sendRuleSuggestionNotification($first);
+                            }
                         })
                         ->deselectRecordsAfterCompletion(),
 
@@ -360,7 +372,7 @@ class TransactionResource extends Resource
                 ]),
             ])
             ->headerActions([
-                Actions\Action::make('run_ai_matching')
+                Action::make('run_ai_matching')
                     ->label('Run AI Matching')
                     ->icon('heroicon-o-cpu-chip')
                     ->color('warning')
@@ -384,7 +396,7 @@ class TransactionResource extends Resource
                     }),
 
                 Actions\ActionGroup::make([
-                    Actions\Action::make('export_tally')
+                    Action::make('export_tally')
                         ->label('Tally XML')
                         ->icon('heroicon-o-document-text')
                         ->form([
@@ -421,7 +433,7 @@ class TransactionResource extends Resource
                             );
                         }),
 
-                    Actions\Action::make('export_csv')
+                    Action::make('export_csv')
                         ->label('CSV')
                         ->icon('heroicon-o-table-cells')
                         ->form([
@@ -443,7 +455,7 @@ class TransactionResource extends Resource
                             );
                         }),
 
-                    Actions\Action::make('export_excel')
+                    Action::make('export_excel')
                         ->label('Excel')
                         ->icon('heroicon-o-document-arrow-down')
                         ->form([
@@ -473,6 +485,46 @@ class TransactionResource extends Resource
             ->emptyStateHeading('No transactions yet')
             ->emptyStateDescription('Transactions appear here after you upload and process a bank statement or invoice.')
             ->emptyStateIcon('heroicon-o-banknotes');
+    }
+
+    private static function sendRuleSuggestionNotification(Transaction $record): void
+    {
+        $user = Auth::user();
+        /** @var \App\Models\Company|null $tenant */
+        $tenant = Filament::getTenant();
+
+        if (! $user || ! $tenant) {
+            return;
+        }
+
+        $suggestion = app(RuleSuggestionService::class)->suggest($record, $user, $tenant->id);
+
+        if (! $suggestion) {
+            return;
+        }
+
+        Notification::make()
+            ->title('Create a mapping rule?')
+            ->body("{$suggestion->matchCount} similar unmapped transaction(s) found for '{$suggestion->pattern}' → '{$suggestion->accountHeadName}'.")
+            ->info()
+            ->actions([
+                Action::make('create_rule')
+                    ->label('Create Rule')
+                    ->button()
+                    ->dispatchSelf('openRuleSuggestion', [[
+                        'pattern' => $suggestion->pattern,
+                        'accountHeadId' => $suggestion->accountHeadId,
+                        'importedFileId' => $suggestion->importedFileId,
+                        'matchCount' => $suggestion->matchCount,
+                    ]])
+                    ->close(),
+                Action::make('dismiss')
+                    ->label('Dismiss')
+                    ->color('gray')
+                    ->dispatchSelf('dismissRuleSuggestion', [$suggestion->pattern, $tenant->id])
+                    ->close(),
+            ])
+            ->send();
     }
 
     /** @return Builder<Transaction>|null */
