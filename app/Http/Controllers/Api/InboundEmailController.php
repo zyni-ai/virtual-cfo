@@ -17,6 +17,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class InboundEmailController
 {
@@ -146,7 +147,7 @@ class InboundEmailController
         $fileHash = hash('sha256', $contents);
 
         $extension = $file->getClientOriginalExtension() ?: 'pdf';
-        $storagePath = 'statements/'.uniqid('email_', true).'.'.$extension;
+        $storagePath = 'statements/'.Str::uuid().'.'.$extension;
         $filename = $file->getClientOriginalName();
         $classification = $this->classifier->classify($metadata, $filename);
 

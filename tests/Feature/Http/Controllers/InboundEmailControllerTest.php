@@ -789,6 +789,23 @@ describe('InboundEmailController file hash', function () {
         expect($importedFile->file_hash)->not->toBeNull()
             ->and(strlen($importedFile->file_hash))->toBe(64);
     });
+
+    it('stores files with a UUID-based name instead of a predictable prefix', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        $basename = pathinfo($importedFile->file_path, PATHINFO_FILENAME);
+
+        expect($importedFile->file_path)->toStartWith('statements/')
+            ->and($basename)->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/');
+    });
 });
 
 describe('InboundEmailController multi-tenant isolation', function () {
