@@ -10,6 +10,7 @@ use App\Models\HeadMapping;
 use App\Models\Transaction;
 use BackedEnum;
 use Filament\Actions;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -18,6 +19,8 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 use UnitEnum;
 
 class HeadMappingResource extends Resource
@@ -48,6 +51,11 @@ class HeadMappingResource extends Resource
                                         $fail('The pattern is not a valid regular expression.');
                                     }
                                 },
+                                fn (Get $get, ?HeadMapping $record): Unique => Rule::unique(HeadMapping::class, 'pattern')
+                                    ->where('company_id', Filament::getTenant()?->getKey())
+                                    ->where('match_type', $get('match_type'))
+                                    ->where('account_head_id', $get('account_head_id'))
+                                    ->ignore($record?->id),
                             ]),
 
                         Forms\Components\Select::make('match_type')

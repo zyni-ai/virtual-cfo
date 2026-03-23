@@ -144,4 +144,75 @@ describe('AccountHeadResource', function () {
             ->assertSee('Import your chart of accounts from Tally to get started.')
             ->assertTableActionExists('import_tally_empty');
     });
+
+    it('shows a validation error instead of a database exception for duplicate account heads', function () {
+        AccountHead::factory()->create([
+            'company_id' => tenant()->id,
+            'name' => 'Bank Charges',
+            'group_name' => 'Indirect Expenses',
+        ]);
+
+        livewire(CreateAccountHead::class)
+            ->fillForm([
+                'name' => 'Bank Charges',
+                'group_name' => 'Indirect Expenses',
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['name']);
+
+        expect(AccountHead::where('name', 'Bank Charges')->count())->toBe(1);
+    });
+
+    it('allows same account head name with different group', function () {
+        AccountHead::factory()->create([
+            'company_id' => tenant()->id,
+            'name' => 'Bank Charges',
+            'group_name' => 'Indirect Expenses',
+        ]);
+
+        livewire(CreateAccountHead::class)
+            ->fillForm([
+                'name' => 'Bank Charges',
+                'group_name' => 'Direct Expenses',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        expect(AccountHead::where('name', 'Bank Charges')->count())->toBe(2);
+    });
+
+    it('allows editing an account head without triggering duplicate validation on itself', function () {
+        $head = AccountHead::factory()->create([
+            'company_id' => tenant()->id,
+            'name' => 'Bank Charges',
+            'group_name' => 'Indirect Expenses',
+        ]);
+
+        livewire(EditAccountHead::class, ['record' => $head->getRouteKey()])
+            ->fillForm([
+                'name' => 'Bank Charges',
+                'group_name' => 'Indirect Expenses',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+    });
+
+    it('allows creating an account head with a name that was previously soft-deleted', function () {
+        $head = AccountHead::factory()->create([
+            'company_id' => tenant()->id,
+            'name' => 'Bank Charges',
+            'group_name' => 'Indirect Expenses',
+        ]);
+        $head->delete();
+
+        livewire(CreateAccountHead::class)
+            ->fillForm([
+                'name' => 'Bank Charges',
+                'group_name' => 'Indirect Expenses',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        expect(AccountHead::where('name', 'Bank Charges')->count())->toBe(1);
+    });
 });
