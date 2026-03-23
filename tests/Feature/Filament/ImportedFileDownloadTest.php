@@ -91,6 +91,61 @@ describe('ImportedFile Download', function () {
         });
     });
 
+    describe('soft-deleted records', function () {
+        it('allows downloading a soft-deleted file', function () {
+            asUser();
+
+            Storage::disk('local')->put('statements/soft-deleted.pdf', 'fake pdf content');
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/soft-deleted.pdf',
+                'original_filename' => 'soft-deleted.pdf',
+            ]);
+
+            $file->delete();
+
+            $this->get(route('imported-files.download', $file->id))
+                ->assertOk()
+                ->assertHeader('content-type', 'application/pdf')
+                ->assertHeader('content-disposition', 'attachment; filename=soft-deleted.pdf');
+
+            Storage::disk('local')->delete('statements/soft-deleted.pdf');
+        });
+
+        it('returns 404 for soft-deleted file when physical file is gone', function () {
+            asUser();
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/gone.pdf',
+                'original_filename' => 'gone.pdf',
+            ]);
+
+            $file->delete();
+
+            $this->get(route('imported-files.download', $file->id))
+                ->assertNotFound();
+        });
+    });
+
+    describe('mime type detection', function () {
+        it('detects application/pdf for PDF files', function () {
+            asUser();
+
+            Storage::disk('local')->put('statements/mime-pdf.pdf', '%PDF-1.4 fake pdf');
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/mime-pdf.pdf',
+                'original_filename' => 'mime-pdf.pdf',
+            ]);
+
+            $this->get(route('imported-files.download', $file))
+                ->assertOk()
+                ->assertHeader('content-type', 'application/pdf');
+
+            Storage::disk('local')->delete('statements/mime-pdf.pdf');
+        });
+    });
+
     describe('table download action', function () {
         beforeEach(function () {
             asUser();
