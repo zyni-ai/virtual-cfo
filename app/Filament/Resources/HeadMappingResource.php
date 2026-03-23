@@ -19,7 +19,6 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
 use UnitEnum;
 
@@ -45,17 +44,23 @@ class HeadMappingResource extends Resource
                             ->label('Pattern')
                             ->required()
                             ->helperText('The text pattern to match against transaction descriptions')
+                            ->unique(
+                                table: HeadMapping::class,
+                                column: 'pattern',
+                                ignoreRecord: true,
+                                modifyRuleUsing: function (Unique $rule, Get $get): Unique {
+                                    return $rule
+                                        ->where('company_id', Filament::getTenant()?->getKey())
+                                        ->where('match_type', $get('match_type'))
+                                        ->where('account_head_id', $get('account_head_id'));
+                                },
+                            )
                             ->rules([
                                 fn (Get $get): \Closure => function (string $attribute, mixed $value, \Closure $fail) use ($get) {
                                     if ($get('match_type') === MatchType::Regex->value && @preg_match($value, '') === false) {
                                         $fail('The pattern is not a valid regular expression.');
                                     }
                                 },
-                                fn (Get $get, ?HeadMapping $record): Unique => Rule::unique(HeadMapping::class, 'pattern')
-                                    ->where('company_id', Filament::getTenant()?->getKey())
-                                    ->where('match_type', $get('match_type'))
-                                    ->where('account_head_id', $get('account_head_id'))
-                                    ->ignore($record?->id),
                             ]),
 
                         Forms\Components\Select::make('match_type')

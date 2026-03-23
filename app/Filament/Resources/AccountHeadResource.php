@@ -23,7 +23,6 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
 use UnitEnum;
 
@@ -49,13 +48,17 @@ class AccountHeadResource extends Resource
                             ->required()
                             ->maxLength(255)
                             ->helperText('The display name for this account head, as it appears in Tally.')
-                            ->rules([
-                                fn (Get $get, ?AccountHead $record): Unique => Rule::unique(AccountHead::class, 'name')
-                                    ->where('company_id', Filament::getTenant()?->getKey())
-                                    ->where('group_name', $get('group_name'))
-                                    ->whereNull('deleted_at')
-                                    ->ignore($record?->id),
-                            ]),
+                            ->unique(
+                                table: AccountHead::class,
+                                column: 'name',
+                                ignoreRecord: true,
+                                modifyRuleUsing: function (Unique $rule, Get $get): Unique {
+                                    return $rule
+                                        ->where('company_id', Filament::getTenant()?->getKey())
+                                        ->where('group_name', $get('group_name'))
+                                        ->whereNull('deleted_at');
+                                },
+                            ),
 
                         Forms\Components\Select::make('parent_id')
                             ->label('Parent Head')
