@@ -10,9 +10,11 @@ use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Notifications\StatementReceivedByEmailNotification;
 use App\Services\StatementClassifier;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
@@ -143,31 +145,29 @@ class InboundEmailController
         $contents = $file->getContent();
         $fileHash = hash('sha256', $contents);
 
-        if (ImportedFile::query()->where('company_id', $company->id)->where('file_hash', $fileHash)->exists()) {
-            return null;
-        }
-
         $extension = $file->getClientOriginalExtension() ?: 'pdf';
         $storagePath = 'statements/'.uniqid('email_', true).'.'.$extension;
-
-        Storage::disk('local')->put($storagePath, $contents);
-
         $filename = $file->getClientOriginalName();
         $classification = $this->classifier->classify($metadata, $filename);
 
-        $attributes = [
-            'company_id' => $company->id,
-            'file_path' => $storagePath,
-            'original_filename' => $filename,
-            'file_hash' => $fileHash,
-            'source' => ImportSource::Email,
-            'source_metadata' => $metadata,
-            'message_id' => $metadata['message_id'] ?? null,
-        ];
+        try {
+            $importedFile = DB::transaction(fn () => ImportedFile::create([
+                'company_id' => $company->id,
+                'file_path' => $storagePath,
+                'original_filename' => $filename,
+                'file_hash' => $fileHash,
+                'source' => ImportSource::Email,
+                'source_metadata' => $metadata,
+                'message_id' => $metadata['message_id'] ?? null,
+                'statement_type' => $classification ?? StatementType::Invoice,
+                'status' => ImportStatus::Pending,
+            ]));
+        } catch (UniqueConstraintViolationException) {
+            return null;
+        }
 
-        return ImportedFile::create($attributes + [
-            'statement_type' => $classification ?? StatementType::Invoice,
-            'status' => ImportStatus::Pending,
-        ]);
+        Storage::disk('local')->put($storagePath, $contents);
+
+        return $importedFile;
     }
 }
