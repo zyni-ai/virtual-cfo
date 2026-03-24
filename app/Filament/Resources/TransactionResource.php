@@ -507,6 +507,7 @@ class TransactionResource extends Resource
             ->title('Create a mapping rule?')
             ->body("{$suggestion->matchCount} similar unmapped transaction(s) found for '{$suggestion->pattern}' → '{$suggestion->accountHeadName}'.")
             ->info()
+            ->persistent()
             ->actions([
                 Action::make('create_rule')
                     ->label('Create Rule')
