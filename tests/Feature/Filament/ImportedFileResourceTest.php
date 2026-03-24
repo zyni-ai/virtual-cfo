@@ -289,6 +289,35 @@ describe('ImportedFileResource', function () {
             ->assertSuccessful();
     });
 
+    it('shows correct account fallback label based on status', function (ImportStatus $status, string $expectedLabel) {
+        $file = ImportedFile::factory()->create([
+            'status' => $status,
+            'bank_account_id' => null,
+            'credit_card_id' => null,
+            'bank_name' => null,
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->assertTableColumnStateSet('bankAccount.name', $expectedLabel, record: $file);
+    })->with([
+        'pending' => [ImportStatus::Pending, 'Detecting...'],
+        'processing' => [ImportStatus::Processing, 'Detecting...'],
+        'completed' => [ImportStatus::Completed, 'Not detected'],
+        'failed' => [ImportStatus::Failed, 'Not detected'],
+    ]);
+
+    it('shows Detecting when completed but still matching', function () {
+        $file = ImportedFile::factory()->completed()->create([
+            'bank_account_id' => null,
+            'credit_card_id' => null,
+            'bank_name' => null,
+            'is_matching' => true,
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->assertTableColumnStateSet('bankAccount.name', 'Detecting...', record: $file);
+    });
+
     it('can filter by source', function () {
         $manual = ImportedFile::factory()->create(['source' => ImportSource::ManualUpload]);
         $email = ImportedFile::factory()->fromEmail()->create();

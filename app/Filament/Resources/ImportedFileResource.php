@@ -115,7 +115,7 @@ class ImportedFileResource extends Resource
                         return $record->bankAccount?->name
                             ?? $record->creditCard?->name
                             ?? $record->bank_name
-                            ?? 'Detecting...';
+                            ?? ($record->isProcessing() ? 'Detecting...' : 'Not detected');
                     })
                     ->description(fn (ImportedFile $record): string => $record->statement_type->getLabel())
                     ->searchable(),
