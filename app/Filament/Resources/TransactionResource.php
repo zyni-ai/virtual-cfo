@@ -507,11 +507,12 @@ class TransactionResource extends Resource
             ->title('Create a mapping rule?')
             ->body("{$suggestion->matchCount} similar unmapped transaction(s) found for '{$suggestion->pattern}' → '{$suggestion->accountHeadName}'.")
             ->info()
+            ->persistent()
             ->actions([
                 Action::make('create_rule')
                     ->label('Create Rule')
                     ->button()
-                    ->dispatchSelf('openRuleSuggestion', [[
+                    ->dispatch('openRuleSuggestion', [[
                         'pattern' => $suggestion->pattern,
                         'accountHeadId' => $suggestion->accountHeadId,
                         'importedFileId' => $suggestion->importedFileId,
@@ -521,7 +522,7 @@ class TransactionResource extends Resource
                 Action::make('dismiss')
                     ->label('Dismiss')
                     ->color('gray')
-                    ->dispatchSelf('dismissRuleSuggestion', [$suggestion->pattern, $tenant->id])
+                    ->dispatch('dismissRuleSuggestion', [$suggestion->pattern, $tenant->id])
                     ->close(),
             ])
             ->send();

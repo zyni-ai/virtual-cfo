@@ -44,6 +44,7 @@ class ListTransactions extends ListRecords
                 ->label('Create Mapping Rule')
                 ->icon('heroicon-o-sparkles')
                 ->color('info')
+                ->fillForm(fn (array $arguments): array => $arguments)
                 ->form([
                     Forms\Components\TextInput::make('pattern')
                         ->label('Pattern')
@@ -80,12 +81,16 @@ class ListTransactions extends ListRecords
                     ]);
 
                     if ($data['apply_immediately'] && ! empty($data['imported_file_id'])) {
-                        $this->applyRuleToImport(
+                        $applied = $this->applyRuleToImport(
                             pattern: $data['pattern'],
                             matchType: $data['match_type'] instanceof MatchType ? $data['match_type'] : MatchType::from($data['match_type']),
                             accountHeadId: $data['account_head_id'],
                             importedFileId: (int) $data['imported_file_id'],
                         );
+
+                        if ($applied > 0) {
+                            $this->resetTable();
+                        }
                     }
 
                     Notification::make()
@@ -135,12 +140,12 @@ class ListTransactions extends ListRecords
         }
     }
 
-    private function applyRuleToImport(string $pattern, MatchType $matchType, int $accountHeadId, int $importedFileId): void
+    private function applyRuleToImport(string $pattern, MatchType $matchType, int $accountHeadId, int $importedFileId): int
     {
         $file = ImportedFile::find($importedFileId);
 
         if (! $file) {
-            return;
+            return 0;
         }
 
         // Descriptions are encrypted; matching must be done in PHP after loading.
@@ -172,5 +177,7 @@ class ListTransactions extends ListRecords
                 ->success()
                 ->send();
         }
+
+        return $count;
     }
 }

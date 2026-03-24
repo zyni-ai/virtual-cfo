@@ -248,6 +248,26 @@ describe('openRuleSuggestion listener mounts suggestRule action', function () {
             ])
             ->assertActionMounted('suggestRule');
     });
+
+    it('pre-fills the suggestRule form with pattern and account head from the suggestion', function () {
+        asUser();
+
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        $file = ImportedFile::factory()->create(['company_id' => tenant()->id]);
+
+        livewire(ListTransactions::class)
+            ->dispatch('openRuleSuggestion', [
+                'pattern' => 'SALARY',
+                'accountHeadId' => $head->id,
+                'importedFileId' => $file->id,
+                'matchCount' => 3,
+            ])
+            ->assertSchemaStateSet([
+                'pattern' => 'SALARY',
+                'account_head_id' => $head->id,
+                'imported_file_id' => (string) $file->id,
+            ]);
+    });
 });
 
 describe('suggestRule action creates rule and optionally applies it', function () {
