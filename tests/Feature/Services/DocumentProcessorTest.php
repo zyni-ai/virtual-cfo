@@ -305,6 +305,47 @@ describe('DocumentProcessor', function () {
                 ->and($file->total_rows)->toBe(1);
         });
 
+        it('falls back to company default currency when InvoiceParser returns null currency', function () {
+            Storage::put('statements/null_currency_invoice.pdf', 'fake-pdf-content');
+
+            InvoiceParser::fake([
+                [
+                    'vendor_name' => 'Local Vendor',
+                    'vendor_gstin' => null,
+                    'invoice_number' => 'LV/001',
+                    'invoice_date' => '2026-01-10',
+                    'due_date' => null,
+                    'place_of_supply' => null,
+                    'line_items' => [
+                        ['description' => 'Consulting', 'hsn_sac' => null, 'quantity' => 1, 'rate' => 1000.00, 'amount' => 1000.00],
+                    ],
+                    'base_amount' => 1000.00,
+                    'cgst_rate' => null,
+                    'cgst_amount' => null,
+                    'sgst_rate' => null,
+                    'sgst_amount' => null,
+                    'igst_rate' => null,
+                    'igst_amount' => null,
+                    'tds_amount' => null,
+                    'total_amount' => 1000.00,
+                    'currency' => null,
+                    'amount_in_words' => null,
+                ],
+            ]);
+
+            $company = \App\Models\Company::factory()->create(['currency' => 'EUR']);
+            $file = ImportedFile::factory()->invoice()->for($company)->create([
+                'file_path' => 'statements/null_currency_invoice.pdf',
+                'original_filename' => 'null_currency_invoice.pdf',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $transaction = Transaction::where('imported_file_id', $file->id)->first();
+            expect($transaction->currency)->toBe('EUR');
+        });
+
         it('stores currency from InvoiceParser response on transaction', function () {
             Storage::put('statements/usd_invoice.pdf', 'fake-pdf-content');
 

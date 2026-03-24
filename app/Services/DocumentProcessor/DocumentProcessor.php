@@ -508,7 +508,9 @@ class DocumentProcessor
         $invoiceNumber = $response['invoice_number'];
         $invoiceDate = $response['invoice_date'] ?? null;
         $totalAmount = $response['total_amount'] ?? null;
-        $currency = $response['currency'] ?? null;
+
+        $file->loadMissing('company');
+        $currency = $response['currency'] ?? $file->company?->currency ?? 'INR';
 
         /** @var \Laravel\Ai\Responses\StructuredAgentResponse $response */
         $rawData = $response->toArray();

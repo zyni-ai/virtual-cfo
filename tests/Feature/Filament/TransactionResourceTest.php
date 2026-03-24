@@ -61,6 +61,11 @@ describe('TransactionResource', function () {
         expect(TransactionResource::getModel())->toBe(Transaction::class);
     });
 
+    it('has a currency column in the table', function () {
+        livewire(ListTransactions::class)
+            ->assertTableColumnExists('currency');
+    });
+
     it('can bulk assign account head to selected transactions', function () {
         $head = AccountHead::factory()->create();
         $file = ImportedFile::factory()->completed(totalRows: 3, mappedRows: 0)->create();

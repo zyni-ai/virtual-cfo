@@ -18,6 +18,16 @@ trait HasTransactionColumns
             ->placeholder('-');
     }
 
+    protected static function currencyColumn(): Tables\Columns\TextColumn
+    {
+        return Tables\Columns\TextColumn::make('currency')
+            ->label('Currency')
+            ->badge()
+            ->color('info')
+            ->toggleable(isToggledHiddenByDefault: true)
+            ->placeholder('-');
+    }
+
     protected static function mappingTypeDescription(): \Closure
     {
         return fn (Transaction $record): ?string => $record->mapping_type->getDescription($record->ai_confidence);
