@@ -235,11 +235,11 @@ describe('TransactionExcelExport', function () {
         expect($rentRow)->not->toBeNull()
             ->and((float) $rentRow['total_debit'])->toBe(3000.0)
             ->and((float) $rentRow['total_credit'])->toBe(0.0)
-            ->and((float) $rentRow['net_amount'])->toBe(-3000.0)
+            ->and((float) $rentRow['net_amount'])->toBe(3000.0)
             ->and($salesRow)->not->toBeNull()
             ->and((float) $salesRow['total_debit'])->toBe(0.0)
             ->and((float) $salesRow['total_credit'])->toBe(5000.0)
-            ->and((float) $salesRow['net_amount'])->toBe(5000.0);
+            ->and((float) $salesRow['net_amount'])->toBe(-5000.0);
     });
 
     it('can be downloaded as Excel', function () {

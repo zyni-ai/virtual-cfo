@@ -9,10 +9,12 @@ use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Events\AfterSheet;
 
-class TransactionSummarySheet implements FromCollection, WithHeadings, WithTitle
+class TransactionSummarySheet implements FromCollection, WithEvents, WithHeadings, WithTitle
 {
     /** @param Builder<Transaction>|null $baseQuery */
     public function __construct(
@@ -33,7 +35,6 @@ class TransactionSummarySheet implements FromCollection, WithHeadings, WithTitle
     {
         return [
             'Account Head',
-            'Account Head Group',
             'Total Debit',
             'Total Credit',
             'Net Amount',
@@ -82,7 +83,6 @@ class TransactionSummarySheet implements FromCollection, WithHeadings, WithTitle
                 $accountHead = $transaction->accountHead;
                 $summary[$headId] = [
                     'account_head' => $accountHead?->name,
-                    'group_name' => $accountHead?->group_name,
                     'total_debit' => 0.0,
                     'total_credit' => 0.0,
                     'net_amount' => 0.0,
@@ -98,9 +98,44 @@ class TransactionSummarySheet implements FromCollection, WithHeadings, WithTitle
         }
 
         foreach ($summary as &$row) {
-            $row['net_amount'] = $row['total_credit'] - $row['total_debit'];
+            $row['net_amount'] = $row['total_debit'] - $row['total_credit'];
         }
 
         return collect(array_values($summary));
+    }
+
+    /**
+     * @return array<class-string, callable>
+     */
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event): void {
+                $sheet = $event->sheet->getDelegate();
+                $lastDataRow = $sheet->getHighestRow();
+                $totalsRow = $lastDataRow + 1;
+
+                // Column widths
+                $sheet->getColumnDimension('A')->setWidth(32);
+                $sheet->getColumnDimension('B')->setWidth(16);
+                $sheet->getColumnDimension('C')->setWidth(16);
+                $sheet->getColumnDimension('D')->setWidth(16);
+
+                // Totals row
+                $sheet->setCellValue("A{$totalsRow}", 'Total');
+                $sheet->setCellValue("B{$totalsRow}", "=SUM(B2:B{$lastDataRow})");
+                $sheet->setCellValue("C{$totalsRow}", "=SUM(C2:C{$lastDataRow})");
+                $sheet->setCellValue("D{$totalsRow}", "=SUM(D2:D{$lastDataRow})");
+
+                // Bold header row and totals row
+                $sheet->getStyle('1:1')->getFont()->setBold(true);
+                $sheet->getStyle("{$totalsRow}:{$totalsRow}")->getFont()->setBold(true);
+
+                // Row height for all rows
+                for ($i = 1; $i <= $totalsRow; $i++) {
+                    $sheet->getRowDimension($i)->setRowHeight(20);
+                }
+            },
+        ];
     }
 }
