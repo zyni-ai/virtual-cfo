@@ -81,7 +81,7 @@ describe('DocumentProcessor', function () {
                 ->and($file->mapped_rows)->toBe(0)
                 ->and($file->processed_at)->not->toBeNull();
 
-            $transactions = Transaction::where('imported_file_id', $file->id)->get();
+            $transactions = Transaction::where('imported_file_id', $file->id)->orderBy('id')->get();
             expect($transactions)->toHaveCount(3);
 
             $first = $transactions->first();

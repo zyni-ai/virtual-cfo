@@ -8,8 +8,12 @@ use App\Jobs\ProcessImportedFile;
 use App\Mail\DuplicateImportMail;
 use App\Models\Company;
 use App\Models\ImportedFile;
+use App\Models\User;
+use App\Notifications\StatementReceivedByEmailNotification;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -827,37 +831,41 @@ describe('InboundEmailController duplicate hash atomicity', function () {
             ['attachment-1' => $pdf1],
         ));
 
- // Simulate the race: pre-check is bypassed (concurrent requests both passed it),                                  // so the DB unique constraint is the only guard. The second attempt must not store a file.
-          $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);                      
-          $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
-              ['attachment-1' => $pdf2],
-          ));
+        // Reset queue so we only capture second request's jobs
+        Queue::fake();
 
-          $response->assertSuccessful()->assertJson(['files_processed' => 0]);
-          expect(Storage::disk('local')->allFiles('statements'))->toHaveCount(1);
-          expect(ImportedFile::count())->toBe(1);
-          Queue::assertNotPushed(ProcessImportedFile::class);
-      });
+        // Simulate the race: pre-check is bypassed (concurrent requests both passed it),
+        // so the DB unique constraint is the only guard. The second attempt must not store a file.
+        $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
+            ['attachment-1' => $pdf2],
+        ));
 
-      it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () { 
-          $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+        $response->assertSuccessful()->assertJson(['files_processed' => 0]);
+        expect(Storage::disk('local')->allFiles('statements'))->toHaveCount(1);
+        expect(ImportedFile::count())->toBe(2);
+        Queue::assertNotPushed(ProcessImportedFile::class);
+    });
 
-          $pdfContent = 'identical-pdf-content-exception-safety';
+    it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () {
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
-          $pdf1 = UploadedFile::fake()->createWithContent('invoice.pdf', $pdfContent);
-          $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-a@example.com>']),
-              ['attachment-1' => $pdf1],
-          ));
+        $pdfContent = 'identical-pdf-content-exception-safety';
 
-          $pdf2 = UploadedFile::fake()->createWithContent('invoice_copy.pdf', $pdfContent);
-          $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-b@example.com>']),
-              ['attachment-1' => $pdf2],
-          ));
+        $pdf1 = UploadedFile::fake()->createWithContent('invoice.pdf', $pdfContent);
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-a@example.com>']),
+            ['attachment-1' => $pdf1],
+        ));
 
-          $response->assertSuccessful()->assertJson(['status' => 'ok']);
+        $pdf2 = UploadedFile::fake()->createWithContent('invoice_copy.pdf', $pdfContent);
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-b@example.com>']),
+            ['attachment-1' => $pdf2],
+        ));
+
+        $response->assertSuccessful()->assertJson(['status' => 'ok']);
     });
 });
 
@@ -976,5 +984,53 @@ describe('InboundEmailController multi-tenant isolation', function () {
         ));
 
         $response->assertSuccessful()->assertJson(['files_processed' => 1]);
+    });
+});
+
+describe('InboundEmailController admin notification query count', function () {
+    it('queries admin users only once regardless of attachment count', function () {
+        Notification::fake();
+
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+        $admin = User::factory()->create();
+        $company->users()->attach($admin, ['role' => 'admin']);
+
+        $img1 = UploadedFile::fake()->image('invoice1.png', 100, 100);
+        $img2 = UploadedFile::fake()->image('invoice2.png', 200, 200);
+
+        $pivotQueryCount = 0;
+        DB::listen(function ($query) use (&$pivotQueryCount) {
+            if (str_contains($query->sql, 'company_user')) {
+                $pivotQueryCount++;
+            }
+        });
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '2']),
+            ['attachment-1' => $img1, 'attachment-2' => $img2],
+        ));
+
+        expect($pivotQueryCount)->toBe(1);
+    });
+
+    it('still notifies admins for each processed attachment', function () {
+        Notification::fake();
+
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+        $admin = User::factory()->create();
+        $company->users()->attach($admin, ['role' => 'admin']);
+
+        $img1 = UploadedFile::fake()->image('invoice1.png', 100, 100);
+        $img2 = UploadedFile::fake()->image('invoice2.png', 200, 200);
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '2']),
+            ['attachment-1' => $img1, 'attachment-2' => $img2],
+        ));
+
+        Notification::assertSentTimes(
+            StatementReceivedByEmailNotification::class,
+            2
+        );
     });
 });
