@@ -98,7 +98,7 @@ class ImportedFileResource extends Resource
     {
         return $table
             ->poll(fn (): ?string => ImportedFile::activelyProcessing()->exists() ? '10s' : null)
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['creditCard']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['bankAccount', 'creditCard', 'uploader']))
             ->columns([
                 Tables\Columns\TextColumn::make('original_filename')
                     ->label('File')

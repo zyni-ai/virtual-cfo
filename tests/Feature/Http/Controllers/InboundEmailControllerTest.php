@@ -8,8 +8,12 @@ use App\Jobs\ProcessImportedFile;
 use App\Mail\DuplicateImportMail;
 use App\Models\Company;
 use App\Models\ImportedFile;
+use App\Models\User;
+use App\Notifications\StatementReceivedByEmailNotification;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -74,7 +78,7 @@ describe('InboundEmailController attachment processing', function () {
         $importedFile = ImportedFile::first();
         expect($importedFile)->not->toBeNull()
             ->and($importedFile->company_id)->toBe($company->id)
-            ->and($importedFile->original_filename)->toBe('invoice.pdf')
+            ->and($importedFile->original_filename)->toMatch('/^[0-9A-HJKMNP-TV-Z]{26}\.[a-z]+$/')
             ->and($importedFile->source)->toBe(ImportSource::Email)
             ->and($importedFile->status)->toBe(ImportStatus::Pending);
     });
@@ -768,7 +772,7 @@ describe('InboundEmailController non-standard filenames', function () {
         $importedFile = ImportedFile::first();
         expect($importedFile)->not->toBeNull()
             ->and($importedFile->status)->toBe(ImportStatus::Pending)
-            ->and($importedFile->original_filename)->toBe('scan001.pdf');
+            ->and($importedFile->original_filename)->toMatch('/^[0-9A-HJKMNP-TV-Z]{26}\.[a-z]+$/');
     });
 
     it('imports a PDF named document.pdf as Pending', function () {
@@ -827,8 +831,11 @@ describe('InboundEmailController duplicate hash atomicity', function () {
             ['attachment-1' => $pdf1],
         ));
 
-        // The pre-check detects the duplicate hash and creates a Duplicate-status record.
-        // The important atomicity guarantee: no second file is stored on disk and no job is dispatched.
+        // Reset queue so we only capture second request's jobs
+        Queue::fake();
+
+        // Simulate the race: pre-check is bypassed (concurrent requests both passed it),
+        // so the DB unique constraint is the only guard. The second attempt must not store a file.
         $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);
         $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
             inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
@@ -838,8 +845,7 @@ describe('InboundEmailController duplicate hash atomicity', function () {
         $response->assertSuccessful()->assertJson(['files_processed' => 0]);
         expect(Storage::disk('local')->allFiles('statements'))->toHaveCount(1);
         expect(ImportedFile::count())->toBe(2);
-        // Only 1 job dispatched total — for the first (original) file, not the duplicate.
-        Queue::assertPushedTimes(ProcessImportedFile::class, 1);
+        Queue::assertNotPushed(ProcessImportedFile::class);
     });
 
     it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () {
@@ -877,6 +883,24 @@ describe('InboundEmailController file hash', function () {
         $importedFile = ImportedFile::first();
         expect($importedFile->file_hash)->not->toBeNull()
             ->and(strlen($importedFile->file_hash))->toBe(64);
+    });
+
+    it('stores files with a ULID-based name instead of a predictable prefix', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        $basename = pathinfo($importedFile->file_path, PATHINFO_FILENAME);
+
+        expect($importedFile->file_path)->toStartWith('statements/')
+            ->and($basename)->toMatch('/^[0-9A-HJKMNP-TV-Z]{26}$/')
+            ->and($importedFile->original_filename)->toMatch('/^[0-9A-HJKMNP-TV-Z]{26}\.[a-z]+$/');
     });
 });
 
@@ -978,5 +1002,53 @@ describe('InboundEmailController multi-tenant isolation', function () {
         ));
 
         $response->assertSuccessful()->assertJson(['files_processed' => 1]);
+    });
+});
+
+describe('InboundEmailController admin notification query count', function () {
+    it('queries admin users only once regardless of attachment count', function () {
+        Notification::fake();
+
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+        $admin = User::factory()->create();
+        $company->users()->attach($admin, ['role' => 'admin']);
+
+        $img1 = UploadedFile::fake()->image('invoice1.png', 100, 100);
+        $img2 = UploadedFile::fake()->image('invoice2.png', 200, 200);
+
+        $pivotQueryCount = 0;
+        DB::listen(function ($query) use (&$pivotQueryCount) {
+            if (str_contains($query->sql, 'company_user')) {
+                $pivotQueryCount++;
+            }
+        });
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '2']),
+            ['attachment-1' => $img1, 'attachment-2' => $img2],
+        ));
+
+        expect($pivotQueryCount)->toBe(1);
+    });
+
+    it('still notifies admins for each processed attachment', function () {
+        Notification::fake();
+
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+        $admin = User::factory()->create();
+        $company->users()->attach($admin, ['role' => 'admin']);
+
+        $img1 = UploadedFile::fake()->image('invoice1.png', 100, 100);
+        $img2 = UploadedFile::fake()->image('invoice2.png', 200, 200);
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '2']),
+            ['attachment-1' => $img1, 'attachment-2' => $img2],
+        ));
+
+        Notification::assertSentTimes(
+            StatementReceivedByEmailNotification::class,
+            2
+        );
     });
 });

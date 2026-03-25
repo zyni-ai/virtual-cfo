@@ -89,6 +89,8 @@ class TransactionResource extends Resource
 
                 static::amountColumn(),
 
+                static::currencyColumn(),
+
                 Tables\Columns\TextColumn::make('balance')
                     ->label('Balance')
                     ->numeric(decimalPlaces: 2)

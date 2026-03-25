@@ -12,6 +12,9 @@ use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\DocumentProcessor\DocumentProcessor;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 describe('DocumentProcessor', function () {
     beforeEach(function () {
@@ -47,7 +50,7 @@ describe('DocumentProcessor', function () {
             ]);
 
             $this->processor->detectFormat($file);
-        })->throws(\RuntimeException::class, 'Unsupported file extension: .docx');
+        })->throws(RuntimeException::class, 'Unsupported file extension: .docx');
 
         it('is case-insensitive for extensions', function () {
             $file = ImportedFile::factory()->create([
@@ -81,7 +84,7 @@ describe('DocumentProcessor', function () {
                 ->and($file->mapped_rows)->toBe(0)
                 ->and($file->processed_at)->not->toBeNull();
 
-            $transactions = Transaction::where('imported_file_id', $file->id)->get();
+            $transactions = Transaction::where('imported_file_id', $file->id)->orderBy('id')->get();
             expect($transactions)->toHaveCount(3);
 
             $first = $transactions->first();
@@ -303,6 +306,47 @@ describe('DocumentProcessor', function () {
             $file->refresh();
             expect($file->status)->toBe(ImportStatus::Completed)
                 ->and($file->total_rows)->toBe(1);
+        });
+
+        it('falls back to company default currency when InvoiceParser returns null currency', function () {
+            Storage::put('statements/null_currency_invoice.pdf', 'fake-pdf-content');
+
+            InvoiceParser::fake([
+                [
+                    'vendor_name' => 'Local Vendor',
+                    'vendor_gstin' => null,
+                    'invoice_number' => 'LV/001',
+                    'invoice_date' => '2026-01-10',
+                    'due_date' => null,
+                    'place_of_supply' => null,
+                    'line_items' => [
+                        ['description' => 'Consulting', 'hsn_sac' => null, 'quantity' => 1, 'rate' => 1000.00, 'amount' => 1000.00],
+                    ],
+                    'base_amount' => 1000.00,
+                    'cgst_rate' => null,
+                    'cgst_amount' => null,
+                    'sgst_rate' => null,
+                    'sgst_amount' => null,
+                    'igst_rate' => null,
+                    'igst_amount' => null,
+                    'tds_amount' => null,
+                    'total_amount' => 1000.00,
+                    'currency' => null,
+                    'amount_in_words' => null,
+                ],
+            ]);
+
+            $company = \App\Models\Company::factory()->create(['currency' => 'EUR']);
+            $file = ImportedFile::factory()->invoice()->for($company)->create([
+                'file_path' => 'statements/null_currency_invoice.pdf',
+                'original_filename' => 'null_currency_invoice.pdf',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $transaction = Transaction::where('imported_file_id', $file->id)->first();
+            expect($transaction->currency)->toBe('EUR');
         });
 
         it('stores currency from InvoiceParser response on transaction', function () {
@@ -658,6 +702,111 @@ describe('DocumentProcessor', function () {
         });
     });
 
+    describe('XLSX parsing', function () {
+        it('parses an XLSX file with string dates and creates transactions', function () {
+            $spreadsheet = new Spreadsheet;
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->fromArray([
+                ['Date', 'Description', 'Debit', 'Credit', 'Balance'],
+                ['2024-01-05', 'SALARY JAN 2024', null, 50000, 150000],
+                ['2024-01-10', 'RENT PAYMENT', 15000, null, 135000],
+            ]);
+
+            $tempPath = sys_get_temp_dir().'/test_string_dates.xlsx';
+            (new XlsxWriter($spreadsheet))->save($tempPath);
+            Storage::put('statements/test_string_dates.xlsx', file_get_contents($tempPath));
+            unlink($tempPath);
+
+            $file = ImportedFile::factory()->xlsx()->create([
+                'file_path' => 'statements/test_string_dates.xlsx',
+                'original_filename' => 'bank_string_dates.xlsx',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->status)->toBe(ImportStatus::Completed)
+                ->and($file->total_rows)->toBe(2);
+
+            $transactions = Transaction::where('imported_file_id', $file->id)->get();
+            expect($transactions)->toHaveCount(2)
+                ->and($transactions->first()->date->toDateString())->toBe('2024-01-05')
+                ->and($transactions->first()->description)->toBe('SALARY JAN 2024');
+        });
+
+        it('parses an XLSX file with Excel serial date numbers and creates transactions with correct dates', function () {
+            $spreadsheet = new Spreadsheet;
+            $sheet = $spreadsheet->getActiveSheet();
+
+            // Write headers
+            $sheet->setCellValue('A1', 'Date');
+            $sheet->setCellValue('B1', 'Description');
+            $sheet->setCellValue('C1', 'Debit');
+            $sheet->setCellValue('D1', 'Credit');
+            $sheet->setCellValue('E1', 'Balance');
+
+            // Write date as Excel serial number (45296 = 2024-01-05)
+            $sheet->setCellValueExplicit('A2', 45296, DataType::TYPE_NUMERIC);
+            $sheet->setCellValue('B2', 'SALARY CREDIT');
+            $sheet->setCellValue('C2', null);
+            $sheet->setCellValue('D2', 50000);
+            $sheet->setCellValue('E2', 150000);
+
+            $tempPath = sys_get_temp_dir().'/test_serial_dates.xlsx';
+            (new XlsxWriter($spreadsheet))->save($tempPath);
+            Storage::put('statements/test_serial_dates.xlsx', file_get_contents($tempPath));
+            unlink($tempPath);
+
+            $file = ImportedFile::factory()->xlsx()->create([
+                'file_path' => 'statements/test_serial_dates.xlsx',
+                'original_filename' => 'bank_serial_dates.xlsx',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->status)->toBe(ImportStatus::Completed)
+                ->and($file->total_rows)->toBe(1);
+
+            $transaction = Transaction::where('imported_file_id', $file->id)->first();
+            expect($transaction)->not->toBeNull()
+                ->and($transaction->date->toDateString())->toBe('2024-01-05');
+        });
+
+        it('skips rows with unparseable dates and imports the rest', function () {
+            $spreadsheet = new Spreadsheet;
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->fromArray([
+                ['Date', 'Description', 'Debit', 'Credit', 'Balance'],
+                ['2024-01-05', 'VALID TRANSACTION', null, 50000, 150000],
+                ['not-a-date', 'INVALID DATE ROW', 1000, null, 149000],
+                ['2024-01-10', 'ANOTHER VALID', 5000, null, 145000],
+            ]);
+
+            $tempPath = sys_get_temp_dir().'/test_bad_dates.xlsx';
+            (new XlsxWriter($spreadsheet))->save($tempPath);
+            Storage::put('statements/test_bad_dates.xlsx', file_get_contents($tempPath));
+            unlink($tempPath);
+
+            $file = ImportedFile::factory()->xlsx()->create([
+                'file_path' => 'statements/test_bad_dates.xlsx',
+                'original_filename' => 'bank_bad_dates.xlsx',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->status)->toBe(ImportStatus::Completed)
+                ->and($file->total_rows)->toBe(2);
+
+            $transactions = Transaction::where('imported_file_id', $file->id)->get();
+            expect($transactions)->toHaveCount(2);
+        });
+    });
+
     describe('unsupported formats', function () {
         it('throws for unsupported file extensions', function () {
             $file = ImportedFile::factory()->create([
@@ -665,6 +814,6 @@ describe('DocumentProcessor', function () {
             ]);
 
             $this->processor->process($file);
-        })->throws(\RuntimeException::class, 'Unsupported file extension');
+        })->throws(RuntimeException::class, 'Unsupported file extension');
     });
 });

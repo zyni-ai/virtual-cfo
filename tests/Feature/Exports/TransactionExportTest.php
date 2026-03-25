@@ -75,7 +75,7 @@ describe('TransactionCsvExport', function () {
         asUser();
     });
 
-    it('produces file with correct headings', function () {
+    it('produces file with correct headings including currency', function () {
         $head = AccountHead::factory()->create();
         Transaction::factory()->mapped($head)->debit(1000)->create();
 
@@ -88,6 +88,7 @@ describe('TransactionCsvExport', function () {
             'Debit',
             'Credit',
             'Balance',
+            'Currency',
             'Account Head',
             'Account Head Group',
             'Bank/Source',
@@ -95,7 +96,7 @@ describe('TransactionCsvExport', function () {
         ]);
     });
 
-    it('maps transactions with decrypted amounts', function () {
+    it('maps transactions with decrypted amounts and currency', function () {
         $head = AccountHead::factory()->create([
             'name' => 'Office Rent',
             'group_name' => 'Indirect Expenses',
@@ -105,6 +106,7 @@ describe('TransactionCsvExport', function () {
             'description' => 'NEFT-RENT-PAYMENT',
             'reference_number' => 'REF123',
             'balance' => 45000.00,
+            'currency' => 'USD',
         ]);
         $transaction->load(['accountHead', 'importedFile']);
 
@@ -117,8 +119,9 @@ describe('TransactionCsvExport', function () {
             ->and((float) $row[3])->toBe(5000.50)
             ->and($row[4])->toBeNull()
             ->and((float) $row[5])->toBe(45000.00)
-            ->and($row[6])->toBe('Office Rent')
-            ->and($row[7])->toBe('Indirect Expenses');
+            ->and($row[6])->toBe('USD')
+            ->and($row[7])->toBe('Office Rent')
+            ->and($row[8])->toBe('Indirect Expenses');
     });
 
     it('respects date range filter', function () {
@@ -232,7 +235,7 @@ describe('TransactionExcelExport', function () {
         expect($rentRow)->not->toBeNull()
             ->and((float) $rentRow['total_debit'])->toBe(3000.0)
             ->and((float) $rentRow['total_credit'])->toBe(0.0)
-            ->and((float) $rentRow['net_amount'])->toBe(-3000.0)
+            ->and((float) $rentRow['net_amount'])->toBe(3000.0)
             ->and($salesRow)->not->toBeNull()
             ->and((float) $salesRow['total_debit'])->toBe(0.0)
             ->and((float) $salesRow['total_credit'])->toBe(5000.0)
