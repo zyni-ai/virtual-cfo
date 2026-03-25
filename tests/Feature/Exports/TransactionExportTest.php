@@ -1,10 +1,74 @@
 <?php
 
+use App\Enums\MappingType;
 use App\Exports\TransactionCsvExport;
 use App\Exports\TransactionExcelExport;
+use App\Exports\TransactionSummarySheet;
 use App\Models\AccountHead;
+use App\Models\Company;
 use App\Models\Transaction;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+
+describe('export base query filtering', function () {
+    beforeEach(function () {
+        asUser();
+    });
+
+    it('csv export scopes results to base query when provided', function () {
+        $head = AccountHead::factory()->create(['name' => 'Office Supplies']);
+        $other = AccountHead::factory()->create(['name' => 'Travel']);
+
+        Transaction::factory()->count(3)->mapped($head)->create();
+        Transaction::factory()->count(2)->mapped($other)->create();
+
+        $baseQuery = Transaction::query()->where('account_head_id', $head->id);
+        $export = new TransactionCsvExport(baseQuery: $baseQuery);
+
+        expect($export->query()->count())->toBe(3);
+    });
+
+    it('summary sheet scopes results to base query when provided', function () {
+        $head = AccountHead::factory()->create(['name' => 'Office Supplies']);
+        $other = AccountHead::factory()->create(['name' => 'Travel']);
+
+        Transaction::factory()->count(3)->mapped($head)->create();
+        Transaction::factory()->count(2)->mapped($other)->create();
+
+        $baseQuery = Transaction::query()->where('account_head_id', $head->id);
+        $sheet = new TransactionSummarySheet(baseQuery: $baseQuery);
+        $data = $sheet->collection();
+
+        expect($data)->toHaveCount(1)
+            ->and($data->first()['account_head'])->toBe('Office Supplies');
+    });
+
+    it('excel export passes base query to transaction detail sheet', function () {
+        $head = AccountHead::factory()->create();
+        $other = AccountHead::factory()->create();
+
+        Transaction::factory()->count(3)->mapped($head)->create();
+        Transaction::factory()->count(2)->mapped($other)->create();
+
+        $baseQuery = Transaction::query()->where('account_head_id', $head->id);
+        $export = new TransactionExcelExport(baseQuery: $baseQuery);
+        $sheets = $export->sheets();
+
+        expect($sheets[0]->query()->count())->toBe(3);
+    });
+
+    it('csv export still includes all mapped transactions when no base query given', function () {
+        $head = AccountHead::factory()->create();
+        $other = AccountHead::factory()->create();
+
+        Transaction::factory()->count(3)->mapped($head)->create();
+        Transaction::factory()->count(2)->mapped($other)->create();
+
+        $export = new TransactionCsvExport;
+
+        expect($export->query()->count())->toBe(5);
+    });
+});
 
 describe('TransactionCsvExport', function () {
     beforeEach(function () {
@@ -87,20 +151,20 @@ describe('TransactionCsvExport', function () {
         $ownTransaction = Transaction::factory()->mapped($head)->create();
 
         // Insert a transaction for a different company directly via DB
-        $otherCompany = \App\Models\Company::factory()->create();
+        $otherCompany = Company::factory()->create();
         $otherHead = AccountHead::factory()->create();
-        \Illuminate\Support\Facades\DB::table('transactions')->insert([
+        DB::table('transactions')->insert([
             'company_id' => $otherCompany->id,
             'imported_file_id' => $ownTransaction->imported_file_id,
             'date' => now(),
             'description' => encrypt('Other company transaction'),
             'debit' => encrypt('1000'),
             'account_head_id' => $otherHead->id,
-            'mapping_type' => \App\Enums\MappingType::Manual->value,
+            'mapping_type' => MappingType::Manual->value,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $otherTransactionId = (int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
+        $otherTransactionId = (int) DB::getPdo()->lastInsertId();
 
         $export = new TransactionCsvExport;
         $results = $export->query()->get();

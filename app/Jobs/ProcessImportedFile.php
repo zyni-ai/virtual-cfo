@@ -13,6 +13,7 @@ use App\Services\DocumentProcessor\DocumentProcessor;
 use App\Services\DuplicateDetectionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -68,7 +69,7 @@ class ProcessImportedFile implements ShouldQueue
 
             $this->importedFile->update([
                 'status' => ImportStatus::Failed,
-                'error_message' => 'Statement processing failed: '.mb_substr($e->getMessage(), 0, 500),
+                'error_message' => $this->sanitiseErrorMessage($e, 'Statement processing failed'),
             ]);
 
             throw $e;
@@ -82,7 +83,7 @@ class ProcessImportedFile implements ShouldQueue
     {
         $this->importedFile->update([
             'status' => ImportStatus::Failed,
-            'error_message' => 'Processing permanently failed: '.mb_substr($exception->getMessage(), 0, 500),
+            'error_message' => $this->sanitiseErrorMessage($exception, 'Processing permanently failed'),
         ]);
 
         Log::error('ProcessImportedFile permanently failed', [
@@ -123,6 +124,15 @@ class ProcessImportedFile implements ShouldQueue
         if ($statementType === StatementType::Invoice) {
             SuggestReconciliationMatches::dispatch($this->importedFile);
         }
+    }
+
+    private function sanitiseErrorMessage(\Throwable $exception, string $prefix): string
+    {
+        if ($exception instanceof QueryException || $exception instanceof \PDOException) {
+            return "{$prefix}: one or more transactions could not be saved. Please check the file format and try again.";
+        }
+
+        return "{$prefix}: ".mb_substr($exception->getMessage(), 0, 500);
     }
 
     private function scanForDuplicates(): void

@@ -11,6 +11,7 @@ use App\Jobs\ProcessImportedFile;
 use App\Models\BankAccount;
 use App\Models\CreditCard;
 use App\Models\ImportedFile;
+use App\Models\Transaction;
 use Illuminate\Support\Facades\Queue;
 
 use function Pest\Livewire\livewire;
@@ -266,7 +267,7 @@ describe('ImportedFileResource', function () {
     });
 
     it('shows linked bank account name in table', function () {
-        $account = \App\Models\BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'HDFC Bank']);
+        $account = BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'HDFC Bank']);
         ImportedFile::factory()->create([
             'company_id' => tenant()->id,
             'bank_account_id' => $account->id,
@@ -286,6 +287,35 @@ describe('ImportedFileResource', function () {
 
         livewire(ListImportedFiles::class)
             ->assertSuccessful();
+    });
+
+    it('shows correct account fallback label based on status', function (ImportStatus $status, string $expectedLabel) {
+        $file = ImportedFile::factory()->create([
+            'status' => $status,
+            'bank_account_id' => null,
+            'credit_card_id' => null,
+            'bank_name' => null,
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->assertTableColumnStateSet('bankAccount.name', $expectedLabel, record: $file);
+    })->with([
+        'pending' => [ImportStatus::Pending, 'Detecting...'],
+        'processing' => [ImportStatus::Processing, 'Detecting...'],
+        'completed' => [ImportStatus::Completed, 'Not detected'],
+        'failed' => [ImportStatus::Failed, 'Not detected'],
+    ]);
+
+    it('shows Detecting when completed but still matching', function () {
+        $file = ImportedFile::factory()->completed()->create([
+            'bank_account_id' => null,
+            'credit_card_id' => null,
+            'bank_name' => null,
+            'is_matching' => true,
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->assertTableColumnStateSet('bankAccount.name', 'Detecting...', record: $file);
     });
 
     it('can filter by source', function () {
@@ -321,6 +351,8 @@ describe('ImportedFileResource', function () {
     });
 
     it('changeType action updates statement_type on the record', function () {
+        Queue::fake();
+
         $file = ImportedFile::factory()->completed()->create([
             'statement_type' => StatementType::Bank,
         ]);
@@ -334,7 +366,27 @@ describe('ImportedFileResource', function () {
         expect($file->statement_type)->toBe(StatementType::CreditCard);
     });
 
-    it('changeType action does not auto-reprocess the file', function () {
+    it('changeType action resets status to Pending and clears processing fields', function () {
+        Queue::fake();
+
+        $file = ImportedFile::factory()->completed(totalRows: 10, mappedRows: 5)->create([
+            'statement_type' => StatementType::Bank,
+            'error_message' => 'Some previous error',
+        ]);
+
+        livewire(ListImportedFiles::class)
+            ->callTableAction('changeType', $file, data: [
+                'statement_type' => StatementType::CreditCard->value,
+            ]);
+
+        $file->refresh();
+        expect($file->status)->toBe(ImportStatus::Pending)
+            ->and($file->total_rows)->toBe(0)
+            ->and($file->mapped_rows)->toBe(0)
+            ->and($file->error_message)->toBeNull();
+    });
+
+    it('changeType action dispatches ProcessImportedFile job', function () {
         Queue::fake();
 
         $file = ImportedFile::factory()->completed()->create([
@@ -346,13 +398,34 @@ describe('ImportedFileResource', function () {
                 'statement_type' => StatementType::CreditCard->value,
             ]);
 
-        $file->refresh();
-        expect($file->status)->toBe(ImportStatus::Completed);
+        Queue::assertPushed(ProcessImportedFile::class, fn ($job) => $job->importedFile->id === $file->id);
+    });
 
-        Queue::assertNotPushed(ProcessImportedFile::class);
+    it('changeType action deletes existing transactions before re-processing', function () {
+        Queue::fake();
+
+        $file = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+
+        Transaction::factory()->count(3)->create([
+            'imported_file_id' => $file->id,
+            'company_id' => $file->company_id,
+        ]);
+
+        expect($file->transactions()->count())->toBe(3);
+
+        livewire(ListImportedFiles::class)
+            ->callTableAction('changeType', $file, data: [
+                'statement_type' => StatementType::CreditCard->value,
+            ]);
+
+        expect($file->transactions()->count())->toBe(0);
     });
 
     it('changeType action logs the change via activity log', function () {
+        Queue::fake();
+
         $file = ImportedFile::factory()->completed()->create([
             'statement_type' => StatementType::Bank,
         ]);

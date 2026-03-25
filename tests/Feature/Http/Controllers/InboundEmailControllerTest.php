@@ -355,7 +355,7 @@ describe('InboundEmailController filename classification', function () {
             ->and($importedFile->status)->toBe(ImportStatus::Pending);
     });
 
-    it('marks unrecognized filenames as Skipped when email has no signals', function () {
+    it('imports PDFs with unrecognized filenames as Pending rather than Skipped', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
         $pdf = UploadedFile::fake()->create('monthly_report.pdf', 100, 'application/pdf');
@@ -366,8 +366,7 @@ describe('InboundEmailController filename classification', function () {
         ));
 
         $importedFile = ImportedFile::first();
-        expect($importedFile->status)->toBe(ImportStatus::Skipped)
-            ->and($importedFile->error_message)->toContain('monthly_report.pdf');
+        expect($importedFile->status)->toBe(ImportStatus::Pending);
     });
 
     it('recognizes bill filenames as Invoice type', function () {
@@ -426,7 +425,7 @@ describe('InboundEmailController filename classification', function () {
         expect($importedFile->statement_type)->toBe(StatementType::Invoice);
     });
 
-    it('does not dispatch ProcessImportedFile for skipped files', function () {
+    it('dispatches ProcessImportedFile for PDFs with unrecognized filenames', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
         $pdf = UploadedFile::fake()->create('balance_sheet.pdf', 100, 'application/pdf');
@@ -436,10 +435,10 @@ describe('InboundEmailController filename classification', function () {
             ['attachment-1' => $pdf],
         ));
 
-        Queue::assertNotPushed(ProcessImportedFile::class);
+        Queue::assertPushed(ProcessImportedFile::class);
 
         $importedFile = ImportedFile::first();
-        expect($importedFile->status)->toBe(ImportStatus::Skipped);
+        expect($importedFile->status)->toBe(ImportStatus::Pending);
     });
 
     it('counts skipped files in files_processed', function () {
@@ -737,19 +736,112 @@ describe('InboundEmailController duplicate notifications', function () {
         $pdf1 = UploadedFile::fake()->createWithContent('statement.pdf', $pdfContent);
         $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);
 
+describe('InboundEmailController non-standard filenames', function () {
+    it('imports a PDF with a generic scanned filename as Pending', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('scan001.pdf', 100, 'application/pdf');
+
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'subject' => 'Fwd: please see attached']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $response->assertSuccessful()->assertJson(['files_processed' => 1]);
+
+        $importedFile = ImportedFile::first();
+        expect($importedFile)->not->toBeNull()
+            ->and($importedFile->status)->toBe(ImportStatus::Pending)
+            ->and($importedFile->original_filename)->toBe('scan001.pdf');
+    });
+
+    it('imports a PDF named document.pdf as Pending', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'subject' => 'Fwd: docs']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $response->assertSuccessful()->assertJson(['files_processed' => 1]);
+
+        expect(ImportedFile::first()->status)->toBe(ImportStatus::Pending);
+    });
+
+    it('dispatches ProcessImportedFile for a PDF with a generic filename', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('scan001.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'subject' => 'Fwd: please see attached']),
+            ['attachment-1' => $pdf],
+        ));
+
+        Queue::assertPushed(ProcessImportedFile::class);
+    });
+
+    it('imports a PNG image with a generic filename as Pending', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $img = UploadedFile::fake()->image('photo001.png');
+
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'subject' => 'Fwd: please see attached']),
+            ['attachment-1' => $img],
+        ));
+
+        $response->assertSuccessful()->assertJson(['files_processed' => 1]);
+
+        expect(ImportedFile::first()->status)->toBe(ImportStatus::Pending);
+    });
+});
+
+describe('InboundEmailController duplicate hash atomicity', function () {
+    it('does not store a file to disk when the database constraint rejects a duplicate hash', function () {
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdfContent = 'identical-pdf-content-toctou-race';
+
+        $pdf1 = UploadedFile::fake()->createWithContent('statement.pdf', $pdfContent);
         $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
             inboundPayload(['attachment-count' => '1', 'Message-Id' => '<first@example.com>']),
             ['attachment-1' => $pdf1],
         ));
 
-        Queue::fake();
+ // Simulate the race: pre-check is bypassed (concurrent requests both passed it),                                  // so the DB unique constraint is the only guard. The second attempt must not store a file.
+          $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);                      
+          $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
+              ['attachment-1' => $pdf2],
+          ));
 
-        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
-            ['attachment-1' => $pdf2],
-        ));
+          $response->assertSuccessful()->assertJson(['files_processed' => 0]);
+          expect(Storage::disk('local')->allFiles('statements'))->toHaveCount(1);
+          expect(ImportedFile::count())->toBe(1);
+          Queue::assertNotPushed(ProcessImportedFile::class);
+      });
 
-        Queue::assertNotPushed(ProcessImportedFile::class);
+      it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () { 
+          $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+          $pdfContent = 'identical-pdf-content-exception-safety';
+
+          $pdf1 = UploadedFile::fake()->createWithContent('invoice.pdf', $pdfContent);
+          $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-a@example.com>']),
+              ['attachment-1' => $pdf1],
+          ));
+
+          $pdf2 = UploadedFile::fake()->createWithContent('invoice_copy.pdf', $pdfContent);
+          $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-b@example.com>']),
+              ['attachment-1' => $pdf2],
+          ));
+
+          $response->assertSuccessful()->assertJson(['status' => 'ok']);
     });
 });
 

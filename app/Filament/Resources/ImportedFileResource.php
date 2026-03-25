@@ -8,6 +8,7 @@ use App\Enums\StatementType;
 use App\Filament\Resources\ImportedFileResource\Pages;
 use App\Jobs\ProcessImportedFile;
 use App\Models\ImportedFile;
+use App\Services\StatementClassifier;
 use BackedEnum;
 use Filament\Actions;
 use Filament\Forms;
@@ -20,6 +21,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 
 class ImportedFileResource extends Resource
 {
@@ -113,7 +115,7 @@ class ImportedFileResource extends Resource
                         return $record->bankAccount?->name
                             ?? $record->creditCard?->name
                             ?? $record->bank_name
-                            ?? 'Detecting...';
+                            ?? ($record->isProcessing() ? 'Detecting...' : 'Not detected');
                     })
                     ->description(fn (ImportedFile $record): string => $record->statement_type->getLabel())
                     ->searchable(),
@@ -178,7 +180,7 @@ class ImportedFileResource extends Resource
                             $metadata = $record->source_metadata ?? [];
                             $metadata['manual_password'] = $data['pdf_password'];
 
-                            \Illuminate\Support\Facades\DB::transaction(function () use ($record, $metadata) {
+                            DB::transaction(function () use ($record, $metadata) {
                                 $record->transactions()->delete();
                                 $record->update([
                                     'source_metadata' => $metadata,
@@ -207,11 +209,22 @@ class ImportedFileResource extends Resource
                             'statement_type' => $record->statement_type,
                         ])
                         ->modalHeading('Change Statement Type')
-                        ->modalDescription('Change the statement type for this file. This will not trigger reprocessing — use Re-process separately if needed.')
-                        ->modalSubmitActionLabel('Update Type')
-                        ->action(fn (ImportedFile $record, array $data) => $record->update([
-                            'statement_type' => $data['statement_type'],
-                        ]))
+                        ->modalDescription('Change the statement type for this file. Existing transactions will be deleted and the file will be re-processed with the new type.')
+                        ->modalSubmitActionLabel('Update & Re-process')
+                        ->action(function (ImportedFile $record, array $data): void {
+                            DB::transaction(function () use ($record, $data): void {
+                                $record->transactions()->delete();
+                                $record->update([
+                                    'statement_type' => $data['statement_type'],
+                                    'status' => ImportStatus::Pending,
+                                    'total_rows' => 0,
+                                    'mapped_rows' => 0,
+                                    'error_message' => null,
+                                ]);
+                            });
+
+                            ProcessImportedFile::dispatch($record);
+                        })
                         ->visible(fn (ImportedFile $record) => in_array($record->status, [
                             ImportStatus::Completed,
                             ImportStatus::Failed,
@@ -223,9 +236,9 @@ class ImportedFileResource extends Resource
                         ->color('warning')
                         ->requiresConfirmation()
                         ->action(function (ImportedFile $record) {
-                            $reclassified = (new \App\Services\StatementClassifier)->classifyFromMetadata($record);
+                            $reclassified = (new StatementClassifier)->classifyFromMetadata($record);
 
-                            \Illuminate\Support\Facades\DB::transaction(function () use ($record, $reclassified) {
+                            DB::transaction(function () use ($record, $reclassified) {
                                 $record->transactions()->delete();
                                 $record->update([
                                     'status' => ImportStatus::Pending,

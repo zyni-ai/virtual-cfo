@@ -15,6 +15,7 @@ use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Filters\TrashedFilter;
@@ -22,6 +23,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\Unique;
 use UnitEnum;
 
 class AccountHeadResource extends Resource
@@ -45,7 +47,18 @@ class AccountHeadResource extends Resource
                         Forms\Components\TextInput::make('name')
                             ->required()
                             ->maxLength(255)
-                            ->helperText('The display name for this account head, as it appears in Tally.'),
+                            ->helperText('The display name for this account head, as it appears in Tally.')
+                            ->unique(
+                                table: AccountHead::class,
+                                column: 'name',
+                                ignoreRecord: true,
+                                modifyRuleUsing: function (Unique $rule, Get $get): Unique {
+                                    return $rule
+                                        ->where('company_id', Filament::getTenant()?->getKey())
+                                        ->where('group_name', $get('group_name'))
+                                        ->whereNull('deleted_at');
+                                },
+                            ),
 
                         Forms\Components\Select::make('parent_id')
                             ->label('Parent Head')

@@ -1,10 +1,12 @@
 <?php
 
 use App\Enums\MatchType;
+use App\Filament\Resources\HeadMappingResource;
 use App\Filament\Resources\HeadMappingResource\Pages\CreateHeadMapping;
 use App\Filament\Resources\HeadMappingResource\Pages\EditHeadMapping;
 use App\Filament\Resources\HeadMappingResource\Pages\ListHeadMappings;
 use App\Models\AccountHead;
+use App\Models\BankAccount;
 use App\Models\HeadMapping;
 
 use function Pest\Livewire\livewire;
@@ -91,6 +93,28 @@ describe('HeadMappingResource', function () {
         expect($mapping->fresh()->pattern)->toBe('NEW_PATTERN');
     });
 
+    it('redirects to the list after creating a head mapping', function () {
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+
+        livewire(CreateHeadMapping::class)
+            ->fillForm([
+                'pattern' => 'REDIRECT_TEST',
+                'match_type' => MatchType::Contains->value,
+                'account_head_id' => $head->id,
+            ])
+            ->call('create')
+            ->assertRedirect(HeadMappingResource::getUrl('index'));
+    });
+
+    it('redirects to the list after editing a head mapping', function () {
+        $mapping = HeadMapping::factory()->create(['company_id' => tenant()->id]);
+
+        livewire(EditHeadMapping::class, ['record' => $mapping->getRouteKey()])
+            ->fillForm(['pattern' => 'UPDATED_PATTERN'])
+            ->call('save')
+            ->assertRedirect(HeadMappingResource::getUrl('index'));
+    });
+
     it('can delete a head mapping from the table', function () {
         $mapping = HeadMapping::factory()->create(['company_id' => tenant()->id]);
 
@@ -154,7 +178,7 @@ describe('HeadMappingResource', function () {
 
     it('can create a mapping with bank name from select', function () {
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
-        \App\Models\BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'ICICI Bank']);
+        BankAccount::factory()->create(['company_id' => tenant()->id, 'name' => 'ICICI Bank']);
 
         livewire(CreateHeadMapping::class)
             ->fillForm([
@@ -168,5 +192,92 @@ describe('HeadMappingResource', function () {
 
         $mapping = HeadMapping::where('pattern', 'UPI PAYMENT')->first();
         expect($mapping->bank_name)->toBe('ICICI Bank');
+    });
+
+    it('prevents duplicate mapping rules with same pattern, match type, and account head', function () {
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+
+        HeadMapping::factory()->create([
+            'company_id' => tenant()->id,
+            'pattern' => 'SALARY',
+            'match_type' => MatchType::Contains,
+            'account_head_id' => $head->id,
+        ]);
+
+        livewire(CreateHeadMapping::class)
+            ->fillForm([
+                'pattern' => 'SALARY',
+                'match_type' => MatchType::Contains->value,
+                'account_head_id' => $head->id,
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['pattern']);
+
+        expect(HeadMapping::where('pattern', 'SALARY')->count())->toBe(1);
+    });
+
+    it('allows same pattern with different match type', function () {
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+
+        HeadMapping::factory()->create([
+            'company_id' => tenant()->id,
+            'pattern' => 'SALARY',
+            'match_type' => MatchType::Contains,
+            'account_head_id' => $head->id,
+        ]);
+
+        livewire(CreateHeadMapping::class)
+            ->fillForm([
+                'pattern' => 'SALARY',
+                'match_type' => MatchType::Exact->value,
+                'account_head_id' => $head->id,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        expect(HeadMapping::where('pattern', 'SALARY')->count())->toBe(2);
+    });
+
+    it('allows same pattern with different account head', function () {
+        $head1 = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        $head2 = AccountHead::factory()->create(['company_id' => tenant()->id]);
+
+        HeadMapping::factory()->create([
+            'company_id' => tenant()->id,
+            'pattern' => 'SALARY',
+            'match_type' => MatchType::Contains,
+            'account_head_id' => $head1->id,
+        ]);
+
+        livewire(CreateHeadMapping::class)
+            ->fillForm([
+                'pattern' => 'SALARY',
+                'match_type' => MatchType::Contains->value,
+                'account_head_id' => $head2->id,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        expect(HeadMapping::where('pattern', 'SALARY')->count())->toBe(2);
+    });
+
+    it('allows editing a mapping rule without triggering duplicate validation on itself', function () {
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+
+        $mapping = HeadMapping::factory()->create([
+            'company_id' => tenant()->id,
+            'pattern' => 'SALARY',
+            'match_type' => MatchType::Contains,
+            'account_head_id' => $head->id,
+        ]);
+
+        livewire(EditHeadMapping::class, ['record' => $mapping->getRouteKey()])
+            ->fillForm([
+                'pattern' => 'SALARY',
+                'match_type' => MatchType::Contains->value,
+                'account_head_id' => $head->id,
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
     });
 });
