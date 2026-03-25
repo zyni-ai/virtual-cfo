@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class InboundEmailController
 {
@@ -229,15 +230,15 @@ class InboundEmailController
         }
 
         $extension = $file->getClientOriginalExtension() ?: 'pdf';
-        $storagePath = 'statements/'.uniqid('email_', true).'.'.$extension;
-        $filename = $file->getClientOriginalName();
-        $classification = $this->classifier->classify($metadata, $filename);
+        $storagePath = 'statements/'.Str::ulid().'.'.$extension;
+        $originalFilename = $file->getClientOriginalName();
+        $classification = $this->classifier->classify($metadata, $originalFilename);
 
         try {
             $importedFile = DB::transaction(fn () => ImportedFile::create([
                 'company_id' => $company->id,
                 'file_path' => $storagePath,
-                'original_filename' => $filename,
+                'original_filename' => basename($storagePath),
                 'file_hash' => $fileHash,
                 'source' => ImportSource::Email,
                 'source_metadata' => $metadata,

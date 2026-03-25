@@ -78,7 +78,7 @@ describe('InboundEmailController attachment processing', function () {
         $importedFile = ImportedFile::first();
         expect($importedFile)->not->toBeNull()
             ->and($importedFile->company_id)->toBe($company->id)
-            ->and($importedFile->original_filename)->toBe('invoice.pdf')
+            ->and($importedFile->original_filename)->toMatch('/^[0-9A-HJKMNP-TV-Z]{26}\.[a-z]+$/')
             ->and($importedFile->source)->toBe(ImportSource::Email)
             ->and($importedFile->status)->toBe(ImportStatus::Pending);
     });
@@ -772,7 +772,7 @@ describe('InboundEmailController non-standard filenames', function () {
         $importedFile = ImportedFile::first();
         expect($importedFile)->not->toBeNull()
             ->and($importedFile->status)->toBe(ImportStatus::Pending)
-            ->and($importedFile->original_filename)->toBe('scan001.pdf');
+            ->and($importedFile->original_filename)->toMatch('/^[0-9A-HJKMNP-TV-Z]{26}\.[a-z]+$/');
     });
 
     it('imports a PDF named document.pdf as Pending', function () {
@@ -883,6 +883,24 @@ describe('InboundEmailController file hash', function () {
         $importedFile = ImportedFile::first();
         expect($importedFile->file_hash)->not->toBeNull()
             ->and(strlen($importedFile->file_hash))->toBe(64);
+    });
+
+    it('stores files with a ULID-based name instead of a predictable prefix', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        $importedFile = ImportedFile::first();
+        $basename = pathinfo($importedFile->file_path, PATHINFO_FILENAME);
+
+        expect($importedFile->file_path)->toStartWith('statements/')
+            ->and($basename)->toMatch('/^[0-9A-HJKMNP-TV-Z]{26}$/')
+            ->and($importedFile->original_filename)->toMatch('/^[0-9A-HJKMNP-TV-Z]{26}\.[a-z]+$/');
     });
 });
 
