@@ -11,6 +11,7 @@ use App\Jobs\SuggestReconciliationMatches;
 use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use App\Notifications\ImportFailedNotification;
 use App\Services\DocumentProcessor\DocumentProcessor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\QueryException;
@@ -187,6 +188,70 @@ describe('ProcessImportedFile job', function () {
             ->and($file->error_message)->not->toContain('SQLSTATE')
             ->and($file->error_message)->not->toContain('127.0.0.1')
             ->and($file->error_message)->not->toContain('insert into');
+    });
+
+    it('stores a sanitised error message for any generic exception type', function () {
+        $file = ImportedFile::factory()->create(['status' => ImportStatus::Pending]);
+
+        $this->mock(DocumentProcessor::class, function ($mock) {
+            $mock->shouldReceive('process')
+                ->andThrow(new RuntimeException('Internal system detail: secret config value at /etc/app/config.php line 42'));
+        });
+
+        Log::shouldReceive('error')->once();
+
+        $job = new ProcessImportedFile($file);
+
+        try {
+            $job->handle(app(DocumentProcessor::class));
+        } catch (Throwable) {
+            // Expected — job rethrows
+        }
+
+        $file->refresh();
+        expect($file->status)->toBe(ImportStatus::Failed)
+            ->and($file->error_message)->not->toContain('RuntimeException')
+            ->and($file->error_message)->not->toContain('/etc/app/config.php')
+            ->and($file->error_message)->not->toContain('secret config value');
+    });
+});
+
+describe('ImportFailedNotification', function () {
+    it('does not expose raw DB error text in database notification body', function () {
+        $rawSql = 'insert into "transactions" values (?)';
+        $sqlState = "SQLSTATE[23502]: Not null violation (SQL: {$rawSql})";
+
+        $file = ImportedFile::factory()->failed($sqlState)->create([
+            'original_filename' => 'test.xlsx',
+        ]);
+
+        $notification = new ImportFailedNotification($file);
+        $notifiable = $file->uploader;
+
+        $databasePayload = $notification->toDatabase($notifiable);
+
+        $body = $databasePayload['body'] ?? '';
+
+        expect($body)->not->toContain('SQLSTATE')
+            ->and($body)->not->toContain('insert into');
+    });
+
+    it('does not expose raw DB error text in mail notification body', function () {
+        $rawSql = 'insert into "transactions" values (?)';
+        $sqlState = "SQLSTATE[23502]: Not null violation (SQL: {$rawSql})";
+
+        $file = ImportedFile::factory()->failed($sqlState)->create([
+            'original_filename' => 'test.xlsx',
+        ]);
+
+        $notification = new ImportFailedNotification($file);
+        $notifiable = $file->uploader;
+
+        $mail = $notification->toMail($notifiable);
+        $mailLines = implode(' ', $mail->introLines);
+
+        expect($mailLines)->not->toContain('SQLSTATE')
+            ->and($mailLines)->not->toContain('insert into');
     });
 });
 

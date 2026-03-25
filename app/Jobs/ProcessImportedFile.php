@@ -132,7 +132,7 @@ class ProcessImportedFile implements ShouldQueue
             return "{$prefix}: one or more transactions could not be saved. Please check the file format and try again.";
         }
 
-        return "{$prefix}: ".mb_substr($exception->getMessage(), 0, 500);
+        return "{$prefix}: a processing error occurred. Please try again or contact support.";
     }
 
     private function scanForDuplicates(): void
