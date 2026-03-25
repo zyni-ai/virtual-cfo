@@ -827,17 +827,19 @@ describe('InboundEmailController duplicate hash atomicity', function () {
             ['attachment-1' => $pdf1],
         ));
 
- // Simulate the race: pre-check is bypassed (concurrent requests both passed it),                                  // so the DB unique constraint is the only guard. The second attempt must not store a file.
-          $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);                      
-          $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
-              ['attachment-1' => $pdf2],
-          ));
+        // The pre-check detects the duplicate hash and creates a Duplicate-status record.
+        // The important atomicity guarantee: no second file is stored on disk and no job is dispatched.
+        $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
+            ['attachment-1' => $pdf2],
+        ));
 
-          $response->assertSuccessful()->assertJson(['files_processed' => 0]);
-          expect(Storage::disk('local')->allFiles('statements'))->toHaveCount(1);
-          expect(ImportedFile::count())->toBe(1);
-          Queue::assertNotPushed(ProcessImportedFile::class);
+        $response->assertSuccessful()->assertJson(['files_processed' => 0]);
+        expect(Storage::disk('local')->allFiles('statements'))->toHaveCount(1);
+        expect(ImportedFile::count())->toBe(2);
+        // Only 1 job dispatched total — for the first (original) file, not the duplicate.
+        Queue::assertPushedTimes(ProcessImportedFile::class, 1);
       });
 
       it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () { 
