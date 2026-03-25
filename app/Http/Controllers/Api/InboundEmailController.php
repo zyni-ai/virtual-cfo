@@ -147,15 +147,15 @@ class InboundEmailController
         $fileHash = hash('sha256', $contents);
 
         $extension = $file->getClientOriginalExtension() ?: 'pdf';
-        $storagePath = 'statements/'.Str::uuid().'.'.$extension;
-        $filename = $file->getClientOriginalName();
-        $classification = $this->classifier->classify($metadata, $filename);
+        $storagePath = 'statements/'.Str::ulid().'.'.$extension;
+        $originalFilename = $file->getClientOriginalName();
+        $classification = $this->classifier->classify($metadata, $originalFilename);
 
         try {
             $importedFile = DB::transaction(fn () => ImportedFile::create([
                 'company_id' => $company->id,
                 'file_path' => $storagePath,
-                'original_filename' => $filename,
+                'original_filename' => basename($storagePath),
                 'file_hash' => $fileHash,
                 'source' => ImportSource::Email,
                 'source_metadata' => $metadata,
