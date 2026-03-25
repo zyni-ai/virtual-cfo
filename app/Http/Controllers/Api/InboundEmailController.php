@@ -71,22 +71,16 @@ class InboundEmailController
 
         foreach ($attachments as $attachment) {
             $importedFile = $this->storeAttachment($attachment, $company, $metadata);
-            $filesProcessed++;
-         
-//merged code start
 
-$status = $importedFile->status;
-
-if ($status !== ImportStatus::Skipped && $status !== ImportStatus::Duplicate) {
-    $filesProcessed++;
-    ProcessImportedFile::dispatch($importedFile);
-    $this->notifyAdmins($company, $importedFile, $metadata);
-}
-  
-  //merged code end
+            if ($importedFile === null) {
+                continue;
             }
 
-            $this->notifyAdmins($company, $importedFile, $metadata);
+            if ($importedFile->status !== ImportStatus::Duplicate) {
+                $filesProcessed++;
+                ProcessImportedFile::dispatch($importedFile);
+                $this->notifyAdmins($company, $importedFile, $metadata);
+            }
         }
 
         return response()->json([
