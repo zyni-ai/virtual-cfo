@@ -24,7 +24,6 @@ trait HasTransactionColumns
             ->label('Currency')
             ->badge()
             ->color('info')
-            ->toggleable(isToggledHiddenByDefault: true)
             ->placeholder('-');
     }
 
