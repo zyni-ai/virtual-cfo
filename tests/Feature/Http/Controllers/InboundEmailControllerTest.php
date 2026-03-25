@@ -736,6 +736,22 @@ describe('InboundEmailController duplicate notifications', function () {
         $pdf1 = UploadedFile::fake()->createWithContent('statement.pdf', $pdfContent);
         $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);
 
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<first@example.com>']),
+            ['attachment-1' => $pdf1],
+        ));
+
+        Queue::fake();
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
+            ['attachment-1' => $pdf2],
+        ));
+
+        Queue::assertNotPushed(ProcessImportedFile::class);
+    });
+});
+
 describe('InboundEmailController non-standard filenames', function () {
     it('imports a PDF with a generic scanned filename as Pending', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
