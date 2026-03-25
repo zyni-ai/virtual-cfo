@@ -4,6 +4,13 @@ use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\ImportedFileDownloadController;
 use App\Http\Controllers\ZohoOAuthCallbackController;
 use App\Http\Controllers\ZohoOAuthRedirectController;
+use App\Mail\InvitationMail;
+use App\Models\ImportedFile;
+use App\Models\Invitation;
+use App\Models\User;
+use App\Notifications\ImportFailedNotification;
+use App\Notifications\InvitationAcceptedNotification;
+use App\Notifications\MemberRoleChangedNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
@@ -19,7 +26,8 @@ Route::get('/invitations/{token}/accept', fn (string $token) => redirect("/admin
 
 Route::get('/admin/imported-files/{importedFile}/download', ImportedFileDownloadController::class)
     ->middleware('auth')
-    ->name('imported-files.download');
+    ->name('imported-files.download')
+    ->withTrashed();
 
 Route::get('/connectors/zoho/{company}/redirect', ZohoOAuthRedirectController::class)
     ->middleware('auth')
@@ -33,8 +41,8 @@ if (app()->environment('local')) {
     Route::prefix('dev/mail-preview')->group(function () {
         Route::get('/invitation', function () {
             DB::beginTransaction();
-            $invitation = App\Models\Invitation::factory()->create();
-            $html = (new App\Mail\InvitationMail($invitation))->render();
+            $invitation = Invitation::factory()->create();
+            $html = (new InvitationMail($invitation))->render();
             DB::rollBack();
 
             return $html;
@@ -42,8 +50,8 @@ if (app()->environment('local')) {
 
         Route::get('/import-failed', function () {
             DB::beginTransaction();
-            $file = App\Models\ImportedFile::factory()->failed('PDF parsing error')->create();
-            $html = (new App\Notifications\ImportFailedNotification($file))
+            $file = ImportedFile::factory()->failed('PDF parsing error')->create();
+            $html = (new ImportFailedNotification($file))
                 ->toMail($file->uploader)
                 ->render();
             DB::rollBack();
@@ -53,8 +61,8 @@ if (app()->environment('local')) {
 
         Route::get('/role-changed', function () {
             DB::beginTransaction();
-            $user = App\Models\User::factory()->create();
-            $html = (new App\Notifications\MemberRoleChangedNotification(
+            $user = User::factory()->create();
+            $html = (new MemberRoleChangedNotification(
                 companyName: 'Zysk Technologies',
                 newRole: 'Admin',
             ))->toMail($user)
@@ -66,8 +74,8 @@ if (app()->environment('local')) {
 
         Route::get('/invitation-accepted', function () {
             DB::beginTransaction();
-            $invitation = App\Models\Invitation::factory()->accepted()->create();
-            $html = (new App\Notifications\InvitationAcceptedNotification($invitation))
+            $invitation = Invitation::factory()->accepted()->create();
+            $html = (new InvitationAcceptedNotification($invitation))
                 ->toMail($invitation->inviter)
                 ->render();
             DB::rollBack();

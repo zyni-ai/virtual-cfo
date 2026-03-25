@@ -33,6 +33,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         'password',
         'role',
         'toured_pages',
+        'dismissed_suggestions',
     ];
 
     protected $hidden = [
@@ -47,6 +48,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'password' => 'hashed',
             'role' => UserRole::class,
             'toured_pages' => 'array',
+            'dismissed_suggestions' => 'array',
         ];
     }
 

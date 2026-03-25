@@ -732,6 +732,52 @@ describe('InboundEmailController non-standard filenames', function () {
     });
 });
 
+describe('InboundEmailController duplicate hash atomicity', function () {
+    it('does not store a file to disk when the database constraint rejects a duplicate hash', function () {
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdfContent = 'identical-pdf-content-toctou-race';
+
+        $pdf1 = UploadedFile::fake()->createWithContent('statement.pdf', $pdfContent);
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<first@example.com>']),
+            ['attachment-1' => $pdf1],
+        ));
+
+        // Simulate the race: pre-check is bypassed (concurrent requests both passed it),
+        // so the DB unique constraint is the only guard. The second attempt must not store a file.
+        $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
+            ['attachment-1' => $pdf2],
+        ));
+
+        $response->assertSuccessful()->assertJson(['files_processed' => 0]);
+        expect(Storage::disk('local')->allFiles('statements'))->toHaveCount(1);
+        expect(ImportedFile::count())->toBe(1);
+    });
+
+    it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () {
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdfContent = 'identical-pdf-content-exception-safety';
+
+        $pdf1 = UploadedFile::fake()->createWithContent('invoice.pdf', $pdfContent);
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-a@example.com>']),
+            ['attachment-1' => $pdf1],
+        ));
+
+        $pdf2 = UploadedFile::fake()->createWithContent('invoice_copy.pdf', $pdfContent);
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-b@example.com>']),
+            ['attachment-1' => $pdf2],
+        ));
+
+        $response->assertSuccessful()->assertJson(['status' => 'ok']);
+    });
+});
+
 describe('InboundEmailController file hash', function () {
     it('generates a sha256 hash for stored files', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
