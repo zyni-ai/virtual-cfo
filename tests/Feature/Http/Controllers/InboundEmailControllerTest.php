@@ -840,26 +840,26 @@ describe('InboundEmailController duplicate hash atomicity', function () {
         expect(ImportedFile::count())->toBe(2);
         // Only 1 job dispatched total — for the first (original) file, not the duplicate.
         Queue::assertPushedTimes(ProcessImportedFile::class, 1);
-      });
+    });
 
-      it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () { 
-          $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+    it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () {
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
-          $pdfContent = 'identical-pdf-content-exception-safety';
+        $pdfContent = 'identical-pdf-content-exception-safety';
 
-          $pdf1 = UploadedFile::fake()->createWithContent('invoice.pdf', $pdfContent);
-          $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-a@example.com>']),
-              ['attachment-1' => $pdf1],
-          ));
+        $pdf1 = UploadedFile::fake()->createWithContent('invoice.pdf', $pdfContent);
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-a@example.com>']),
+            ['attachment-1' => $pdf1],
+        ));
 
-          $pdf2 = UploadedFile::fake()->createWithContent('invoice_copy.pdf', $pdfContent);
-          $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-b@example.com>']),
-              ['attachment-1' => $pdf2],
-          ));
+        $pdf2 = UploadedFile::fake()->createWithContent('invoice_copy.pdf', $pdfContent);
+        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-b@example.com>']),
+            ['attachment-1' => $pdf2],
+        ));
 
-          $response->assertSuccessful()->assertJson(['status' => 'ok']);
+        $response->assertSuccessful()->assertJson(['status' => 'ok']);
     });
 });
 
