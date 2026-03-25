@@ -5,12 +5,14 @@ use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use App\Http\Middleware\VerifyMailgunSignature;
 use App\Jobs\ProcessImportedFile;
+use App\Mail\DuplicateImportMail;
 use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Models\User;
 use App\Notifications\StatementReceivedByEmailNotification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -669,6 +671,91 @@ describe('InboundEmailController job dispatch', function () {
     });
 });
 
+describe('InboundEmailController duplicate notifications', function () {
+    it('sends a DuplicateImportMail to the sender when the same file_hash is re-submitted', function () {
+        Mail::fake();
+
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdfContent = 'identical-content-for-notification-test';
+        $pdf1 = UploadedFile::fake()->createWithContent('statement.pdf', $pdfContent);
+        $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<orig@example.com>']),
+            ['attachment-1' => $pdf1],
+        ));
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload([
+                'attachment-count' => '1',
+                'Message-Id' => '<dup@example.com>',
+                'from' => 'Vendor Inc <vendor@example.com>',
+            ]),
+            ['attachment-1' => $pdf2],
+        ));
+
+        Mail::assertQueued(DuplicateImportMail::class, fn ($mail) => $mail->hasTo('vendor@example.com'));
+    });
+
+    it('does not send DuplicateImportMail when the file_hash is unique', function () {
+        Mail::fake();
+
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1']),
+            ['attachment-1' => $pdf],
+        ));
+
+        Mail::assertNothingQueued();
+    });
+
+    it('sends a DuplicateImportMail to the sender when the same message_id is re-forwarded', function () {
+        Mail::fake();
+
+        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+        ImportedFile::factory()->for($company)->fromEmail('<dup-msg@example.com>')->create();
+
+        $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload([
+                'Message-Id' => '<dup-msg@example.com>',
+                'attachment-count' => '1',
+                'from' => 'Vendor Inc <vendor@example.com>',
+            ]),
+            ['attachment-1' => $pdf],
+        ));
+
+        Mail::assertQueued(DuplicateImportMail::class, fn ($mail) => $mail->hasTo('vendor@example.com'));
+    });
+
+    it('does not dispatch ProcessImportedFile for duplicate-status files', function () {
+        Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+
+        $pdfContent = 'same-content-no-dispatch';
+        $pdf1 = UploadedFile::fake()->createWithContent('statement.pdf', $pdfContent);
+        $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<first@example.com>']),
+            ['attachment-1' => $pdf1],
+        ));
+
+        Queue::fake();
+
+        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<second@example.com>']),
+            ['attachment-1' => $pdf2],
+        ));
+
+        Queue::assertNotPushed(ProcessImportedFile::class);
+    });
+});
+
 describe('InboundEmailController non-standard filenames', function () {
     it('imports a PDF with a generic scanned filename as Pending', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
@@ -744,6 +831,9 @@ describe('InboundEmailController duplicate hash atomicity', function () {
             ['attachment-1' => $pdf1],
         ));
 
+        // Reset queue so we only capture second request's jobs
+        Queue::fake();
+
         // Simulate the race: pre-check is bypassed (concurrent requests both passed it),
         // so the DB unique constraint is the only guard. The second attempt must not store a file.
         $pdf2 = UploadedFile::fake()->createWithContent('statement_copy.pdf', $pdfContent);
@@ -754,27 +844,28 @@ describe('InboundEmailController duplicate hash atomicity', function () {
 
         $response->assertSuccessful()->assertJson(['files_processed' => 0]);
         expect(Storage::disk('local')->allFiles('statements'))->toHaveCount(1);
-        expect(ImportedFile::count())->toBe(1);
-    });
+        expect(ImportedFile::count())->toBe(2);
+        Queue::assertNotPushed(ProcessImportedFile::class);
+      });
 
-    it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () {
-        $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
+      it('returns a successful response (not 500) when the database constraint rejects a duplicate', function () { 
+          $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
-        $pdfContent = 'identical-pdf-content-exception-safety';
+          $pdfContent = 'identical-pdf-content-exception-safety';
 
-        $pdf1 = UploadedFile::fake()->createWithContent('invoice.pdf', $pdfContent);
-        $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-a@example.com>']),
-            ['attachment-1' => $pdf1],
-        ));
+          $pdf1 = UploadedFile::fake()->createWithContent('invoice.pdf', $pdfContent);
+          $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-a@example.com>']),
+              ['attachment-1' => $pdf1],
+          ));
 
-        $pdf2 = UploadedFile::fake()->createWithContent('invoice_copy.pdf', $pdfContent);
-        $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
-            inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-b@example.com>']),
-            ['attachment-1' => $pdf2],
-        ));
+          $pdf2 = UploadedFile::fake()->createWithContent('invoice_copy.pdf', $pdfContent);
+          $response = $this->postJson('/api/v1/webhooks/inbound-email', array_merge(
+              inboundPayload(['attachment-count' => '1', 'Message-Id' => '<msg-b@example.com>']),
+              ['attachment-1' => $pdf2],
+          ));
 
-        $response->assertSuccessful()->assertJson(['status' => 'ok']);
+          $response->assertSuccessful()->assertJson(['status' => 'ok']);
     });
 });
 
@@ -829,7 +920,7 @@ describe('InboundEmailController multi-tenant isolation', function () {
             ->and(ImportedFile::where('company_id', $companyB->id)->count())->toBe(1);
     });
 
-    it('blocks duplicate file_hash within the same company', function () {
+    it('records a duplicate-status ImportedFile when the same file_hash is uploaded again', function () {
         Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
         $pdfContent = 'identical-pdf-content';
@@ -852,7 +943,10 @@ describe('InboundEmailController multi-tenant isolation', function () {
             ['attachment-1' => $pdf2],
         ));
 
-        expect(ImportedFile::count())->toBe(1);
+        expect(ImportedFile::count())->toBe(2);
+
+        $duplicate = ImportedFile::orderByDesc('id')->first();
+        expect($duplicate->status)->toBe(ImportStatus::Duplicate);
     });
 
     it('allows multiple attachments from the same email', function () {
