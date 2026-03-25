@@ -98,7 +98,7 @@ class TransactionSummarySheet implements FromCollection, WithEvents, WithHeading
         }
 
         foreach ($summary as &$row) {
-            $row['net_amount'] = $row['total_debit'] - $row['total_credit'];
+            $row['net_amount'] = abs($row['total_debit'] - $row['total_credit']);
         }
 
         return collect(array_values($summary));
