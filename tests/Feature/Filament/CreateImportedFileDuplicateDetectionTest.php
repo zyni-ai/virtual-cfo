@@ -137,6 +137,7 @@ describe('CreateImportedFile duplicate detection', function () {
         ImportedFile::factory()->create([
             'file_hash' => hash('sha256', $fileContent),
             'original_filename' => 'march-2024-hdfc.pdf',
+            'display_name' => 'HDFC_Mar 2024',
             'file_path' => $filePath,
             'created_at' => $createdAt,
         ]);
@@ -146,7 +147,7 @@ describe('CreateImportedFile duplicate detection', function () {
             $fileContent,
         );
 
-        $expectedBody = "This file was already imported on {$createdAt->format('d M Y, H:i')} as \"march-2024-hdfc.pdf\". Enable \"Force re-import\" to replace it.";
+        $expectedBody = "This file was already imported on {$createdAt->format('d M Y, H:i')} as \"HDFC_Mar 2024\". Enable \"Force re-import\" to replace it.";
 
         livewire(CreateImportedFile::class)
             ->fillForm([

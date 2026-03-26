@@ -28,6 +28,7 @@ class ImportedFileFactory extends Factory
             'statement_type' => StatementType::Bank,
             'file_path' => 'statements/'.fake()->uuid().'.pdf',
             'original_filename' => $bank.'_statement_'.fake()->date('Y_m').'.pdf',
+            'display_name' => $bank.'_'.fake()->date('M Y'),
             'file_hash' => fake()->unique()->sha256(),
             'status' => ImportStatus::Pending,
             'source' => ImportSource::ManualUpload,
