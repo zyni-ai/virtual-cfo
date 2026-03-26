@@ -41,6 +41,7 @@ class Transaction extends Model
         'reconciliation_status',
         'recurring_pattern_id',
         'duplicate_of_id',
+        'is_synthetic',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -72,6 +73,7 @@ class Transaction extends Model
             'mapping_type' => MappingType::class,
             'ai_confidence' => 'float',
             'reconciliation_status' => ReconciliationStatus::class,
+            'is_synthetic' => 'boolean',
         ];
     }
 

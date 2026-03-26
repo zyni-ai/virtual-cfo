@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Models\AccountHead;
 use App\Models\Company;
+use App\Models\ImportedFile;
 use App\Models\Transaction;
 use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,11 +22,31 @@ class TransactionSummarySheet implements FromCollection, WithEvents, WithHeading
         public ?string $from = null,
         public ?string $until = null,
         public ?Builder $baseQuery = null,
+        public ?ImportedFile $importedFile = null,
     ) {}
 
     public function title(): string
     {
         return 'Summary';
+    }
+
+    public function resolveAccountLabel(): string
+    {
+        if ($this->importedFile === null) {
+            return '';
+        }
+
+        $file = $this->importedFile;
+        $bankName = $file->bank_name ?? '';
+
+        if (! $file->credit_card_id) {
+            return $bankName;
+        }
+
+        $file->loadMissing('creditCard');
+        $cardName = $file->creditCard?->name;
+
+        return $cardName ? trim("{$bankName} {$cardName}") : $bankName;
     }
 
     /**

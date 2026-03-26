@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\ImportedFile;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
@@ -13,6 +14,7 @@ class TransactionExcelExport implements WithMultipleSheets
         public ?string $from = null,
         public ?string $until = null,
         public ?Builder $baseQuery = null,
+        public ?ImportedFile $importedFile = null,
     ) {}
 
     /**
@@ -22,7 +24,7 @@ class TransactionExcelExport implements WithMultipleSheets
     {
         return [
             new TransactionDetailSheet(from: $this->from, until: $this->until, baseQuery: $this->baseQuery),
-            new TransactionSummarySheet(from: $this->from, until: $this->until, baseQuery: $this->baseQuery),
+            new TransactionSummarySheet(from: $this->from, until: $this->until, baseQuery: $this->baseQuery, importedFile: $this->importedFile),
         ];
     }
 }
