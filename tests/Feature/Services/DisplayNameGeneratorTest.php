@@ -1,0 +1,93 @@
+<?php
+
+use App\Models\CreditCard;
+use App\Models\ImportedFile;
+use App\Services\DisplayNameGenerator;
+use Carbon\Carbon;
+
+describe('DisplayNameGenerator', function () {
+    it('generates bank name and period for bank account import with statement period', function () {
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'HDFC',
+            'statement_period' => 'Jan 2025',
+            'credit_card_id' => null,
+        ]);
+
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('HDFC_Jan 2025');
+    });
+
+    it('generates bank name, card type, and period for credit card import with statement period', function () {
+        $card = CreditCard::factory()->create([
+            'company_id' => $this->tenant?->id ?? \App\Models\Company::factory()->create()->id,
+            'name' => 'Regalia',
+        ]);
+
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'HDFC',
+            'credit_card_id' => $card->id,
+            'statement_period' => 'Jan 2025',
+        ]);
+
+        $file->load('creditCard');
+
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('HDFC_Regalia_Jan 2025');
+    });
+
+    it('falls back to created_at month/year when statement_period is null', function () {
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'Axis',
+            'statement_period' => null,
+            'credit_card_id' => null,
+            'created_at' => Carbon::parse('2024-03-15'),
+        ]);
+
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('Axis_Mar 2024');
+    });
+
+    it('includes card type from credit card name and falls back to created_at when no statement period', function () {
+        $card = CreditCard::factory()->create([
+            'name' => 'Platinum',
+        ]);
+
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'ICICI',
+            'credit_card_id' => $card->id,
+            'statement_period' => null,
+            'created_at' => Carbon::parse('2025-06-20'),
+        ]);
+
+        $file->load('creditCard');
+
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('ICICI_Platinum_Jun 2025');
+    });
+
+    it('handles null bank_name gracefully', function () {
+        $file = ImportedFile::factory()->create([
+            'bank_name' => null,
+            'statement_period' => 'Feb 2025',
+            'credit_card_id' => null,
+        ]);
+
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('_Feb 2025');
+    });
+
+    it('uses user-supplied display_name as-is when provided', function () {
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'HDFC',
+            'statement_period' => 'Jan 2025',
+            'display_name' => 'My Custom Name',
+        ]);
+
+        expect($file->display_name)->toBe('My Custom Name');
+    });
+});
