@@ -21,6 +21,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 
 class ReconciliationResource extends Resource
@@ -155,6 +156,49 @@ class ReconciliationResource extends Resource
                                 ->send();
                         })
                         ->visible(fn (Transaction $record) => $record->reconciliationMatchesAsBank->isNotEmpty()),
+                ]),
+            ])
+            ->toolbarActions([
+                Actions\BulkActionGroup::make([
+                    Actions\BulkAction::make('bulk_confirm')
+                        ->label('Confirm Selected')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records) {
+                            $service = app(ReconciliationService::class);
+
+                            /** @var Collection<int, Transaction> $records */
+                            $records->each(function (Transaction $record) use ($service): void {
+                                $match = $record->reconciliationMatchesAsBank->first();
+
+                                if (! $match) {
+                                    return;
+                                }
+
+                                $service->confirmSuggestion($match);
+                            });
+
+                            $records
+                                ->pluck('importedFile')
+                                ->filter()
+                                ->unique('id')
+                                ->each(fn (ImportedFile $file) => $service->enrichMatchedTransactions($file));
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
+                    Actions\BulkAction::make('bulk_reject')
+                        ->label('Reject Selected')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records) {
+                            $service = app(ReconciliationService::class);
+
+                            /** @var Collection<int, Transaction> $records */
+                            $records->each(fn (Transaction $record) => $service->rejectAllSuggestions($record));
+                        })
+                        ->deselectRecordsAfterCompletion(),
                 ]),
             ])
             ->headerActions([
