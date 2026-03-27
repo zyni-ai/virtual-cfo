@@ -55,6 +55,8 @@ class StatementParser implements Agent, HasMiddleware, HasStructuredOutput
         - Extract reference numbers where available
         - Handle multi-line transaction descriptions by concatenating them
 
+        For credit card statements, also extract the Previous Balance (opening balance) from the Statement Summary section at the top of the statement. This is labelled "Previous Balance", "Opening Balance", or similar — it is NOT a transaction row. Set it as `previous_balance` in the response.
+
         Be thorough — do not skip any transactions. Accuracy is critical for accounting purposes.
         INSTRUCTIONS;
     }
@@ -65,6 +67,7 @@ class StatementParser implements Agent, HasMiddleware, HasStructuredOutput
             'bank_name' => $schema->string()->required(),
             'account_number' => $schema->string(),
             'statement_period' => $schema->string(),
+            'previous_balance' => $schema->number(),
             'transactions' => $schema->array()->items($schema->object([
                 'date' => $schema->string()->required(),
                 'description' => $schema->string()->required(),

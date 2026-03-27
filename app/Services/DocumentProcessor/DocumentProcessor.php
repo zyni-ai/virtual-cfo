@@ -442,6 +442,9 @@ class DocumentProcessor
         $accountNumber = $response['account_number'] ?? null;
         $statementPeriod = $response['statement_period'] ?? null;
         $transactions = $response['transactions'];
+        $previousBalance = is_numeric($response['previous_balance'] ?? null)
+            ? (float) $response['previous_balance']
+            : null;
 
         if (empty($transactions)) {
             $file->update([
@@ -452,7 +455,7 @@ class DocumentProcessor
             return;
         }
 
-        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $transactions) {
+        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $transactions, $previousBalance) {
             $fileUpdates = [
                 'status' => ImportStatus::Completed,
                 'total_rows' => count($transactions),
@@ -490,8 +493,8 @@ class DocumentProcessor
                     'date' => Carbon::parse($row['date']),
                     'description' => $row['description'] ?? '',
                     'reference_number' => $row['reference'] ?? null,
-                    'debit' => isset($row['debit']) ? (string) $row['debit'] : null,
-                    'credit' => isset($row['credit']) ? (string) $row['credit'] : null,
+                    'debit' => isset($row['debit']) && (float) $row['debit'] > 0 ? (string) $row['debit'] : null,
+                    'credit' => isset($row['credit']) && (float) $row['credit'] > 0 ? (string) $row['credit'] : null,
                     'balance' => isset($row['balance']) ? (string) $row['balance'] : null,
                     'mapping_type' => MappingType::Unmapped,
                     'raw_data' => $row,
@@ -499,8 +502,59 @@ class DocumentProcessor
                 ]);
             }
 
+            /** @var StatementType $statementType */
+            $statementType = $file->statement_type;
+
+            if ($statementType === StatementType::CreditCard && $previousBalance !== null && $previousBalance > 0) {
+                $syntheticDate = $this->resolvePreviousBalanceDate($statementPeriod, $transactions);
+
+                Transaction::create([
+                    'company_id' => $file->company_id,
+                    'imported_file_id' => $file->id,
+                    'date' => $syntheticDate,
+                    'description' => 'Previous Balance',
+                    'debit' => (string) $previousBalance,
+                    'credit' => null,
+                    'balance' => null,
+                    'mapping_type' => MappingType::Unmapped,
+                    'raw_data' => ['previous_balance' => $previousBalance],
+                    'bank_format' => $bankName,
+                    'is_synthetic' => true,
+                ]);
+
+                $fileUpdates['total_rows'] = count($transactions) + 1;
+            }
+
             $file->update($fileUpdates);
         });
+    }
+
+    /**
+     * Resolve the date for a Previous Balance synthetic transaction.
+     *
+     * Attempts to extract the start date from the statement period string.
+     * Falls back to the earliest transaction date if parsing fails.
+     *
+     * @param  array<int, array<string, mixed>>  $transactions
+     */
+    protected function resolvePreviousBalanceDate(?string $statementPeriod, array $transactions): Carbon
+    {
+        if ($statementPeriod !== null && preg_match('/(\d{4}-\d{2}-\d{2})/', $statementPeriod, $matches)) {
+            try {
+                return Carbon::parse($matches[1]);
+            } catch (\Throwable) {
+                // fallthrough to transaction date fallback
+            }
+        }
+
+        $dates = array_filter(array_column($transactions, 'date'));
+        if (! empty($dates)) {
+            sort($dates);
+
+            return Carbon::parse(reset($dates));
+        }
+
+        return now();
     }
 
     /**

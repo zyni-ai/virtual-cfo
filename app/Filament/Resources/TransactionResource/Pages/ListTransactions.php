@@ -16,7 +16,9 @@ use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Support\Exceptions\Halt;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 
@@ -72,13 +74,23 @@ class ListTransactions extends ListRecords
                     $tenant = Filament::getTenant();
                     $companyId = $tenant?->id;
 
-                    HeadMapping::create([
-                        'pattern' => $data['pattern'],
-                        'match_type' => $data['match_type'],
-                        'account_head_id' => $data['account_head_id'],
-                        'company_id' => $companyId,
-                        'created_by' => Auth::id(),
-                    ]);
+                    try {
+                        HeadMapping::create([
+                            'pattern' => $data['pattern'],
+                            'match_type' => $data['match_type'],
+                            'account_head_id' => $data['account_head_id'],
+                            'company_id' => $companyId,
+                            'created_by' => Auth::id(),
+                        ]);
+                    } catch (UniqueConstraintViolationException) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Duplicate rule')
+                            ->body('A mapping rule with this pattern, match type, and account head already exists.')
+                            ->send();
+
+                        throw new Halt;
+                    }
 
                     if ($data['apply_immediately'] && ! empty($data['imported_file_id'])) {
                         $applied = $this->applyRuleToImport(
