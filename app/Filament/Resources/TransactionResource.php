@@ -471,6 +471,7 @@ class TransactionResource extends Resource
                                 from: $data['from'] ?? null,
                                 until: $data['until'] ?? null,
                                 baseQuery: self::resolveExportBaseQuery($livewire),
+                                importedFile: self::resolveExportImportedFile($livewire),
                             );
 
                             return Excel::download(
@@ -536,6 +537,21 @@ class TransactionResource extends Resource
         return $livewire instanceof HasTable
             ? $livewire->getTableQueryForExport()
             : null;
+    }
+
+    private static function resolveExportImportedFile(Component $livewire): ?ImportedFile
+    {
+        if (! $livewire instanceof HasTable) {
+            return null;
+        }
+
+        $fileId = $livewire->tableFilters['imported_file_id']['value'] ?? null;
+
+        if (! $fileId) {
+            return null;
+        }
+
+        return ImportedFile::with('creditCard')->find($fileId);
     }
 
     public static function getRelations(): array

@@ -10,12 +10,13 @@ use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 
-class TransactionSummarySheet implements FromCollection, WithEvents, WithHeadings, WithTitle
+class TransactionSummarySheet implements FromCollection, WithCustomStartCell, WithEvents, WithHeadings, WithTitle
 {
     /** @param Builder<Transaction>|null $baseQuery */
     public function __construct(
@@ -28,6 +29,11 @@ class TransactionSummarySheet implements FromCollection, WithEvents, WithHeading
     public function title(): string
     {
         return 'Summary';
+    }
+
+    public function startCell(): string
+    {
+        return $this->importedFile ? 'A3' : 'A1';
     }
 
     public function resolveAccountLabel(): string
@@ -119,7 +125,7 @@ class TransactionSummarySheet implements FromCollection, WithEvents, WithHeading
         }
 
         foreach ($summary as &$row) {
-            $row['net_amount'] = abs($row['total_debit'] - $row['total_credit']);
+            $row['net_amount'] = $row['total_debit'] - $row['total_credit'];
         }
 
         return collect(array_values($summary));
@@ -133,8 +139,25 @@ class TransactionSummarySheet implements FromCollection, WithEvents, WithHeading
         return [
             AfterSheet::class => function (AfterSheet $event): void {
                 $sheet = $event->sheet->getDelegate();
+
+                $hasMetadata = $this->importedFile !== null;
+                $headerRow = $hasMetadata ? 3 : 1;
+                $dataStartRow = $hasMetadata ? 4 : 2;
+
+                // Capture highest data row BEFORE writing any new cells
                 $lastDataRow = $sheet->getHighestRow();
                 $totalsRow = $lastDataRow + 1;
+
+                if ($hasMetadata) {
+                    $sheet->setCellValue('A1', 'Card / Account:');
+                    $sheet->setCellValue('B1', $this->resolveAccountLabel());
+                    $sheet->setCellValue('A2', 'Statement Period:');
+                    $sheet->setCellValue('B2', $this->importedFile->statement_period ?? '');
+
+                    $sheet->getStyle('A1:A2')->getFont()->setBold(true);
+                    $sheet->getRowDimension(1)->setRowHeight(20);
+                    $sheet->getRowDimension(2)->setRowHeight(20);
+                }
 
                 // Column widths
                 $sheet->getColumnDimension('A')->setWidth(32);
@@ -144,16 +167,16 @@ class TransactionSummarySheet implements FromCollection, WithEvents, WithHeading
 
                 // Totals row
                 $sheet->setCellValue("A{$totalsRow}", 'Total');
-                $sheet->setCellValue("B{$totalsRow}", "=SUM(B2:B{$lastDataRow})");
-                $sheet->setCellValue("C{$totalsRow}", "=SUM(C2:C{$lastDataRow})");
-                $sheet->setCellValue("D{$totalsRow}", "=SUM(D2:D{$lastDataRow})");
+                $sheet->setCellValue("B{$totalsRow}", "=SUM(B{$dataStartRow}:B{$lastDataRow})");
+                $sheet->setCellValue("C{$totalsRow}", "=SUM(C{$dataStartRow}:C{$lastDataRow})");
+                $sheet->setCellValue("D{$totalsRow}", "=SUM(D{$dataStartRow}:D{$lastDataRow})");
 
                 // Bold header row and totals row
-                $sheet->getStyle('1:1')->getFont()->setBold(true);
+                $sheet->getStyle("{$headerRow}:{$headerRow}")->getFont()->setBold(true);
                 $sheet->getStyle("{$totalsRow}:{$totalsRow}")->getFont()->setBold(true);
 
                 // Row height for all rows
-                for ($i = 1; $i <= $totalsRow; $i++) {
+                for ($i = $headerRow; $i <= $totalsRow; $i++) {
                     $sheet->getRowDimension($i)->setRowHeight(20);
                 }
             },
