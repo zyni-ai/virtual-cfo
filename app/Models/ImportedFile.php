@@ -50,6 +50,7 @@ class ImportedFile extends Model
 
     protected $fillable = [
         'company_id',
+        'inbound_email_id',
         'bank_name',
         'account_number',
         'statement_period',
@@ -114,6 +115,12 @@ class ImportedFile extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /** @return BelongsTo<InboundEmail, $this> */
+    public function inboundEmail(): BelongsTo
+    {
+        return $this->belongsTo(InboundEmail::class);
     }
 
     /** @return BelongsTo<User, $this> */

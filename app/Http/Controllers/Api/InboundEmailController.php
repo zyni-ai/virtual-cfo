@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
+use App\Enums\InboundEmailStatus;
 use App\Enums\StatementType;
 use App\Enums\UserRole;
 use App\Jobs\ProcessImportedFile;
 use App\Mail\DuplicateImportMail;
 use App\Models\Company;
 use App\Models\ImportedFile;
+use App\Models\InboundEmail;
 use App\Models\User;
 use App\Notifications\StatementReceivedByEmailNotification;
 use App\Services\StatementClassifier;
@@ -38,46 +40,93 @@ class InboundEmailController
     public function __invoke(Request $request): JsonResponse
     {
         $recipient = $request->input('recipient');
+        $messageId = $request->input('Message-Id');
+        $from = $request->input('from', $request->input('sender'));
+        $subject = $request->input('subject');
+        $bodyText = $this->extractBodyText($request);
+
         $company = Company::query()->where('inbox_address', $recipient)->first();
 
         if (! $company) {
+            InboundEmail::create([
+                'company_id' => null,
+                'message_id' => $messageId,
+                'from_address' => $from,
+                'subject' => $subject,
+                'body_text' => $bodyText,
+                'recipient' => $recipient,
+                'attachment_count' => (int) $request->input('attachment-count', 0),
+                'processed_count' => 0,
+                'skipped_count' => 0,
+                'status' => InboundEmailStatus::Rejected,
+                'rejection_reason' => 'Unknown inbox address',
+                'received_at' => now(),
+            ]);
+
             return response()->json(['error' => 'Unknown recipient'], 404);
         }
 
-        $messageId = $request->input('Message-Id');
-
         if ($messageId && $this->isDuplicate($company, $messageId)) {
-            $original = ImportedFile::query()
-                ->where('company_id', $company->id)
-                ->where('message_id', $messageId)
-                ->first();
+            InboundEmail::create([
+                'company_id' => $company->id,
+                'message_id' => $messageId,
+                'from_address' => $from,
+                'subject' => $subject,
+                'body_text' => $bodyText,
+                'recipient' => $recipient,
+                'attachment_count' => (int) $request->input('attachment-count', 0),
+                'processed_count' => 0,
+                'skipped_count' => 0,
+                'status' => InboundEmailStatus::Duplicate,
+                'rejection_reason' => 'Duplicate message_id',
+                'received_at' => now(),
+            ]);
 
             $this->notifySenderOfDuplicate(
-                senderFrom: $request->input('from', $request->input('sender')),
+                senderFrom: $from,
                 filename: null,
                 company: $company,
-                original: $original,
             );
 
             return response()->json(['status' => 'ok', 'files_processed' => 0]);
         }
 
+        $attachments = $this->extractAttachments($request);
+        $totalAttachments = (int) $request->input('attachment-count', count($attachments));
+
+        $inboundEmail = InboundEmail::create([
+            'company_id' => $company->id,
+            'message_id' => $messageId,
+            'from_address' => $from,
+            'subject' => $subject,
+            'body_text' => $bodyText,
+            'recipient' => $recipient,
+            'attachment_count' => $totalAttachments,
+            'processed_count' => 0,
+            'skipped_count' => 0,
+            'status' => InboundEmailStatus::NoAttachments,
+            'rejection_reason' => null,
+            'received_at' => now(),
+        ]);
+
         $metadata = [
             'message_id' => $messageId,
-            'from' => $request->input('from', $request->input('sender')),
-            'subject' => $request->input('subject'),
+            'from' => $from,
+            'subject' => $subject,
             'received_at' => now()->toIso8601String(),
-            'body_text' => $this->extractBodyText($request),
+            'body_text' => $bodyText,
         ];
 
         $filesProcessed = 0;
-        $attachments = $this->extractAttachments($request);
+        $filesSkipped = 0;
         $admins = null;
 
         foreach ($attachments as $attachment) {
-            $importedFile = $this->storeAttachment($attachment, $company, $metadata);
+            $importedFile = $this->storeAttachment($attachment, $company, $metadata, $inboundEmail);
 
             if ($importedFile === null) {
+                $filesSkipped++;
+
                 continue;
             }
 
@@ -88,6 +137,14 @@ class InboundEmailController
                 $this->notifyAdmins($company, $admins, $importedFile, $metadata);
             }
         }
+
+        $skippedCount = max(0, $totalAttachments - count($attachments));
+
+        $inboundEmail->update([
+            'processed_count' => $filesProcessed,
+            'skipped_count' => $skippedCount + $filesSkipped,
+            'status' => $filesProcessed > 0 ? InboundEmailStatus::Processed : InboundEmailStatus::NoAttachments,
+        ]);
 
         return response()->json([
             'status' => 'ok',
@@ -157,7 +214,7 @@ class InboundEmailController
 
     private function isDuplicate(Company $company, string $messageId): bool
     {
-        return ImportedFile::query()
+        return InboundEmail::query()
             ->where('company_id', $company->id)
             ->where('message_id', $messageId)
             ->exists();
@@ -196,6 +253,7 @@ class InboundEmailController
         UploadedFile $file,
         Company $company,
         array $metadata,
+        InboundEmail $inboundEmail,
     ): ?ImportedFile {
         $contents = $file->getContent();
         $fileHash = hash('sha256', $contents);
@@ -217,6 +275,7 @@ class InboundEmailController
 
             return ImportedFile::create([
                 'company_id' => $company->id,
+                'inbound_email_id' => $inboundEmail->id,
                 'file_path' => $original->file_path,
                 'original_filename' => $filename,
                 'file_hash' => $fileHash,
@@ -237,6 +296,7 @@ class InboundEmailController
         try {
             $importedFile = DB::transaction(fn () => ImportedFile::create([
                 'company_id' => $company->id,
+                'inbound_email_id' => $inboundEmail->id,
                 'file_path' => $storagePath,
                 'original_filename' => basename($storagePath),
                 'file_hash' => $fileHash,
