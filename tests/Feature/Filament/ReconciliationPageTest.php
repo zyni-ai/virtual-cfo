@@ -271,6 +271,168 @@ describe('Reconciliation Page', function () {
         expect($match1->status)->toBe(MatchStatus::Rejected)
             ->and($match2->status)->toBe(MatchStatus::Rejected);
     });
+
+    it('can bulk confirm selected suggested matches', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxn1 = Transaction::factory()->debit(1000.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+        $bankTxn2 = Transaction::factory()->debit(2000.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        $match1 = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn1->id,
+            'invoice_transaction_id' => Transaction::factory()->create([
+                'imported_file_id' => $invoiceFile->id,
+                'reconciliation_status' => ReconciliationStatus::Unreconciled,
+            ])->id,
+        ]);
+        $match2 = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn2->id,
+            'invoice_transaction_id' => Transaction::factory()->create([
+                'imported_file_id' => $invoiceFile->id,
+                'reconciliation_status' => ReconciliationStatus::Unreconciled,
+            ])->id,
+        ]);
+
+        livewire(ListReconciliation::class)
+            ->callTableBulkAction('bulk_confirm', [$bankTxn1, $bankTxn2]);
+
+        $match1->refresh();
+        $match2->refresh();
+        $bankTxn1->refresh();
+        $bankTxn2->refresh();
+
+        expect($match1->status)->toBe(MatchStatus::Confirmed)
+            ->and($match2->status)->toBe(MatchStatus::Confirmed)
+            ->and($bankTxn1->reconciliation_status)->toBe(ReconciliationStatus::Matched)
+            ->and($bankTxn2->reconciliation_status)->toBe(ReconciliationStatus::Matched);
+    });
+
+    it('bulk confirm skips transactions with no suggested matches', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxnWithMatch = Transaction::factory()->debit(1000.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+        $bankTxnNoMatch = Transaction::factory()->debit(500.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        $match = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxnWithMatch->id,
+            'invoice_transaction_id' => Transaction::factory()->create([
+                'imported_file_id' => $invoiceFile->id,
+            ])->id,
+        ]);
+
+        livewire(ListReconciliation::class)
+            ->callTableBulkAction('bulk_confirm', [$bankTxnWithMatch, $bankTxnNoMatch]);
+
+        $match->refresh();
+        $bankTxnWithMatch->refresh();
+        $bankTxnNoMatch->refresh();
+
+        expect($match->status)->toBe(MatchStatus::Confirmed)
+            ->and($bankTxnWithMatch->reconciliation_status)->toBe(ReconciliationStatus::Matched)
+            ->and($bankTxnNoMatch->reconciliation_status)->toBe(ReconciliationStatus::Unreconciled);
+    });
+
+    it('can bulk reject selected suggested matches', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxn1 = Transaction::factory()->debit(1000.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+        $bankTxn2 = Transaction::factory()->debit(2000.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        $match1 = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn1->id,
+            'invoice_transaction_id' => Transaction::factory()->create([
+                'imported_file_id' => $invoiceFile->id,
+            ])->id,
+        ]);
+        $match2 = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn2->id,
+            'invoice_transaction_id' => Transaction::factory()->create([
+                'imported_file_id' => $invoiceFile->id,
+            ])->id,
+        ]);
+
+        livewire(ListReconciliation::class)
+            ->callTableBulkAction('bulk_reject', [$bankTxn1, $bankTxn2]);
+
+        $match1->refresh();
+        $match2->refresh();
+        $bankTxn1->refresh();
+        $bankTxn2->refresh();
+
+        expect($match1->status)->toBe(MatchStatus::Rejected)
+            ->and($match2->status)->toBe(MatchStatus::Rejected)
+            ->and($bankTxn1->reconciliation_status)->toBe(ReconciliationStatus::Unreconciled)
+            ->and($bankTxn2->reconciliation_status)->toBe(ReconciliationStatus::Unreconciled);
+    });
+
+    it('bulk reject rejects all suggestions across multiple transactions', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxn = Transaction::factory()->debit(3000.00)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+
+        $match1 = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn->id,
+            'invoice_transaction_id' => Transaction::factory()->create([
+                'imported_file_id' => $invoiceFile->id,
+            ])->id,
+        ]);
+        $match2 = ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn->id,
+            'invoice_transaction_id' => Transaction::factory()->create([
+                'imported_file_id' => $invoiceFile->id,
+            ])->id,
+        ]);
+
+        livewire(ListReconciliation::class)
+            ->callTableBulkAction('bulk_reject', [$bankTxn]);
+
+        $match1->refresh();
+        $match2->refresh();
+
+        expect($match1->status)->toBe(MatchStatus::Rejected)
+            ->and($match2->status)->toBe(MatchStatus::Rejected);
+    });
 });
 
 describe('Transaction::scopeMatched', function () {
