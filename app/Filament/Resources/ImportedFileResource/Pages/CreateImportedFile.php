@@ -7,6 +7,7 @@ use App\Enums\ImportStatus;
 use App\Filament\Resources\ImportedFileResource;
 use App\Jobs\ProcessImportedFile;
 use App\Models\ImportedFile;
+use App\Services\DisplayNameGenerator;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
@@ -55,7 +56,7 @@ class CreateImportedFile extends CreateRecord
                     Notification::make()
                         ->danger()
                         ->title('Duplicate file detected')
-                        ->body("This file was already imported on {$importedDate} as \"{$existing->original_filename}\". Enable \"Force re-import\" to replace it.")
+                        ->body("This file was already imported on {$importedDate} as \"{$existing->display_name}\". Enable \"Force re-import\" to replace it.")
                         ->persistent()
                         ->send();
 
@@ -80,7 +81,15 @@ class CreateImportedFile extends CreateRecord
 
     protected function afterCreate(): void
     {
-        ProcessImportedFile::dispatch($this->record);
+        /** @var ImportedFile $record */
+        $record = $this->record;
+
+        if (blank($record->display_name)) {
+            $record->load('creditCard');
+            $record->update(['display_name' => app(DisplayNameGenerator::class)->generate($record)]);
+        }
+
+        ProcessImportedFile::dispatch($record);
     }
 
     protected function getRedirectUrl(): string

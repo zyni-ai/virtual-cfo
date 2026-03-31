@@ -39,6 +39,11 @@ class ImportedFileResource extends Resource
             ->schema([
                 Section::make('Upload Statement')
                     ->schema([
+                        Forms\Components\TextInput::make('display_name')
+                            ->label('Display Name')
+                            ->placeholder('e.g. HDFC Regalia Jan 2025 — leave blank to auto-generate')
+                            ->columnSpanFull(),
+
                         Forms\Components\FileUpload::make('file_path')
                             ->label('Statement File')
                             ->acceptedFileTypes([
@@ -100,7 +105,7 @@ class ImportedFileResource extends Resource
             ->poll(fn (): ?string => ImportedFile::activelyProcessing()->exists() ? '10s' : null)
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['bankAccount', 'creditCard', 'uploader']))
             ->columns([
-                Tables\Columns\TextColumn::make('original_filename')
+                Tables\Columns\TextColumn::make('display_name')
                     ->label('File')
                     ->searchable()
                     ->limit(40)

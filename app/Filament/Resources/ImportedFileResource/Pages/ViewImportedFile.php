@@ -34,6 +34,8 @@ class ViewImportedFile extends ViewRecord
                 Section::make('File Details')
                     ->poll(fn (): ?string => $this->record->isProcessing() ? '10s' : null)
                     ->schema([
+                        Infolists\Components\TextEntry::make('display_name')
+                            ->label('Display Name'),
                         Infolists\Components\TextEntry::make('original_filename')
                             ->label('Filename'),
                         Infolists\Components\TextEntry::make('bank_name')

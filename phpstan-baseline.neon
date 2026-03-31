@@ -86,12 +86,6 @@ parameters:
 
 
 		-
-			message: '#^Parameter \#1 \$importedFile of job class App\\Jobs\\ProcessImportedFile constructor expects App\\Models\\ImportedFile in App\\Jobs\\ProcessImportedFile\:\:dispatch\(\), Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Filament/Resources/ImportedFileResource/Pages/CreateImportedFile.php
-
-		-
 			message: '#^Class App\\Models\\AccountHead uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
