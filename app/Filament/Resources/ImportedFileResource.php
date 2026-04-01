@@ -293,7 +293,9 @@ class ImportedFileResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            ImportedFileResource\RelationManagers\TransactionsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
