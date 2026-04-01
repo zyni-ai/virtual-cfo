@@ -57,7 +57,7 @@ describe('ImportedFile Transactions RelationManager', function () {
             ->assertCanSeeTableRecords([]);
     });
 
-    it('has a view action for each transaction row', function () {
+    it('has an assign_head action for each transaction row', function () {
         $file = ImportedFile::factory()->create();
         $transaction = Transaction::factory()->for($file, 'importedFile')->create();
 
@@ -65,7 +65,27 @@ describe('ImportedFile Transactions RelationManager', function () {
             'ownerRecord' => $file,
             'pageClass' => ViewImportedFile::class,
         ])
-            ->assertTableActionExists('view', record: $transaction);
+            ->assertTableActionExists('assign_head', record: $transaction);
+    });
+
+    it('has a bulk assign_head action', function () {
+        $file = ImportedFile::factory()->create();
+
+        livewire(TransactionsRelationManager::class, [
+            'ownerRecord' => $file,
+            'pageClass' => ViewImportedFile::class,
+        ])
+            ->assertTableBulkActionExists('bulk_assign_head');
+    });
+
+    it('has an export header action group', function () {
+        $file = ImportedFile::factory()->create();
+
+        livewire(TransactionsRelationManager::class, [
+            'ownerRecord' => $file,
+            'pageClass' => ViewImportedFile::class,
+        ])
+            ->assertTableActionExists('run_ai_matching');
     });
 
     it('has no create action', function () {
