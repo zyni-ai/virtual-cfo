@@ -7,11 +7,14 @@ use App\Enums\MatchMethod;
 use App\Enums\MatchType;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
+use App\Enums\UserRole;
 use App\Exports\TransactionCsvExport;
 use App\Exports\TransactionExcelExport;
 use App\Filament\Resources\Concerns\HasTransactionColumns;
 use App\Jobs\MatchTransactionHeads;
 use App\Models\AccountHead;
+use App\Models\Company;
+use App\Models\CreditCard;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
@@ -44,6 +47,12 @@ class TransactionsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->poll(function (): ?string {
+                /** @var ImportedFile $file */
+                $file = $this->getOwnerRecord();
+
+                return $file->isProcessing() ? '10s' : null;
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('date')
                     ->date('d M Y')
@@ -52,6 +61,10 @@ class TransactionsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('description')
                     ->limit(50)
                     ->tooltip(fn (Transaction $record) => $record->description),
+
+                Tables\Columns\TextColumn::make('reference_number')
+                    ->label('Ref #')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 static::amountColumn(),
 
@@ -67,6 +80,12 @@ class TransactionsRelationManager extends RelationManager
                     ->placeholder('Unmapped')
                     ->searchable()
                     ->description(static::mappingTypeDescription()),
+
+                Tables\Columns\IconColumn::make('recurring_pattern_id')
+                    ->label('Recurring')
+                    ->icon(fn ($state) => $state ? 'heroicon-o-arrow-path' : null)
+                    ->color('info')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('date', 'desc')
             ->filters([
@@ -258,6 +277,69 @@ class TransactionsRelationManager extends RelationManager
                             }
                         })
                         ->deselectRecordsAfterCompletion(),
+
+                    Actions\BulkAction::make('move_to_company')
+                        ->label('Move to Company')
+                        ->icon('heroicon-o-arrow-right-circle')
+                        ->color('warning')
+                        ->form([
+                            Forms\Components\Select::make('target_company_id')
+                                ->label('Target Company')
+                                ->options(function () {
+                                    $user = Auth::user();
+                                    /** @var Company|null $currentTenant */
+                                    $currentTenant = Filament::getTenant();
+
+                                    return Company::query()
+                                        ->whereHas('users', function (Builder $q) use ($user) {
+                                            $q->where('users.id', $user->id)
+                                                ->where('company_user.role', UserRole::Admin->value);
+                                        })
+                                        ->when($currentTenant, fn (Builder $q) => $q->where('companies.id', '!=', $currentTenant->id))
+                                        ->pluck('name', 'id');
+                                })
+                                ->searchable()
+                                ->required(),
+                        ])
+                        ->action(function (Collection $records, array $data) {
+                            $targetCompany = Company::find($data['target_company_id']);
+
+                            $creditCardIds = $records->pluck('imported_file_id')
+                                ->map(fn ($fileId) => ImportedFile::find($fileId)?->credit_card_id)
+                                ->filter()
+                                ->unique();
+
+                            $allShared = $creditCardIds->every(function ($cardId) use ($targetCompany) {
+                                $card = CreditCard::find($cardId);
+
+                                return $card && $card->isSharedWith($targetCompany);
+                            });
+
+                            if (! $allShared) {
+                                Notification::make()
+                                    ->title('Card must be shared with the target company first')
+                                    ->danger()
+                                    ->send();
+
+                                return;
+                            }
+
+                            $count = 0;
+                            $records->each(function (Model $record) use ($targetCompany, &$count) {
+                                /** @var Transaction $tx */
+                                $tx = $record;
+                                $tx->moveToCompany($targetCompany);
+                                $count++;
+                            });
+
+                            Notification::make()
+                                ->title($count.' transactions moved to '.$targetCompany->name)
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
+                    Actions\DeleteBulkAction::make(),
                 ]),
             ])
             ->headerActions([
