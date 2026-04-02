@@ -101,8 +101,7 @@ class ViewImportedFile extends ViewRecord
                         ->title('Mapping rule created')
                         ->success()
                         ->send();
-                })
-                ->visible(false),
+                }),
         ];
     }
 
