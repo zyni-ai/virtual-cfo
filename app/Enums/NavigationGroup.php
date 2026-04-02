@@ -8,12 +8,14 @@ enum NavigationGroup: string implements HasLabel
 {
     case Configuration = 'configuration';
     case Company = 'company';
+    case Monitoring = 'monitoring';
 
     public function getLabel(): string
     {
         return match ($this) {
             self::Configuration => 'Configuration',
             self::Company => 'Company',
+            self::Monitoring => 'Monitoring',
         };
     }
 }

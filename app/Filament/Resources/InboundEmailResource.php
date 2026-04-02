@@ -1,0 +1,123 @@
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Enums\InboundEmailStatus;
+use App\Enums\NavigationGroup;
+use App\Filament\Resources\InboundEmailResource\Pages;
+use App\Models\InboundEmail;
+use BackedEnum;
+use Filament\Facades\Filament;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Tables;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
+
+class InboundEmailResource extends Resource
+{
+    protected static ?string $model = InboundEmail::class;
+
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-envelope';
+
+    protected static ?string $navigationLabel = 'Inbound Emails';
+
+    protected static ?string $modelLabel = 'Inbound Email';
+
+    protected static ?string $pluralModelLabel = 'Inbound Emails';
+
+    protected static UnitEnum|string|null $navigationGroup = NavigationGroup::Monitoring;
+
+    protected static ?int $navigationSort = 1;
+
+    protected static bool $isScopedToTenant = false;
+
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()->currentRole()?->canManageTeam() ?? false;
+    }
+
+    /** @return Builder<InboundEmail> */
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var \App\Models\Company $company */
+        $company = Filament::getTenant();
+
+        /** @var Builder<InboundEmail> */
+        return parent::getEloquentQuery()->where('company_id', $company->id);
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return $schema->schema([]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->columns([
+                Tables\Columns\TextColumn::make('received_at')
+                    ->label('Date')
+                    ->dateTime('d M Y H:i')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('from_address')
+                    ->label('From')
+                    ->limit(40)
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('subject')
+                    ->label('Subject')
+                    ->limit(50)
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Status')
+                    ->badge(),
+
+                Tables\Columns\TextColumn::make('attachment_count')
+                    ->label('Attachments')
+                    ->alignCenter(),
+
+                Tables\Columns\TextColumn::make('processed_count')
+                    ->label('Processed')
+                    ->alignCenter(),
+            ])
+            ->defaultSort('received_at', 'desc')
+            ->filters([
+                Tables\Filters\SelectFilter::make('status')
+                    ->options(InboundEmailStatus::class),
+
+                Tables\Filters\Filter::make('received_at')
+                    ->form([
+                        \Filament\Forms\Components\DatePicker::make('from')->label('From Date'),
+                        \Filament\Forms\Components\DatePicker::make('until')->label('Until Date'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when($data['from'], fn (Builder $q, string $date) => $q->whereDate('received_at', '>=', $date))
+                            ->when($data['until'], fn (Builder $q, string $date) => $q->whereDate('received_at', '<=', $date));
+                    }),
+            ])
+            ->recordUrl(fn (InboundEmail $record): string => static::getUrl('view', ['record' => $record]));
+    }
+
+    public static function getRelations(): array
+    {
+        return [];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListInboundEmails::route('/'),
+            'view' => Pages\ViewInboundEmail::route('/{record}'),
+        ];
+    }
+}
