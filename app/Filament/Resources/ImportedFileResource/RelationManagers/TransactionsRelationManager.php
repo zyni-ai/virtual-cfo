@@ -175,11 +175,15 @@ class TransactionsRelationManager extends RelationManager
                                 ->default(fn (Transaction $record) => $record->importedFile?->bank_name),
                         ])
                         ->action(function (Transaction $record, array $data) {
+                            /** @var \App\Models\Company|null $tenant */
+                            $tenant = Filament::getTenant();
+
                             HeadMapping::create([
                                 'pattern' => $data['pattern'],
                                 'match_type' => $data['match_type'],
                                 'account_head_id' => $data['account_head_id'],
                                 'bank_name' => $data['bank_name'] ?: null,
+                                'company_id' => $tenant?->id,
                                 'created_by' => Auth::id(),
                             ]);
 
