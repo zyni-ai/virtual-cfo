@@ -2,12 +2,14 @@
 
 use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
+use App\Enums\InboundEmailStatus;
 use App\Enums\StatementType;
 use App\Http\Middleware\VerifyMailgunSignature;
 use App\Jobs\ProcessImportedFile;
 use App\Mail\DuplicateImportMail;
 use App\Models\Company;
 use App\Models\ImportedFile;
+use App\Models\InboundEmail;
 use App\Models\User;
 use App\Notifications\StatementReceivedByEmailNotification;
 use Illuminate\Http\UploadedFile;
@@ -593,7 +595,11 @@ describe('InboundEmailController deduplication', function () {
     it('skips processing when message_id already exists', function () {
         $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
 
-        ImportedFile::factory()->for($company)->fromEmail('<dup-msg@example.com>')->create();
+        InboundEmail::factory()->create([
+            'company_id' => $company->id,
+            'message_id' => '<dup-msg@example.com>',
+            'status' => InboundEmailStatus::Processed,
+        ]);
 
         $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
 
@@ -608,7 +614,7 @@ describe('InboundEmailController deduplication', function () {
         $response->assertSuccessful()
             ->assertJson(['files_processed' => 0]);
 
-        expect(ImportedFile::count())->toBe(1);
+        expect(ImportedFile::count())->toBe(0);
     });
 
     it('allows processing when message_id is new', function () {
@@ -717,7 +723,11 @@ describe('InboundEmailController duplicate notifications', function () {
         Mail::fake();
 
         $company = Company::factory()->create(['inbox_address' => 'invoices@inbox.example.com']);
-        ImportedFile::factory()->for($company)->fromEmail('<dup-msg@example.com>')->create();
+        InboundEmail::factory()->create([
+            'company_id' => $company->id,
+            'message_id' => '<dup-msg@example.com>',
+            'status' => InboundEmailStatus::Processed,
+        ]);
 
         $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
 
@@ -988,7 +998,11 @@ describe('InboundEmailController multi-tenant isolation', function () {
         $companyA = Company::factory()->create(['inbox_address' => 'a@inbox.example.com']);
         Company::factory()->create(['inbox_address' => 'b@inbox.example.com']);
 
-        ImportedFile::factory()->for($companyA)->fromEmail('<shared-msg@example.com>')->create();
+        InboundEmail::factory()->create([
+            'company_id' => $companyA->id,
+            'message_id' => '<shared-msg@example.com>',
+            'status' => InboundEmailStatus::Processed,
+        ]);
 
         $pdf = UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf');
 
