@@ -285,7 +285,7 @@ class ImportedFileResource extends Resource
     /** @return Builder<ImportedFile> */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        return ImportedFile::query()
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);

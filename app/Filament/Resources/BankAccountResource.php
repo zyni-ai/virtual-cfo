@@ -139,7 +139,7 @@ class BankAccountResource extends Resource
     /** @return Builder<BankAccount> */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        return BankAccount::query()
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);

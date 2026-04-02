@@ -178,7 +178,7 @@ class ViewImportedFile extends ViewRecord
         return $schema
             ->schema([
                 Section::make('File Details')
-                    ->poll(fn (): ?string => $this->record->isProcessing() ? '10s' : '30s')
+                    ->poll(fn (): string => $this->record->isProcessing() ? '10s' : '30s')
                     ->schema([
                         Infolists\Components\TextEntry::make('display_name')
                             ->label('Display Name'),

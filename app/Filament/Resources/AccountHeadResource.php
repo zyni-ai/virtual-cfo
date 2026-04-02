@@ -161,7 +161,7 @@ class AccountHeadResource extends Resource
     /** @return Builder<AccountHead> */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        return AccountHead::query()
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);

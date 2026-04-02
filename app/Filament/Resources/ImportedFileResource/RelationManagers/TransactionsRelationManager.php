@@ -47,7 +47,7 @@ class TransactionsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->poll(function (): ?string {
+            ->poll(function (): string {
                 /** @var ImportedFile $file */
                 $file = $this->getOwnerRecord();
 
