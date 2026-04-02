@@ -18,7 +18,7 @@ class HeadMatcherService
 
     protected int $ruleChunkSize = 500;
 
-    protected int $aiChunkSize = 50;
+    protected int $aiChunkSize = 20;
 
     public function __construct(
         protected RuleBasedMatcher $ruleBasedMatcher,

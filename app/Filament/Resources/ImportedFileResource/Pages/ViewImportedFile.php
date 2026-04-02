@@ -6,6 +6,7 @@ use App\Enums\MappingType;
 use App\Enums\MatchType;
 use App\Filament\Resources\ImportedFileResource;
 use App\Models\AccountHead;
+use App\Models\Company;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
@@ -66,7 +67,7 @@ class ViewImportedFile extends ViewRecord
                         ->default(true),
                 ])
                 ->action(function (array $data): void {
-                    /** @var \App\Models\Company|null $tenant */
+                    /** @var Company|null $tenant */
                     $tenant = Filament::getTenant();
                     $companyId = $tenant?->id;
 
@@ -177,7 +178,7 @@ class ViewImportedFile extends ViewRecord
         return $schema
             ->schema([
                 Section::make('File Details')
-                    ->poll(fn (): ?string => $this->record->isProcessing() ? '10s' : null)
+                    ->poll(fn (): ?string => $this->record->isProcessing() ? '10s' : '30s')
                     ->schema([
                         Infolists\Components\TextEntry::make('display_name')
                             ->label('Display Name'),

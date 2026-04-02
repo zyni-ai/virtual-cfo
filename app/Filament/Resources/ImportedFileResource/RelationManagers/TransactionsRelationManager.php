@@ -51,7 +51,7 @@ class TransactionsRelationManager extends RelationManager
                 /** @var ImportedFile $file */
                 $file = $this->getOwnerRecord();
 
-                return $file->isProcessing() ? '10s' : null;
+                return $file->isProcessing() ? '10s' : '30s';
             })
             ->columns([
                 Tables\Columns\TextColumn::make('date')
@@ -175,7 +175,7 @@ class TransactionsRelationManager extends RelationManager
                                 ->default(fn (Transaction $record) => $record->importedFile?->bank_name),
                         ])
                         ->action(function (Transaction $record, array $data) {
-                            /** @var \App\Models\Company|null $tenant */
+                            /** @var Company|null $tenant */
                             $tenant = Filament::getTenant();
 
                             HeadMapping::create([
@@ -460,7 +460,7 @@ class TransactionsRelationManager extends RelationManager
     private function sendRuleSuggestionNotification(Transaction $record): void
     {
         $user = Auth::user();
-        /** @var \App\Models\Company|null $tenant */
+        /** @var Company|null $tenant */
         $tenant = Filament::getTenant();
 
         if (! $user || ! $tenant) {
