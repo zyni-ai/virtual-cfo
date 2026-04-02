@@ -41,7 +41,7 @@ class ReconciliationResource extends Resource
     /** @return Builder<Transaction> */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        return Transaction::query()
             ->with([
                 'importedFile',
                 'accountHead',

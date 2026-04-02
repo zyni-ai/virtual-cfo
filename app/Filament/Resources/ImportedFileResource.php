@@ -285,7 +285,7 @@ class ImportedFileResource extends Resource
     /** @return Builder<ImportedFile> */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        return ImportedFile::query()
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
@@ -293,7 +293,9 @@ class ImportedFileResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            ImportedFileResource\RelationManagers\TransactionsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

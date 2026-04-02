@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Resources\ImportedFileResource\RelationManagers;
 
 use App\Enums\MappingType;
 use App\Enums\MatchMethod;
@@ -10,7 +10,7 @@ use App\Enums\StatementType;
 use App\Enums\UserRole;
 use App\Exports\TransactionCsvExport;
 use App\Exports\TransactionExcelExport;
-use App\Filament\Resources\TransactionResource\Pages;
+use App\Filament\Resources\Concerns\HasTransactionColumns;
 use App\Jobs\MatchTransactionHeads;
 use App\Models\AccountHead;
 use App\Models\Company;
@@ -21,63 +21,42 @@ use App\Models\Transaction;
 use App\Services\Reconciliation\ReconciliationService;
 use App\Services\RuleSuggestion\RuleSuggestionService;
 use App\Services\TallyExport\TallyExportService;
-use BackedEnum;
 use Filament\Actions;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
-use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
+use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
-use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Livewire\Component;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class TransactionResource extends Resource
+class TransactionsRelationManager extends RelationManager
 {
-    use Concerns\HasTransactionColumns;
+    use HasTransactionColumns;
 
-    protected static ?string $model = Transaction::class;
+    protected static string $relationship = 'transactions';
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
-
-    protected static ?string $navigationLabel = 'Transactions';
-
-    protected static ?int $navigationSort = 2;
-
-    public static function form(Schema $schema): Schema
-    {
-        return $schema
-            ->schema([
-                Forms\Components\Select::make('account_head_id')
-                    ->label('Account Head')
-                    ->relationship('accountHead', 'name')
-                    ->searchable()
-                    ->preload(),
-            ]);
-    }
-
-    public static function table(Table $table): Table
+    public function table(Table $table): Table
     {
         return $table
-            ->poll(fn (): ?string => ImportedFile::activelyProcessing()->exists() ? '10s' : null)
+            ->poll(function (): string {
+                /** @var ImportedFile $file */
+                $file = $this->getOwnerRecord();
+
+                return $file->isProcessing() ? '10s' : '30s';
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('date')
                     ->date('d M Y')
                     ->sortable(),
-
-                Tables\Columns\TextColumn::make('importedFile.bank_name')
-                    ->label('Bank')
-                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('description')
                     ->limit(50)
@@ -110,11 +89,6 @@ class TransactionResource extends Resource
             ])
             ->defaultSort('date', 'desc')
             ->filters([
-                Tables\Filters\SelectFilter::make('imported_file_id')
-                    ->label('Imported File')
-                    ->options(fn () => ImportedFile::pluck('original_filename', 'id'))
-                    ->searchable(),
-
                 Tables\Filters\SelectFilter::make('mapping_type')
                     ->options(MappingType::class),
 
@@ -142,7 +116,7 @@ class TransactionResource extends Resource
                         false: fn (Builder $query) => $query->where('mapping_type', '!=', MappingType::Unmapped),
                     ),
             ])
-            ->actions([
+            ->recordActions([
                 Action::make('assign_head')
                     ->label('Assign Head')
                     ->icon('heroicon-o-tag')
@@ -170,7 +144,7 @@ class TransactionResource extends Resource
                         });
 
                         $record->refresh();
-                        self::sendRuleSuggestionNotification($record);
+                        $this->sendRuleSuggestionNotification($record);
                     }),
 
                 Actions\ActionGroup::make([
@@ -201,7 +175,7 @@ class TransactionResource extends Resource
                                 ->default(fn (Transaction $record) => $record->importedFile?->bank_name),
                         ])
                         ->action(function (Transaction $record, array $data) {
-                            /** @var \App\Models\Company|null $tenant */
+                            /** @var Company|null $tenant */
                             $tenant = Filament::getTenant();
 
                             HeadMapping::create([
@@ -252,7 +226,6 @@ class TransactionResource extends Resource
                                 foreach ($data['invoice_transaction_ids'] as $invoiceId) {
                                     /** @var Transaction $invoiceTxn */
                                     $invoiceTxn = $invoiceTransactions->get($invoiceId);
-
                                     $service->createMatch($record, $invoiceTxn, 1.0, MatchMethod::Manual);
                                 }
                             });
@@ -291,24 +264,20 @@ class TransactionResource extends Resource
                                     ]);
                                 });
 
-                                $fileIds = $records->pluck('imported_file_id')->unique();
-                                foreach ($fileIds as $fileId) {
-                                    $file = ImportedFile::find($fileId);
-                                    if ($file) {
-                                        $file->update([
-                                            'mapped_rows' => $file->transactions()
-                                                ->where('mapping_type', '!=', MappingType::Unmapped)
-                                                ->count(),
-                                        ]);
-                                    }
-                                }
+                                /** @var ImportedFile $file */
+                                $file = $this->getOwnerRecord();
+                                $file->update([
+                                    'mapped_rows' => $file->transactions()
+                                        ->where('mapping_type', '!=', MappingType::Unmapped)
+                                        ->count(),
+                                ]);
                             });
 
                             /** @var Transaction|null $first */
                             $first = $records->first();
                             if ($first) {
                                 $first->refresh();
-                                self::sendRuleSuggestionNotification($first);
+                                $this->sendRuleSuggestionNotification($first);
                             }
                         })
                         ->deselectRecordsAfterCompletion(),
@@ -383,20 +352,20 @@ class TransactionResource extends Resource
                     ->icon('heroicon-o-cpu-chip')
                     ->color('warning')
                     ->requiresConfirmation()
-                    ->modalDescription('This will run rule-based and AI matching on all unmapped transactions across all files.')
+                    ->modalDescription('This will run rule-based and AI matching on all unmapped transactions in this file.')
                     ->action(function () {
-                        $files = ImportedFile::whereHas('transactions', function (Builder $q) {
-                            $q->where('mapping_type', MappingType::Unmapped);
-                        })->where('is_matching', false)->get();
+                        /** @var ImportedFile $file */
+                        $file = $this->getOwnerRecord();
 
-                        ImportedFile::whereIn('id', $files->pluck('id'))->update(['is_matching' => true]);
-
-                        foreach ($files as $file) {
-                            MatchTransactionHeads::dispatch($file);
+                        if ($file->is_matching) {
+                            return;
                         }
 
+                        $file->update(['is_matching' => true]);
+                        MatchTransactionHeads::dispatch($file);
+
                         Notification::make()
-                            ->title('AI matching jobs dispatched for '.count($files).' files')
+                            ->title('AI matching job dispatched')
                             ->success()
                             ->send();
                     }),
@@ -406,17 +375,16 @@ class TransactionResource extends Resource
                         ->label('Tally XML')
                         ->icon('heroicon-o-document-text')
                         ->form([
-                            Forms\Components\DatePicker::make('from')
-                                ->label('From Date'),
-                            Forms\Components\DatePicker::make('until')
-                                ->label('Until Date'),
+                            Forms\Components\DatePicker::make('from')->label('From Date'),
+                            Forms\Components\DatePicker::make('until')->label('Until Date'),
                         ])
-                        ->action(function (array $data, Component $livewire): StreamedResponse {
-                            $query = $livewire instanceof HasTable
-                                ? $livewire->getTableQueryForExport()->whereNotNull('account_head_id')
-                                : Transaction::whereNotNull('account_head_id');
+                        ->action(function (array $data): StreamedResponse {
+                            /** @var ImportedFile $file */
+                            $file = $this->getOwnerRecord();
 
-                            $query->with(['accountHead', 'importedFile.company', 'importedFile.bankAccount'])
+                            $query = Transaction::where('imported_file_id', $file->id)
+                                ->whereNotNull('account_head_id')
+                                ->with(['accountHead', 'importedFile.company', 'importedFile.bankAccount'])
                                 ->orderBy('date');
 
                             if (! empty($data['from'])) {
@@ -427,10 +395,7 @@ class TransactionResource extends Resource
                                 $query->whereDate('date', '<=', $data['until']);
                             }
 
-                            $transactions = $query->get();
-
-                            $service = app(TallyExportService::class);
-                            $xml = $service->exportTransactions($transactions);
+                            $xml = app(TallyExportService::class)->exportTransactions($query->get());
 
                             return response()->streamDownload(
                                 fn () => print ($xml),
@@ -443,20 +408,19 @@ class TransactionResource extends Resource
                         ->label('CSV')
                         ->icon('heroicon-o-table-cells')
                         ->form([
-                            Forms\Components\DatePicker::make('from')
-                                ->label('From Date'),
-                            Forms\Components\DatePicker::make('until')
-                                ->label('Until Date'),
+                            Forms\Components\DatePicker::make('from')->label('From Date'),
+                            Forms\Components\DatePicker::make('until')->label('Until Date'),
                         ])
-                        ->action(function (array $data, Component $livewire): BinaryFileResponse {
-                            $export = new TransactionCsvExport(
-                                from: $data['from'] ?? null,
-                                until: $data['until'] ?? null,
-                                baseQuery: self::resolveExportBaseQuery($livewire),
-                            );
+                        ->action(function (array $data): BinaryFileResponse {
+                            /** @var ImportedFile $file */
+                            $file = $this->getOwnerRecord();
 
                             return Excel::download(
-                                $export,
+                                new TransactionCsvExport(
+                                    from: $data['from'] ?? null,
+                                    until: $data['until'] ?? null,
+                                    baseQuery: Transaction::where('imported_file_id', $file->id),
+                                ),
                                 'transactions-'.now()->format('Y-m-d-His').'.csv',
                             );
                         }),
@@ -465,21 +429,20 @@ class TransactionResource extends Resource
                         ->label('Excel')
                         ->icon('heroicon-o-document-arrow-down')
                         ->form([
-                            Forms\Components\DatePicker::make('from')
-                                ->label('From Date'),
-                            Forms\Components\DatePicker::make('until')
-                                ->label('Until Date'),
+                            Forms\Components\DatePicker::make('from')->label('From Date'),
+                            Forms\Components\DatePicker::make('until')->label('Until Date'),
                         ])
-                        ->action(function (array $data, Component $livewire): BinaryFileResponse {
-                            $export = new TransactionExcelExport(
-                                from: $data['from'] ?? null,
-                                until: $data['until'] ?? null,
-                                baseQuery: self::resolveExportBaseQuery($livewire),
-                                importedFile: self::resolveExportImportedFile($livewire),
-                            );
+                        ->action(function (array $data): BinaryFileResponse {
+                            /** @var ImportedFile $file */
+                            $file = $this->getOwnerRecord();
 
                             return Excel::download(
-                                $export,
+                                new TransactionExcelExport(
+                                    from: $data['from'] ?? null,
+                                    until: $data['until'] ?? null,
+                                    baseQuery: Transaction::where('imported_file_id', $file->id),
+                                    importedFile: $file->load('creditCard'),
+                                ),
                                 'transactions-'.now()->format('Y-m-d-His').'.xlsx',
                             );
                         }),
@@ -490,14 +453,14 @@ class TransactionResource extends Resource
                     ->button(),
             ])
             ->emptyStateHeading('No transactions yet')
-            ->emptyStateDescription('Transactions appear here after you upload and process a bank statement or invoice.')
+            ->emptyStateDescription('Transactions appear here once this file has been processed.')
             ->emptyStateIcon('heroicon-o-banknotes');
     }
 
-    private static function sendRuleSuggestionNotification(Transaction $record): void
+    private function sendRuleSuggestionNotification(Transaction $record): void
     {
         $user = Auth::user();
-        /** @var \App\Models\Company|null $tenant */
+        /** @var Company|null $tenant */
         $tenant = Filament::getTenant();
 
         if (! $user || ! $tenant) {
@@ -533,40 +496,5 @@ class TransactionResource extends Resource
                     ->close(),
             ])
             ->send();
-    }
-
-    /** @return Builder<Transaction>|null */
-    private static function resolveExportBaseQuery(Component $livewire): ?Builder
-    {
-        return $livewire instanceof HasTable
-            ? $livewire->getTableQueryForExport()
-            : null;
-    }
-
-    private static function resolveExportImportedFile(Component $livewire): ?ImportedFile
-    {
-        if (! $livewire instanceof HasTable) {
-            return null;
-        }
-
-        $fileId = $livewire->tableFilters['imported_file_id']['value'] ?? null;
-
-        if (! $fileId) {
-            return null;
-        }
-
-        return ImportedFile::with('creditCard')->find($fileId);
-    }
-
-    public static function getRelations(): array
-    {
-        return [];
-    }
-
-    public static function getPages(): array
-    {
-        return [
-            'index' => Pages\ListTransactions::route('/'),
-        ];
     }
 }
