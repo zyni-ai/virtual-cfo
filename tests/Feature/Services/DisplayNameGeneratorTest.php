@@ -105,6 +105,32 @@ describe('DisplayNameGenerator', function () {
         expect($name)->toBe('HDFC_Regalia_Jan 2025');
     });
 
+    it('extracts end month from YYYY-MM-DD range statement period', function () {
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'ICICI Bank',
+            'card_variant' => 'Platinum',
+            'statement_period' => '2026-02-02 to 2026-03-01',
+            'credit_card_id' => null,
+        ]);
+
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('ICICI Bank_Platinum_Mar 2026');
+    });
+
+    it('extracts end month from natural language range statement period', function () {
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'ICICI Bank',
+            'card_variant' => 'Ruby',
+            'statement_period' => 'February 6, 2026 to March 5, 2026',
+            'credit_card_id' => null,
+        ]);
+
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('ICICI Bank_Ruby_Mar 2026');
+    });
+
     it('prefers card_variant over creditCard name when both are present', function () {
         $card = CreditCard::factory()->create([
             'company_id' => $this->tenant?->id ?? Company::factory()->create()->id,

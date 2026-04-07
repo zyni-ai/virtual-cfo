@@ -860,6 +860,87 @@ describe('DocumentProcessor', function () {
             $file->refresh();
             expect($file->card_variant)->toBeNull();
         });
+
+        it('regenerates display_name after processing with bank_name and card_variant', function () {
+            Storage::put('statements/cc_regen.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'ICICI Bank',
+                    'card_variant' => 'Platinum',
+                    'statement_period' => '2026-02-06 to 2026-03-05',
+                    'transactions' => [
+                        ['date' => '2026-02-10', 'description' => 'AMAZON', 'debit' => 500],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->creditCard()->create([
+                'file_path' => 'statements/cc_regen.pdf',
+                'original_filename' => 'icici_cc.pdf',
+                'status' => ImportStatus::Pending,
+                'bank_name' => null,
+                'card_variant' => null,
+                'display_name' => '_Apr 2026',
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->display_name)->toBe('ICICI Bank_Platinum_Mar 2026');
+        });
+    });
+
+    describe('date parsing', function () {
+        it('correctly parses DD-MM-YYYY formatted dates from Indian bank statements', function () {
+            Storage::put('statements/dd_mm_yyyy.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'HDFC Bank',
+                    'statement_period' => 'Jan 2026',
+                    'transactions' => [
+                        ['date' => '05-02-2026', 'description' => 'UPI PAYMENT', 'debit' => 1000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/dd_mm_yyyy.pdf',
+                'original_filename' => 'hdfc_jan26.pdf',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $transaction = Transaction::where('imported_file_id', $file->id)->first();
+            expect($transaction->date->format('Y-m-d'))->toBe('2026-02-05');
+        });
+
+        it('correctly parses DD/MM/YYYY formatted dates', function () {
+            Storage::put('statements/dd_mm_yyyy_slash.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'Axis Bank',
+                    'statement_period' => 'Mar 2026',
+                    'transactions' => [
+                        ['date' => '15/03/2026', 'description' => 'SALARY CREDIT', 'credit' => 50000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/dd_mm_yyyy_slash.pdf',
+                'original_filename' => 'axis_mar26.pdf',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $transaction = Transaction::where('imported_file_id', $file->id)->first();
+            expect($transaction->date->format('Y-m-d'))->toBe('2026-03-15');
+        });
     });
 
     describe('unsupported formats', function () {
