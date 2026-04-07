@@ -336,7 +336,7 @@ describe('DocumentProcessor', function () {
                 ],
             ]);
 
-            $company = \App\Models\Company::factory()->create(['currency' => 'EUR']);
+            $company = Company::factory()->create(['currency' => 'EUR']);
             $file = ImportedFile::factory()->invoice()->for($company)->create([
                 'file_path' => 'statements/null_currency_invoice.pdf',
                 'original_filename' => 'null_currency_invoice.pdf',
@@ -804,6 +804,61 @@ describe('DocumentProcessor', function () {
 
             $transactions = Transaction::where('imported_file_id', $file->id)->get();
             expect($transactions)->toHaveCount(2);
+        });
+    });
+
+    describe('card_variant extraction', function () {
+        it('extracts card_variant from credit card PDF and saves it on the imported file', function () {
+            Storage::put('statements/cc_regalia.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'HDFC Bank',
+                    'card_variant' => 'Regalia',
+                    'statement_period' => 'Jan 2025',
+                    'transactions' => [
+                        ['date' => '2025-01-05', 'description' => 'AMAZON ORDER', 'debit' => 1500],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->creditCard()->create([
+                'file_path' => 'statements/cc_regalia.pdf',
+                'original_filename' => 'hdfc_regalia_jan25.pdf',
+                'status' => ImportStatus::Pending,
+                'card_variant' => null,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->status)->toBe(ImportStatus::Completed)
+                ->and($file->card_variant)->toBe('Regalia');
+        });
+
+        it('leaves card_variant null when AI does not return it', function () {
+            Storage::put('statements/bank_no_variant.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'SBI',
+                    'transactions' => [
+                        ['date' => '2025-01-05', 'description' => 'SALARY', 'credit' => 50000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/bank_no_variant.pdf',
+                'original_filename' => 'sbi_jan25.pdf',
+                'status' => ImportStatus::Pending,
+                'card_variant' => null,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->card_variant)->toBeNull();
         });
     });
 

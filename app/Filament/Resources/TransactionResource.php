@@ -112,7 +112,9 @@ class TransactionResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('imported_file_id')
                     ->label('Imported File')
-                    ->options(fn () => ImportedFile::pluck('original_filename', 'id'))
+                    ->options(fn () => ImportedFile::select('id', 'display_name', 'original_filename')->get()->mapWithKeys(
+                        fn (ImportedFile $file) => [$file->id => $file->display_name ?? $file->original_filename]
+                    ))
                     ->searchable(),
 
                 Tables\Filters\SelectFilter::make('mapping_type')
@@ -201,7 +203,7 @@ class TransactionResource extends Resource
                                 ->default(fn (Transaction $record) => $record->importedFile?->bank_name),
                         ])
                         ->action(function (Transaction $record, array $data) {
-                            /** @var \App\Models\Company|null $tenant */
+                            /** @var Company|null $tenant */
                             $tenant = Filament::getTenant();
 
                             HeadMapping::create([
@@ -497,7 +499,7 @@ class TransactionResource extends Resource
     private static function sendRuleSuggestionNotification(Transaction $record): void
     {
         $user = Auth::user();
-        /** @var \App\Models\Company|null $tenant */
+        /** @var Company|null $tenant */
         $tenant = Filament::getTenant();
 
         if (! $user || ! $tenant) {

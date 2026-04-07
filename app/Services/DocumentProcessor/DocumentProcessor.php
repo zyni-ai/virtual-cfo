@@ -441,6 +441,7 @@ class DocumentProcessor
         $bankName = $response['bank_name'] ?? null;
         $accountNumber = $response['account_number'] ?? null;
         $statementPeriod = $response['statement_period'] ?? null;
+        $cardVariant = $response['card_variant'] ?? null;
         $transactions = $response['transactions'];
         $previousBalance = is_numeric($response['previous_balance'] ?? null)
             ? (float) $response['previous_balance']
@@ -455,7 +456,7 @@ class DocumentProcessor
             return;
         }
 
-        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $transactions, $previousBalance) {
+        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $cardVariant, $transactions, $previousBalance) {
             $fileUpdates = [
                 'status' => ImportStatus::Completed,
                 'total_rows' => count($transactions),
@@ -484,6 +485,10 @@ class DocumentProcessor
 
             if ($statementPeriod !== null) {
                 $fileUpdates['statement_period'] = $statementPeriod;
+            }
+
+            if ($cardVariant !== null) {
+                $fileUpdates['card_variant'] = $cardVariant;
             }
 
             foreach ($transactions as $row) {

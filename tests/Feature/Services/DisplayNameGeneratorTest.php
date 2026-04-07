@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Company;
 use App\Models\CreditCard;
 use App\Models\ImportedFile;
 use App\Services\DisplayNameGenerator;
@@ -20,7 +21,7 @@ describe('DisplayNameGenerator', function () {
 
     it('generates bank name, card type, and period for credit card import with statement period', function () {
         $card = CreditCard::factory()->create([
-            'company_id' => $this->tenant?->id ?? \App\Models\Company::factory()->create()->id,
+            'company_id' => $this->tenant?->id ?? Company::factory()->create()->id,
             'name' => 'Regalia',
         ]);
 
@@ -89,5 +90,38 @@ describe('DisplayNameGenerator', function () {
         ]);
 
         expect($file->display_name)->toBe('My Custom Name');
+    });
+
+    it('uses card_variant in display name when set and no credit card relationship', function () {
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'HDFC',
+            'card_variant' => 'Regalia',
+            'statement_period' => 'Jan 2025',
+            'credit_card_id' => null,
+        ]);
+
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('HDFC_Regalia_Jan 2025');
+    });
+
+    it('prefers card_variant over creditCard name when both are present', function () {
+        $card = CreditCard::factory()->create([
+            'company_id' => $this->tenant?->id ?? Company::factory()->create()->id,
+            'name' => 'Generic Card',
+        ]);
+
+        $file = ImportedFile::factory()->create([
+            'bank_name' => 'HDFC',
+            'credit_card_id' => $card->id,
+            'card_variant' => 'Millennia',
+            'statement_period' => 'Feb 2025',
+        ]);
+
+        $file->load('creditCard');
+
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('HDFC_Millennia_Feb 2025');
     });
 });

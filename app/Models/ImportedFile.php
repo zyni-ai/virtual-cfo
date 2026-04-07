@@ -52,6 +52,7 @@ class ImportedFile extends Model
         'company_id',
         'inbound_email_id',
         'bank_name',
+        'card_variant',
         'account_number',
         'statement_period',
         'statement_type',

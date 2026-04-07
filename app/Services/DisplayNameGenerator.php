@@ -9,9 +9,10 @@ class DisplayNameGenerator
     public function generate(ImportedFile $file): string
     {
         $period = $this->resolvePeriod($file);
+        $variant = $file->card_variant ?? $file->creditCard?->name;
 
-        if ($file->credit_card_id && $file->creditCard) {
-            return "{$file->bank_name}_{$file->creditCard->name}_{$period}";
+        if ($variant) {
+            return "{$file->bank_name}_{$variant}_{$period}";
         }
 
         return "{$file->bank_name}_{$period}";
