@@ -22,7 +22,7 @@ class DisplayNameGenerator
     private function resolvePeriod(ImportedFile $file): string
     {
         if (! $file->statement_period) {
-            return $file->created_at->format('M Y');
+            return $file->created_at->format('M_Y');
         }
 
         return $this->extractEndMonth($file->statement_period);
@@ -35,7 +35,7 @@ class DisplayNameGenerator
             : $period;
 
         try {
-            return Carbon::parse($dateToParse)->format('M Y');
+            return Carbon::parse($dateToParse)->format('M_Y');
         } catch (\Exception) {
             return $period;
         }
