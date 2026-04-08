@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Middleware\AuditLlmCalls;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\MaxTokens;
 use Laravel\Ai\Attributes\Provider;
@@ -22,12 +23,12 @@ class StatementParser implements Agent, HasMiddleware, HasStructuredOutput
     use Promptable;
 
     /**
-     * @return array<int, \App\Ai\Middleware\AuditLlmCalls>
+     * @return array<int, AuditLlmCalls>
      */
     public function middleware(): array
     {
         return [
-            new \App\Ai\Middleware\AuditLlmCalls,
+            new AuditLlmCalls,
         ];
     }
 
@@ -55,7 +56,9 @@ class StatementParser implements Agent, HasMiddleware, HasStructuredOutput
         - Extract reference numbers where available
         - Handle multi-line transaction descriptions by concatenating them
 
-        For credit card statements, also extract the Previous Balance (opening balance) from the Statement Summary section at the top of the statement. This is labelled "Previous Balance", "Opening Balance", or similar — it is NOT a transaction row. Set it as `previous_balance` in the response.
+        For credit card statements, also extract:
+        - The Previous Balance (opening balance) from the Statement Summary section. This is labelled "Previous Balance", "Opening Balance", or similar — it is NOT a transaction row. Set it as `previous_balance` in the response.
+        - The card variant or product name (e.g. "Regalia", "Millennia", "Platinum", "Infinia", "SimplyCLICK"). This appears on the statement header or card face area. Set it as `card_variant`. Leave null for bank account statements.
 
         Be thorough — do not skip any transactions. Accuracy is critical for accounting purposes.
         INSTRUCTIONS;
@@ -67,6 +70,7 @@ class StatementParser implements Agent, HasMiddleware, HasStructuredOutput
             'bank_name' => $schema->string()->required(),
             'account_number' => $schema->string(),
             'statement_period' => $schema->string(),
+            'card_variant' => $schema->string(),
             'previous_balance' => $schema->number(),
             'transactions' => $schema->array()->items($schema->object([
                 'date' => $schema->string()->required(),

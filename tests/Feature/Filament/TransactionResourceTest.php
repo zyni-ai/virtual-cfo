@@ -57,6 +57,18 @@ describe('TransactionResource', function () {
             ->assertCanNotSeeTableRecords([$t2]);
     });
 
+    it('imported file filter options show display_name not original_filename', function () {
+        $file = ImportedFile::factory()->create([
+            'original_filename' => 'hdfc_cc_jan25.pdf',
+            'display_name' => 'HDFC Regalia Jan 2025',
+        ]);
+        Transaction::factory()->for($file, 'importedFile')->create();
+
+        livewire(ListTransactions::class)
+            ->assertSee('HDFC Regalia Jan 2025')
+            ->assertDontSee('hdfc_cc_jan25.pdf');
+    });
+
     it('uses Transaction model', function () {
         expect(TransactionResource::getModel())->toBe(Transaction::class);
     });

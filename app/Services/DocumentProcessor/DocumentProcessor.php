@@ -11,6 +11,7 @@ use App\Models\BankAccount;
 use App\Models\CreditCard;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use App\Services\DisplayNameGenerator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +25,7 @@ class DocumentProcessor
 {
     public function __construct(
         private PdfDecryptionService $decryptionService,
+        private DisplayNameGenerator $displayNameGenerator,
     ) {}
 
     /**
@@ -441,6 +443,7 @@ class DocumentProcessor
         $bankName = $response['bank_name'] ?? null;
         $accountNumber = $response['account_number'] ?? null;
         $statementPeriod = $response['statement_period'] ?? null;
+        $cardVariant = $response['card_variant'] ?? null;
         $transactions = $response['transactions'];
         $previousBalance = is_numeric($response['previous_balance'] ?? null)
             ? (float) $response['previous_balance']
@@ -455,7 +458,7 @@ class DocumentProcessor
             return;
         }
 
-        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $transactions, $previousBalance) {
+        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $cardVariant, $transactions, $previousBalance) {
             $fileUpdates = [
                 'status' => ImportStatus::Completed,
                 'total_rows' => count($transactions),
@@ -486,11 +489,15 @@ class DocumentProcessor
                 $fileUpdates['statement_period'] = $statementPeriod;
             }
 
+            if ($cardVariant !== null) {
+                $fileUpdates['card_variant'] = $cardVariant;
+            }
+
             foreach ($transactions as $row) {
                 Transaction::create([
                     'company_id' => $file->company_id,
                     'imported_file_id' => $file->id,
-                    'date' => Carbon::parse($row['date']),
+                    'date' => $this->parseTransactionDate($row['date']),
                     'description' => $row['description'] ?? '',
                     'reference_number' => $row['reference'] ?? null,
                     'debit' => isset($row['debit']) && (float) $row['debit'] > 0 ? (string) $row['debit'] : null,
@@ -525,8 +532,36 @@ class DocumentProcessor
                 $fileUpdates['total_rows'] = count($transactions) + 1;
             }
 
-            $file->update($fileUpdates);
+            $file->fill($fileUpdates);
+
+            if (! $file->relationLoaded('creditCard')) {
+                $file->load('creditCard');
+            }
+
+            $file->display_name = $this->displayNameGenerator->generate($file);
+            $file->save();
         });
+    }
+
+    private function parseTransactionDate(string $date): Carbon
+    {
+        if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $date)) {
+            try {
+                return Carbon::createFromFormat('d-m-Y', $date);
+            } catch (\Exception) {
+                // Fall through to generic parse
+            }
+        }
+
+        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
+            try {
+                return Carbon::createFromFormat('d/m/Y', $date);
+            } catch (\Exception) {
+                // Fall through to generic parse
+            }
+        }
+
+        return Carbon::parse($date);
     }
 
     /**
