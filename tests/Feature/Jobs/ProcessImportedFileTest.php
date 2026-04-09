@@ -65,7 +65,7 @@ describe('ProcessImportedFile auto-suggestion dispatch', function () {
             ],
         ]);
 
-        Queue::fake([SuggestReconciliationMatches::class]);
+        Queue::fake([SuggestReconciliationMatches::class, MatchTransactionHeads::class]);
 
         $file = ImportedFile::factory()->create([
             'status' => ImportStatus::Pending,
@@ -277,6 +277,8 @@ describe('ProcessImportedFile with Agent::fake()', function () {
             ],
         ]);
 
+        Queue::fake([MatchTransactionHeads::class]);
+
         $file = ImportedFile::factory()->create([
             'status' => ImportStatus::Pending,
             'file_path' => 'statements/test.pdf',
@@ -299,7 +301,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
             ->and($transactions->first()->mapping_type)->toBe(MappingType::Unmapped);
     });
 
-    it('does not auto-dispatch MatchTransactionHeads after processing', function () {
+    it('auto-dispatches MatchTransactionHeads after processing a bank statement', function () {
         Storage::fake('local');
         Storage::put('statements/test.pdf', 'fake-pdf-content');
 
@@ -316,6 +318,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
 
         $file = ImportedFile::factory()->create([
             'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::Bank,
             'file_path' => 'statements/test.pdf',
         ]);
 
@@ -329,6 +332,70 @@ describe('ProcessImportedFile with Agent::fake()', function () {
 
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Completed);
+
+        Queue::assertPushed(MatchTransactionHeads::class, function ($job) use ($file) {
+            return $job->importedFile->id === $file->id;
+        });
+    });
+
+    it('auto-dispatches MatchTransactionHeads after processing a credit card statement', function () {
+        Storage::fake('local');
+        Storage::put('statements/cc.pdf', 'fake-pdf-content');
+
+        StatementParser::fake([
+            [
+                'bank_name' => 'HDFC CC',
+                'transactions' => [
+                    ['date' => '2024-01-10', 'description' => 'SWIGGY ORDER', 'debit' => 500, 'balance' => 9500],
+                ],
+            ],
+        ]);
+
+        Queue::fake([MatchTransactionHeads::class]);
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::CreditCard,
+            'file_path' => 'statements/cc.pdf',
+        ]);
+
+        $job = new ProcessImportedFile($file);
+        $job->handle(app(DocumentProcessor::class));
+
+        $file->refresh();
+        expect($file->status)->toBe(ImportStatus::Completed);
+
+        Queue::assertPushed(MatchTransactionHeads::class, function ($job) use ($file) {
+            return $job->importedFile->id === $file->id;
+        });
+    });
+
+    it('does not dispatch MatchTransactionHeads for invoice files', function () {
+        Storage::fake('local');
+        Storage::put('statements/invoice.pdf', 'fake-pdf-content');
+
+        InvoiceParser::fake([
+            [
+                'vendor_name' => 'Test Vendor',
+                'invoice_number' => 'INV/001',
+                'invoice_date' => '2025-04-05',
+                'total_amount' => 15000,
+                'currency' => 'INR',
+                'base_amount' => 12712,
+                'line_items' => [['description' => 'Services', 'amount' => 12712]],
+            ],
+        ]);
+
+        Queue::fake([MatchTransactionHeads::class]);
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::Invoice,
+            'file_path' => 'statements/invoice.pdf',
+        ]);
+
+        $job = new ProcessImportedFile($file);
+        $job->handle(app(DocumentProcessor::class));
 
         Queue::assertNotPushed(MatchTransactionHeads::class);
     });
