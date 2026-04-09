@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\StatementType;
+use App\Services\AggregateService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -33,6 +34,23 @@ class ImportedFile extends Model
             if ($file->isForceDeleting()) {
                 if ($file->file_path && Storage::disk('local')->exists($file->file_path)) {
                     Storage::disk('local')->delete($file->file_path);
+                }
+
+                // Collect affected months from non-deleted transactions before cascade fires.
+                // Soft-deleted transactions already had their aggregates decremented at soft-delete time.
+                $yearMonths = Transaction::where('imported_file_id', $file->id)
+                    ->distinct()
+                    ->selectRaw("TO_CHAR(date, 'YYYY-MM') AS year_month")
+                    ->pluck('year_month');
+
+                // Bulk-delete all transactions (incl. soft-deleted) so DB cascade becomes a no-op.
+                Transaction::withTrashed()->where('imported_file_id', $file->id)->forceDelete();
+
+                if ($yearMonths->isNotEmpty()) {
+                    $service = app(AggregateService::class);
+                    foreach ($yearMonths as $yearMonth) {
+                        $service->rebuild($file->company_id, $yearMonth);
+                    }
                 }
             } else {
                 Transaction::where('imported_file_id', $file->id)->each(
