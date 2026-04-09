@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Enums\MappingType;
 use App\Models\AccountHead;
+use App\Models\Company;
 use App\Models\Transaction;
 use BackedEnum;
 use Filament\Actions;
@@ -39,13 +40,14 @@ class ReviewQueue extends Page implements HasActions, HasSchemas, HasTable
 
     public function table(Table $table): Table
     {
-        /** @var \App\Models\Company $company */
+        /** @var Company $company */
         $company = Filament::getTenant();
         $threshold = (float) $company->review_confidence_threshold;
 
         return $table
             ->query(
                 Transaction::query()
+                    ->where('company_id', $company->getKey())
                     ->where('mapping_type', MappingType::Ai)
                     ->where('ai_confidence', '<', $threshold)
                     ->with(['accountHead', 'importedFile'])
@@ -154,7 +156,7 @@ class ReviewQueue extends Page implements HasActions, HasSchemas, HasTable
 
     public static function getNavigationBadge(): ?string
     {
-        /** @var \App\Models\Company|null $company */
+        /** @var Company|null $company */
         $company = Filament::getTenant();
 
         if (! $company) {
