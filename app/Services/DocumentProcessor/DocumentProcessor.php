@@ -676,6 +676,7 @@ class DocumentProcessor
                 'total_rows' => 1,
                 'mapped_rows' => 0,
                 'processed_at' => now(),
+                'display_name' => "{$vendorName}_{$file->statement_type->getLabel()}",
             ]);
         });
     }

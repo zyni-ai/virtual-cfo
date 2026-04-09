@@ -127,7 +127,9 @@ class ProcessImportedFile implements ShouldQueue
             return;
         }
 
-        MatchTransactionHeads::dispatch($this->importedFile);
+        if ($this->importedFile->source->shouldAutoMatchHeads()) {
+            MatchTransactionHeads::dispatch($this->importedFile);
+        }
     }
 
     private function sanitiseErrorMessage(\Throwable $exception, string $prefix): string

@@ -42,4 +42,12 @@ enum ImportSource: string implements HasColor, HasIcon, HasLabel
             self::Api => 'heroicon-m-code-bracket',
         };
     }
+
+    public function shouldAutoMatchHeads(): bool
+    {
+        return match ($this) {
+            self::ManualUpload, self::Zoho, self::Api => true,
+            self::Email => false,
+        };
+    }
 }

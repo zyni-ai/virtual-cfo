@@ -2,6 +2,7 @@
 
 use App\Ai\Agents\InvoiceParser;
 use App\Ai\Agents\StatementParser;
+use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Enums\MappingType;
 use App\Enums\StatementType;
@@ -451,5 +452,157 @@ describe('ProcessImportedFile with Agent::fake()', function () {
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Failed)
             ->and($file->error_message)->not->toBeNull();
+    });
+});
+
+describe('ProcessImportedFile invoice display_name', function () {
+    it('sets display_name to vendor_name_Invoice for a manually uploaded invoice', function () {
+        Storage::fake('local');
+        Storage::put('statements/invoice.pdf', 'fake-pdf-content');
+
+        InvoiceParser::fake([
+            [
+                'vendor_name' => 'Swiggy',
+                'invoice_number' => 'SWG/2025/001',
+                'invoice_date' => '2025-04-05',
+                'total_amount' => 5000,
+                'currency' => 'INR',
+                'base_amount' => 4237,
+                'line_items' => [['description' => 'Food delivery', 'amount' => 4237]],
+            ],
+        ]);
+
+        Queue::fake([SuggestReconciliationMatches::class]);
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::Invoice,
+            'source' => ImportSource::ManualUpload,
+            'file_path' => 'statements/invoice.pdf',
+        ]);
+
+        $job = new ProcessImportedFile($file);
+        $job->handle(app(DocumentProcessor::class));
+
+        $file->refresh();
+        expect($file->display_name)->toBe('Swiggy_Invoice');
+    });
+
+    it('sets display_name to vendor_name_Invoice for an invoice imported via email', function () {
+        Storage::fake('local');
+        Storage::put('statements/invoice.pdf', 'fake-pdf-content');
+
+        InvoiceParser::fake([
+            [
+                'vendor_name' => 'AWS',
+                'invoice_number' => 'AWS/2025/042',
+                'invoice_date' => '2025-03-31',
+                'total_amount' => 12000,
+                'currency' => 'INR',
+                'base_amount' => 10169,
+                'line_items' => [['description' => 'Cloud services', 'amount' => 10169]],
+            ],
+        ]);
+
+        Queue::fake([SuggestReconciliationMatches::class]);
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::Invoice,
+            'source' => ImportSource::Email,
+            'file_path' => 'statements/invoice.pdf',
+        ]);
+
+        $job = new ProcessImportedFile($file);
+        $job->handle(app(DocumentProcessor::class));
+
+        $file->refresh();
+        expect($file->display_name)->toBe('AWS_Invoice');
+    });
+});
+
+describe('ProcessImportedFile email import matching', function () {
+    it('does not dispatch MatchTransactionHeads for a bank statement imported via email', function () {
+        Storage::fake('local');
+        Storage::put('statements/bank.pdf', 'fake-pdf-content');
+
+        StatementParser::fake([
+            [
+                'bank_name' => 'HDFC Bank',
+                'transactions' => [
+                    ['date' => '2025-04-05', 'description' => 'NEFT IN', 'credit' => 50000, 'balance' => 150000],
+                ],
+            ],
+        ]);
+
+        Queue::fake([MatchTransactionHeads::class]);
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::Bank,
+            'source' => ImportSource::Email,
+            'file_path' => 'statements/bank.pdf',
+        ]);
+
+        $job = new ProcessImportedFile($file);
+        $job->handle(app(DocumentProcessor::class));
+
+        Queue::assertNotPushed(MatchTransactionHeads::class);
+    });
+
+    it('does not dispatch MatchTransactionHeads for a credit card statement imported via email', function () {
+        Storage::fake('local');
+        Storage::put('statements/cc.pdf', 'fake-pdf-content');
+
+        StatementParser::fake([
+            [
+                'bank_name' => 'HDFC CC',
+                'transactions' => [
+                    ['date' => '2025-04-10', 'description' => 'ZOMATO', 'debit' => 350, 'balance' => 9650],
+                ],
+            ],
+        ]);
+
+        Queue::fake([MatchTransactionHeads::class]);
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::CreditCard,
+            'source' => ImportSource::Email,
+            'file_path' => 'statements/cc.pdf',
+        ]);
+
+        $job = new ProcessImportedFile($file);
+        $job->handle(app(DocumentProcessor::class));
+
+        Queue::assertNotPushed(MatchTransactionHeads::class);
+    });
+
+    it('dispatches MatchTransactionHeads for a bank statement uploaded manually', function () {
+        Storage::fake('local');
+        Storage::put('statements/bank.pdf', 'fake-pdf-content');
+
+        StatementParser::fake([
+            [
+                'bank_name' => 'SBI',
+                'transactions' => [
+                    ['date' => '2025-04-05', 'description' => 'DEPOSIT', 'credit' => 20000, 'balance' => 120000],
+                ],
+            ],
+        ]);
+
+        Queue::fake([MatchTransactionHeads::class]);
+
+        $file = ImportedFile::factory()->create([
+            'status' => ImportStatus::Pending,
+            'statement_type' => StatementType::Bank,
+            'source' => ImportSource::ManualUpload,
+            'file_path' => 'statements/bank.pdf',
+        ]);
+
+        $job = new ProcessImportedFile($file);
+        $job->handle(app(DocumentProcessor::class));
+
+        Queue::assertPushed(MatchTransactionHeads::class, fn ($job) => $job->importedFile->id === $file->id);
     });
 });
