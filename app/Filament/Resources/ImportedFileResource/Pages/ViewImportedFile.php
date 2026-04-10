@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ImportedFileResource\Pages;
 use App\Enums\MappingType;
 use App\Enums\MatchType;
 use App\Filament\Resources\ImportedFileResource;
+use App\Jobs\MatchTransactionHeads;
 use App\Models\AccountHead;
 use App\Models\Company;
 use App\Models\HeadMapping;
@@ -32,6 +33,25 @@ class ViewImportedFile extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('rematch')
+                ->label('Re-run AI Matching')
+                ->icon('heroicon-o-sparkles')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('Re-run AI Matching')
+                ->modalDescription('This will re-run rule-based and AI matching on all unmapped transactions in this file.')
+                ->visible(fn (ImportedFile $record): bool => $record->transactions()->where('mapping_type', MappingType::Unmapped)->exists())
+                ->action(function (ImportedFile $record): void {
+                    $record->update(['is_matching' => true]);
+                    MatchTransactionHeads::dispatch($record);
+
+                    Notification::make()
+                        ->title('Matching queued')
+                        ->body('AI matching will run in the background.')
+                        ->success()
+                        ->send();
+                }),
+
             Actions\Action::make('download')
                 ->label('Download PDF')
                 ->icon('heroicon-o-arrow-down-tray')

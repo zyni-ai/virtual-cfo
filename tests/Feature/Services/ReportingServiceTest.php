@@ -406,5 +406,45 @@ describe('ReportingService', function () {
             expect($result['rows'])->toBeEmpty()
                 ->and($result['grand_total'])->toBe(0.0);
         });
+
+        it('uses the account head name even when the head is soft-deleted', function () {
+            $company = tenant();
+            $head = AccountHead::factory()->create(['company_id' => $company->id, 'name' => 'Old Expense Head']);
+
+            TransactionAggregate::factory()->create([
+                'company_id' => $company->id,
+                'account_head_id' => $head->id,
+                'year_month' => '2025-04',
+                'total_debit' => 5000,
+            ]);
+
+            $head->delete();
+
+            $result = $this->service->expenseSummary();
+
+            expect($result['rows'])->toHaveCount(1)
+                ->and($result['rows'][0]['head_name'])->toBe('Old Expense Head');
+        });
+    });
+
+    describe('monthlyTotalsByHead', function () {
+        it('uses the account head name even when the head is soft-deleted', function () {
+            $company = tenant();
+            $head = AccountHead::factory()->create(['company_id' => $company->id, 'name' => 'Deleted Head']);
+
+            TransactionAggregate::factory()->create([
+                'company_id' => $company->id,
+                'account_head_id' => $head->id,
+                'year_month' => '2025-04',
+                'total_debit' => 10000,
+            ]);
+
+            $head->delete();
+
+            $result = $this->service->monthlyTotalsByHead();
+
+            expect($result['heads'])->toHaveCount(1)
+                ->and($result['heads'][0]['name'])->toBe('Deleted Head');
+        });
     });
 });
