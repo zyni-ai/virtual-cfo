@@ -50,7 +50,8 @@ class StatementParser implements Agent, HasMiddleware, HasStructuredOutput
         - Detect the bank name and account number from the header/footer
         - Identify the statement period (start and end dates)
         - For each transaction, extract: date, description, debit amount, credit amount, and running balance
-        - Dates should be in YYYY-MM-DD format
+        - Dates MUST be output in YYYY-MM-DD format (ISO 8601). Examples: 5th March 2024 → "2024-03-05", 15th January 2026 → "2026-01-15"
+        - Indian bank and credit card statements use DD/MM/YYYY format — the first number is always the day, the second is the month. For example, "05/03/2024" means 5th March 2024 (not 3rd May), so output "2024-03-05"
         - Amounts should be numeric (no currency symbols or commas)
         - If a field is not present, use null
         - Extract reference numbers where available

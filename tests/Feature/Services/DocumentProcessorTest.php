@@ -941,6 +941,32 @@ describe('DocumentProcessor', function () {
             $transaction = Transaction::where('imported_file_id', $file->id)->first();
             expect($transaction->date->format('Y-m-d'))->toBe('2026-03-15');
         });
+
+        it('correctly parses YYYY-MM-DD formatted dates returned by LLM', function () {
+            Storage::put('statements/iso_date.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'ICICI Bank',
+                    'statement_period' => '2026-03-01 to 2026-03-31',
+                    'transactions' => [
+                        ['date' => '2026-03-05', 'description' => 'ATM WITHDRAWAL', 'debit' => 5000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/iso_date.pdf',
+                'original_filename' => 'icici_mar26.pdf',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $transaction = Transaction::where('imported_file_id', $file->id)->first();
+            // 2026-03-05 must parse as 5th March, not 3rd May
+            expect($transaction->date->format('Y-m-d'))->toBe('2026-03-05');
+        });
     });
 
     describe('unsupported formats', function () {

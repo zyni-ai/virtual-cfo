@@ -545,6 +545,12 @@ class DocumentProcessor
 
     private function parseTransactionDate(string $date): Carbon
     {
+        // Primary format: ISO 8601 (YYYY-MM-DD) — what the LLM is instructed to return
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return Carbon::createFromFormat('Y-m-d', $date);
+        }
+
+        // Indian bank statement formats (DD first, then MM)
         if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $date)) {
             try {
                 return Carbon::createFromFormat('d-m-Y', $date);
