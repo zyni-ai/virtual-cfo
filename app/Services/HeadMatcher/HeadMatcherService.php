@@ -129,7 +129,14 @@ class HeadMatcherService
         $importedFile->transactions()
             ->where('mapping_type', MappingType::Unmapped)
             ->chunkById($this->aiChunkSize, function (Collection $transactions) use (&$totalMatched, $chartOfAccounts) {
-                $totalMatched += $this->runAiMatching($transactions, $chartOfAccounts);
+                try {
+                    $totalMatched += $this->runAiMatching($transactions, $chartOfAccounts);
+                } catch (\Throwable $e) {
+                    Log::warning('AI matching chunk failed, skipping', [
+                        'transaction_ids' => $transactions->pluck('id')->all(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             });
 
         return $totalMatched;

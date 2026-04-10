@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\ImportSource;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use App\Models\TransactionAggregate;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
@@ -151,6 +153,95 @@ describe('ImportedFile relationships', function () {
     });
 });
 
+describe('ImportedFile force-delete aggregate cleanup', function () {
+    beforeEach(function () {
+        asUser();
+    });
+
+    it('removes TransactionAggregate contribution when force-deleted', function () {
+        $company = tenant();
+        $file = ImportedFile::factory()->create(['company_id' => $company->id]);
+
+        Transaction::factory()->for($file, 'importedFile')->debit(5000)->create([
+            'company_id' => $company->id,
+            'date' => '2025-04-15',
+        ]);
+
+        expect(TransactionAggregate::where('company_id', $company->id)
+            ->where('year_month', '2025-04')
+            ->exists()
+        )->toBeTrue();
+
+        $file->forceDelete();
+
+        expect(TransactionAggregate::where('company_id', $company->id)
+            ->where('year_month', '2025-04')
+            ->exists()
+        )->toBeFalse();
+    });
+
+    it('preserves aggregates from other files in the same month', function () {
+        $company = tenant();
+        $file1 = ImportedFile::factory()->create(['company_id' => $company->id]);
+        $file2 = ImportedFile::factory()->create(['company_id' => $company->id]);
+
+        Transaction::factory()->for($file1, 'importedFile')->debit(3000)->create([
+            'company_id' => $company->id,
+            'date' => '2025-04-10',
+        ]);
+        Transaction::factory()->for($file2, 'importedFile')->debit(2000)->create([
+            'company_id' => $company->id,
+            'date' => '2025-04-20',
+        ]);
+
+        $file1->forceDelete();
+
+        $aggregate = TransactionAggregate::where('company_id', $company->id)
+            ->where('year_month', '2025-04')
+            ->first();
+
+        expect($aggregate)->not->toBeNull()
+            ->and((float) $aggregate->total_debit)->toBe(2000.0);
+    });
+
+    it('does not error when a soft-deleted file is force-deleted', function () {
+        $company = tenant();
+        $file = ImportedFile::factory()->create(['company_id' => $company->id]);
+
+        Transaction::factory()->for($file, 'importedFile')->debit(5000)->create([
+            'company_id' => $company->id,
+            'date' => '2025-04-15',
+        ]);
+
+        $file->delete(); // soft-delete → transactions soft-deleted → aggregate decremented to 0
+
+        $file->forceDelete(); // should not throw or double-decrement
+
+        expect(ImportedFile::withTrashed()->find($file->id))->toBeNull();
+    });
+
+    it('does not affect the soft-delete path', function () {
+        $company = tenant();
+        $file = ImportedFile::factory()->create(['company_id' => $company->id]);
+
+        Transaction::factory()->for($file, 'importedFile')->debit(5000)->create([
+            'company_id' => $company->id,
+            'date' => '2025-04-15',
+        ]);
+
+        $file->delete();
+
+        // Soft-delete still decrements aggregates via TransactionObserver (unchanged behavior)
+        $aggregate = TransactionAggregate::where('company_id', $company->id)
+            ->where('year_month', '2025-04')
+            ->first();
+
+        expect($aggregate)->not->toBeNull()
+            ->and((float) $aggregate->total_debit)->toBe(0.0)
+            ->and($aggregate->transaction_count)->toBe(0);
+    });
+});
+
 describe('ImportedFile encryption', function () {
     it('encrypts and decrypts account_number', function () {
         $file = ImportedFile::factory()->create(['account_number' => '1234567890']);
@@ -164,14 +255,14 @@ describe('ImportedFile source tracking', function () {
     it('defaults to ManualUpload source', function () {
         $file = ImportedFile::factory()->create();
 
-        expect($file->source)->toBe(\App\Enums\ImportSource::ManualUpload)
+        expect($file->source)->toBe(ImportSource::ManualUpload)
             ->and($file->source_metadata)->toBeNull();
     });
 
     it('creates from email with metadata', function () {
         $file = ImportedFile::factory()->fromEmail('<msg-123@example.com>')->create();
 
-        expect($file->source)->toBe(\App\Enums\ImportSource::Email)
+        expect($file->source)->toBe(ImportSource::Email)
             ->and($file->source_metadata)->toBeArray()
             ->and($file->source_metadata['message_id'])->toBe('<msg-123@example.com>');
     });
@@ -179,7 +270,7 @@ describe('ImportedFile source tracking', function () {
     it('creates from zoho with metadata', function () {
         $file = ImportedFile::factory()->fromZoho('INV-001')->create();
 
-        expect($file->source)->toBe(\App\Enums\ImportSource::Zoho)
+        expect($file->source)->toBe(ImportSource::Zoho)
             ->and($file->source_metadata)->toBeArray()
             ->and($file->source_metadata['zoho_invoice_id'])->toBe('INV-001');
     });

@@ -79,7 +79,7 @@ class ReportingService
     {
         return $this->filteredAggregatesQuery($filters)
             ->whereNotNull('account_head_id')
-            ->with('accountHead:id,name');
+            ->with(['accountHead' => fn ($q) => $q->withTrashed()->select('id', 'name')]);
     }
 
     /**

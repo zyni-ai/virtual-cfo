@@ -189,7 +189,8 @@ class AccountHeadResource extends Resource
         return [
             Forms\Components\FileUpload::make('xml_file')
                 ->label('Tally XML File')
-                ->acceptedFileTypes(['text/xml', 'application/xml', '.xml'])
+                ->acceptedFileTypes(['text/xml', 'application/xml'])
+                ->mimeTypeMap(['xml' => 'text/xml'])
                 ->maxSize(51200) // 50MB
                 ->required()
                 ->disk('local')
@@ -201,6 +202,8 @@ class AccountHeadResource extends Resource
     private static function tallyImportAction(): Closure
     {
         return function (array $data): void {
+            ini_set('memory_limit', '512M');
+
             $filePath = $data['xml_file'];
             $xmlContent = Storage::disk('local')->get($filePath);
             /** @var Company $company */
