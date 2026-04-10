@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Models\TransactionAggregate;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AggregateService
 {
@@ -45,7 +47,7 @@ class AggregateService
         $aggregates = [];
 
         $query->chunk(500, function ($transactions) use (&$aggregates) {
-            /** @var \Illuminate\Database\Eloquent\Collection<int, Transaction> $transactions */
+            /** @var Collection<int, Transaction> $transactions */
             foreach ($transactions as $transaction) {
                 $key = $this->buildAggregateKey($transaction);
 
@@ -85,6 +87,31 @@ class AggregateService
                 ]), $chunk)
             );
         }
+    }
+
+    /**
+     * Rebuild aggregates for all transactions belonging to a specific imported file.
+     * Replaces stale null-head aggregates written when transactions were first created.
+     */
+    public function rebuildForFile(ImportedFile $file): void
+    {
+        $yearMonths = Transaction::query()
+            ->where('imported_file_id', $file->id)
+            ->distinct()
+            ->pluck(DB::raw("TO_CHAR(date, 'YYYY-MM') AS year_month"));
+
+        if ($yearMonths->isEmpty()) {
+            return;
+        }
+
+        foreach ($yearMonths as $yearMonth) {
+            $this->rebuild($file->company_id, $yearMonth);
+        }
+
+        Log::info('Aggregates rebuilt for file', [
+            'file_id' => $file->id,
+            'year_months' => $yearMonths->all(),
+        ]);
     }
 
     /**

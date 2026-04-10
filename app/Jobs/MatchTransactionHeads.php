@@ -6,6 +6,7 @@ use App\Enums\MappingType;
 use App\Models\ImportedFile;
 use App\Notifications\HeadMatchingCompletedNotification;
 use App\Notifications\LowConfidenceMatchesNotification;
+use App\Services\AggregateService;
 use App\Services\HeadMatcher\HeadMatcherService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,7 +47,7 @@ class MatchTransactionHeads implements ShouldQueue
         return [30, 120, 300];
     }
 
-    public function handle(HeadMatcherService $headMatcherService): void
+    public function handle(HeadMatcherService $headMatcherService, AggregateService $aggregateService): void
     {
         try {
             $results = $headMatcherService->matchForFile($this->importedFile);
@@ -57,6 +58,8 @@ class MatchTransactionHeads implements ShouldQueue
                 'ai_matched' => $results['ai_matched'],
                 'unmatched' => $results['unmatched'],
             ]);
+
+            $aggregateService->rebuildForFile($this->importedFile);
 
             $this->importedFile->update(['is_matching' => false]);
             $this->notifyCompletion($results);

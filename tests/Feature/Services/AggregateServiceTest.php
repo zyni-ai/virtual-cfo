@@ -2,6 +2,7 @@
 
 use App\Models\AccountHead;
 use App\Models\Company;
+use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Models\TransactionAggregate;
 use App\Services\AggregateService;
@@ -150,6 +151,107 @@ describe('AggregateService', function () {
                 ->where('year_month', '2025-03')
                 ->first();
             expect($marchAgg)->not->toBeNull();
+        });
+    });
+
+    describe('rebuildForFile', function () {
+        it('rebuilds aggregates for a file so stale null-head rows are replaced with real account heads', function () {
+            $company = tenant();
+            $head = AccountHead::factory()->create(['company_id' => $company->id]);
+
+            $file = ImportedFile::factory()->create(['company_id' => $company->id]);
+
+            // Create transaction with the real account_head_id but WITHOUT firing the observer
+            // so we can manually insert a stale aggregate (simulating the bug: aggregate was
+            // written at transaction creation time when account_head_id was null).
+            Transaction::withoutEvents(function () use ($company, $file, $head) {
+                Transaction::factory()->debit(5000)->create([
+                    'company_id' => $company->id,
+                    'imported_file_id' => $file->id,
+                    'account_head_id' => $head->id,
+                    'date' => '2025-04-15',
+                ]);
+            });
+
+            // Insert a stale aggregate with null account_head_id — this mirrors what the
+            // observer writes at transaction creation time (before head matching runs).
+            TransactionAggregate::insert([
+                'company_id' => $company->id,
+                'account_head_id' => null,
+                'bank_account_id' => null,
+                'credit_card_id' => null,
+                'year_month' => '2025-04',
+                'total_debit' => 5000,
+                'total_credit' => 0,
+                'transaction_count' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Confirm stale state: aggregate has null account_head_id
+            expect(TransactionAggregate::where('company_id', $company->id)
+                ->where('year_month', '2025-04')
+                ->whereNull('account_head_id')
+                ->exists()
+            )->toBeTrue();
+
+            $this->service->rebuildForFile($file);
+
+            // After rebuild: null-head aggregate is gone, real head aggregate exists
+            expect(TransactionAggregate::where('company_id', $company->id)
+                ->where('year_month', '2025-04')
+                ->whereNull('account_head_id')
+                ->exists()
+            )->toBeFalse()
+                ->and(TransactionAggregate::where('company_id', $company->id)
+                    ->where('year_month', '2025-04')
+                    ->where('account_head_id', $head->id)
+                    ->value('total_debit')
+                )->toBe('5000.00');
+        });
+
+        it('handles a file whose transactions span multiple months', function () {
+            $company = tenant();
+            $head = AccountHead::factory()->create(['company_id' => $company->id]);
+            $file = ImportedFile::factory()->create(['company_id' => $company->id]);
+
+            Transaction::withoutEvents(function () use ($company, $file, $head) {
+                Transaction::factory()->debit(1000)->create([
+                    'company_id' => $company->id,
+                    'imported_file_id' => $file->id,
+                    'account_head_id' => $head->id,
+                    'date' => '2025-03-20',
+                ]);
+                Transaction::factory()->debit(2000)->create([
+                    'company_id' => $company->id,
+                    'imported_file_id' => $file->id,
+                    'account_head_id' => $head->id,
+                    'date' => '2025-04-05',
+                ]);
+            });
+
+            $this->service->rebuildForFile($file);
+
+            expect(TransactionAggregate::where('company_id', $company->id)
+                ->where('account_head_id', $head->id)
+                ->where('year_month', '2025-03')
+                ->value('total_debit')
+            )->toBe('1000.00')
+                ->and(TransactionAggregate::where('company_id', $company->id)
+                    ->where('account_head_id', $head->id)
+                    ->where('year_month', '2025-04')
+                    ->value('total_debit')
+                )->toBe('2000.00');
+        });
+
+        it('does nothing when the file has no transactions', function () {
+            $company = tenant();
+            $file = ImportedFile::factory()->create(['company_id' => $company->id]);
+
+            // Should not throw
+            $this->service->rebuildForFile($file);
+
+            expect(TransactionAggregate::where('company_id', $company->id)->count())->toBe(0);
         });
     });
 
