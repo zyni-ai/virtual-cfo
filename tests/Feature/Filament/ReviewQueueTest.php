@@ -3,6 +3,7 @@
 use App\Enums\MappingType;
 use App\Filament\Pages\ReviewQueue;
 use App\Models\AccountHead;
+use App\Models\Company;
 use App\Models\Transaction;
 use Filament\Actions\Testing\TestAction;
 
@@ -147,5 +148,68 @@ describe('ReviewQueue page', function () {
         ]);
 
         expect(ReviewQueue::getNavigationBadge())->toBe('5');
+    });
+});
+
+describe('ReviewQueue tenant isolation', function () {
+    beforeEach(function () {
+        asUser();
+        $this->company = tenant();
+        $this->company->update(['review_confidence_threshold' => 0.80]);
+    });
+
+    it('does not show transactions from another company', function () {
+        $otherCompany = Company::factory()->create(['review_confidence_threshold' => 0.80]);
+
+        $ownTxn = Transaction::factory()->for($this->company)->create([
+            'mapping_type' => MappingType::Ai,
+            'ai_confidence' => 0.65,
+            'account_head_id' => AccountHead::factory()->for($this->company)->create()->id,
+        ]);
+
+        Transaction::withoutEvents(function () use ($otherCompany) {
+            Transaction::factory()->for($otherCompany)->create([
+                'mapping_type' => MappingType::Ai,
+                'ai_confidence' => 0.65,
+                'account_head_id' => AccountHead::factory()->for($otherCompany)->create()->id,
+            ]);
+        });
+
+        livewire(ReviewQueue::class)
+            ->assertCanSeeTableRecords([$ownTxn])
+            ->assertCountTableRecords(1);
+    });
+
+    it('shows the correct AI suggested head name', function () {
+        $head = AccountHead::factory()->for($this->company)->create(['name' => 'Office Supplies']);
+
+        Transaction::factory()->for($this->company)->create([
+            'mapping_type' => MappingType::Ai,
+            'ai_confidence' => 0.65,
+            'account_head_id' => $head->id,
+        ]);
+
+        livewire(ReviewQueue::class)
+            ->assertSeeText('Office Supplies');
+    });
+
+    it('navigation badge only counts current company transactions', function () {
+        $otherCompany = Company::factory()->create(['review_confidence_threshold' => 0.80]);
+
+        Transaction::factory()->count(3)->for($this->company)->create([
+            'mapping_type' => MappingType::Ai,
+            'ai_confidence' => 0.65,
+            'account_head_id' => AccountHead::factory()->for($this->company)->create()->id,
+        ]);
+
+        Transaction::withoutEvents(function () use ($otherCompany) {
+            Transaction::factory()->count(10)->for($otherCompany)->create([
+                'mapping_type' => MappingType::Ai,
+                'ai_confidence' => 0.65,
+                'account_head_id' => AccountHead::factory()->for($otherCompany)->create()->id,
+            ]);
+        });
+
+        expect(ReviewQueue::getNavigationBadge())->toBe('3');
     });
 });
