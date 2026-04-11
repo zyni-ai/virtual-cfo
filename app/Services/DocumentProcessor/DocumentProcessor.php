@@ -458,7 +458,9 @@ class DocumentProcessor
             return;
         }
 
-        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $cardVariant, $transactions, $previousBalance) {
+        [$periodStart, $periodEnd] = $this->parseStatementPeriodBounds($statementPeriod);
+
+        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $cardVariant, $transactions, $previousBalance, $periodStart, $periodEnd) {
             $fileUpdates = [
                 'status' => ImportStatus::Completed,
                 'total_rows' => count($transactions),
@@ -497,7 +499,11 @@ class DocumentProcessor
                 Transaction::create([
                     'company_id' => $file->company_id,
                     'imported_file_id' => $file->id,
-                    'date' => $this->parseTransactionDate($row['date']),
+                    'date' => $this->correctDateAgainstPeriod(
+                        $this->parseTransactionDate($row['date']),
+                        $periodStart,
+                        $periodEnd,
+                    ),
                     'description' => $row['description'] ?? '',
                     'reference_number' => $row['reference'] ?? null,
                     'debit' => isset($row['debit']) && (float) $row['debit'] > 0 ? (string) $row['debit'] : null,
@@ -541,6 +547,79 @@ class DocumentProcessor
             $file->display_name = $this->displayNameGenerator->generate($file);
             $file->save();
         });
+    }
+
+    /**
+     * Parse a statement period string (e.g. "March 6, 2026 to April 5, 2026") into
+     * Y-m-d date strings. Returns [null, null] when parsing fails.
+     *
+     * @return array{0: string|null, 1: string|null}
+     */
+    private function parseStatementPeriodBounds(?string $statementPeriod): array
+    {
+        if ($statementPeriod === null) {
+            return [null, null];
+        }
+
+        $parts = preg_split('/\s+(?:to|-)\s+/i', $statementPeriod, 2);
+
+        if (count($parts) !== 2) {
+            return [null, null];
+        }
+
+        try {
+            return [
+                Carbon::parse(trim($parts[0]))->toDateString(),
+                Carbon::parse(trim($parts[1]))->toDateString(),
+            ];
+        } catch (\Exception) {
+            return [null, null];
+        }
+    }
+
+    /**
+     * Correct a transaction date that falls outside the statement period by attempting
+     * a day/month swap — a common LLM error on Indian DD/MM/YYYY statements.
+     * Returns the swapped date only when it lands within the period; otherwise original.
+     */
+    private function correctDateAgainstPeriod(Carbon $date, ?string $periodStart, ?string $periodEnd): Carbon
+    {
+        if ($periodStart === null || $periodEnd === null) {
+            return $date;
+        }
+
+        $dateStr = $date->toDateString();
+
+        if ($dateStr >= $periodStart && $dateStr <= $periodEnd) {
+            return $date;
+        }
+
+        $day = $date->day;
+        $month = $date->month;
+
+        if ($day > 12) {
+            return $date;
+        }
+
+        try {
+            $swapped = Carbon::createFromDate($date->year, $day, $month);
+            $swappedStr = $swapped->toDateString();
+
+            if ($swappedStr >= $periodStart && $swappedStr <= $periodEnd) {
+                Log::info('Corrected day/month-swapped date to match statement period', [
+                    'original' => $dateStr,
+                    'corrected' => $swappedStr,
+                    'period_start' => $periodStart,
+                    'period_end' => $periodEnd,
+                ]);
+
+                return $swapped;
+            }
+        } catch (\Exception) {
+            // Swapped values produce an invalid date — leave original
+        }
+
+        return $date;
     }
 
     private function parseTransactionDate(string $date): Carbon

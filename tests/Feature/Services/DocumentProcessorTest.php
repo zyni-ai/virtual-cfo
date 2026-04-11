@@ -468,6 +468,103 @@ describe('DocumentProcessor', function () {
                 ->and($file->status)->toBe(ImportStatus::Completed);
         });
 
+        describe('date correction', function () {
+            it('corrects day/month-swapped dates that fall outside the statement period', function () {
+                Storage::put('statements/swapped_dates.pdf', 'fake-pdf-content');
+
+                StatementParser::fake([
+                    [
+                        'bank_name' => 'ICICI Bank',
+                        'statement_period' => 'March 6, 2026 to April 5, 2026',
+                        'transactions' => [
+                            // LLM returned 2026-05-04 (May 4) — should be 2026-04-05 (April 5)
+                            ['date' => '2026-05-04', 'description' => 'INTEREST CHARGES', 'debit' => 5373, 'balance' => null],
+                            ['date' => '2026-05-04', 'description' => 'GST CHARGES', 'debit' => 2788, 'balance' => null],
+                            // Dates already within period — must remain unchanged
+                            ['date' => '2026-03-17', 'description' => 'KARNATAKA ONE', 'debit' => 8374, 'balance' => null],
+                            ['date' => '2026-04-02', 'description' => 'LANGCHAIN', 'debit' => 33356, 'balance' => null],
+                        ],
+                    ],
+                ]);
+
+                $file = ImportedFile::factory()->create([
+                    'file_path' => 'statements/swapped_dates.pdf',
+                    'original_filename' => 'icici_statement.pdf',
+                    'statement_type' => StatementType::Bank,
+                    'status' => ImportStatus::Pending,
+                ]);
+
+                $this->processor->process($file);
+
+                $file->refresh();
+                expect($file->status)->toBe(ImportStatus::Completed);
+
+                $transactions = Transaction::where('imported_file_id', $file->id)->get();
+                expect($transactions)->toHaveCount(4);
+
+                $corrected = $transactions->filter(fn ($t) => $t->date->toDateString() === '2026-04-05');
+                expect($corrected)->toHaveCount(2);
+
+                $wrong = $transactions->filter(fn ($t) => $t->date->toDateString() === '2026-05-04');
+                expect($wrong)->toBeEmpty();
+            });
+
+            it('leaves dates unchanged when swap would produce an invalid month', function () {
+                Storage::put('statements/unswappable.pdf', 'fake-pdf-content');
+
+                StatementParser::fake([
+                    [
+                        'bank_name' => 'HDFC Bank',
+                        'statement_period' => '2024-01-01 to 2024-01-31',
+                        'transactions' => [
+                            // Day=15 — swapping gives month=15, which is invalid; original must be kept
+                            ['date' => '2024-03-15', 'description' => 'OLD TRANSACTION', 'debit' => 500, 'balance' => null],
+                            ['date' => '2024-01-10', 'description' => 'VALID', 'credit' => 50000, 'balance' => null],
+                        ],
+                    ],
+                ]);
+
+                $file = ImportedFile::factory()->create([
+                    'file_path' => 'statements/unswappable.pdf',
+                    'original_filename' => 'hdfc_statement.pdf',
+                    'statement_type' => StatementType::Bank,
+                    'status' => ImportStatus::Pending,
+                ]);
+
+                $this->processor->process($file);
+
+                $transactions = Transaction::where('imported_file_id', $file->id)->get();
+                $unchanged = $transactions->filter(fn ($t) => $t->date->toDateString() === '2024-03-15');
+                expect($unchanged)->toHaveCount(1);
+            });
+
+            it('does not modify dates when no statement period is available', function () {
+                Storage::put('statements/no_period_dates.pdf', 'fake-pdf-content');
+
+                StatementParser::fake([
+                    [
+                        'bank_name' => 'SBI',
+                        'transactions' => [
+                            ['date' => '2024-05-04', 'description' => 'PAYMENT', 'debit' => 1000, 'balance' => null],
+                        ],
+                    ],
+                ]);
+
+                $file = ImportedFile::factory()->create([
+                    'file_path' => 'statements/no_period_dates.pdf',
+                    'original_filename' => 'sbi_statement.pdf',
+                    'statement_type' => StatementType::Bank,
+                    'status' => ImportStatus::Pending,
+                ]);
+
+                $this->processor->process($file);
+
+                $transactions = Transaction::where('imported_file_id', $file->id)->get();
+                $unchanged = $transactions->filter(fn ($t) => $t->date->toDateString() === '2024-05-04');
+                expect($unchanged)->toHaveCount(1);
+            });
+        });
+
         it('marks file as failed when PDF has no transactions', function () {
             Storage::put('statements/empty.pdf', 'fake-pdf-content');
 
