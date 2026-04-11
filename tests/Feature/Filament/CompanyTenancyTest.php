@@ -187,6 +187,20 @@ describe('Register Company page', function () {
             ->callAction('cancel')
             ->assertRedirect(route('filament.admin.auth.login'));
     });
+
+    it('creates exactly one company when registering', function () {
+        livewire(RegisterCompany::class)
+            ->fillForm([
+                'name' => 'My New Company',
+                'gst_registration_type' => 'Regular',
+                'currency' => 'INR',
+            ])
+            ->call('register')
+            ->assertHasNoFormErrors();
+
+        expect(Company::count())->toBe(1)
+            ->and(Company::first()->name)->toBe('My New Company');
+    });
 });
 
 describe('Edit Company Settings page', function () {
