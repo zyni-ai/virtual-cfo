@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\StatementType;
 use App\Models\Company;
 use App\Models\CreditCard;
 use App\Models\ImportedFile;
+use App\Models\Transaction;
 use App\Services\DisplayNameGenerator;
 use Carbon\Carbon;
 
@@ -149,5 +151,46 @@ describe('DisplayNameGenerator', function () {
         $name = (new DisplayNameGenerator)->generate($file);
 
         expect($name)->toBe('HDFC_Millennia_Feb_2025');
+    });
+
+    it('generates invoice display name from invoice number, vendor name, and service description', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+        Transaction::factory()->create([
+            'imported_file_id' => $file->id,
+            'raw_data' => [
+                'invoice_number' => 'INV/2439',
+                'vendor_name' => 'Test Vendor Pvt Ltd',
+                'line_items' => [
+                    ['description' => 'Office Assistant and Housekeeping charges', 'amount' => 27500.00],
+                ],
+            ],
+        ]);
+
+        $file->load('transactions');
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)
+            ->toStartWith('INV')
+            ->toContain('Test Vendor')
+            ->toContain('Office Assistant');
+    });
+
+    it('generates invoice display name with only vendor name when invoice number and line items are missing', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+        Transaction::factory()->create([
+            'imported_file_id' => $file->id,
+            'raw_data' => [
+                'vendor_name' => 'Simple Vendor Ltd',
+            ],
+        ]);
+
+        $file->load('transactions');
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toContain('Simple Vendor');
     });
 });
