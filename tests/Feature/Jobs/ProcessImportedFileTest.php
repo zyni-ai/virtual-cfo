@@ -485,7 +485,7 @@ describe('ProcessImportedFile invoice display_name', function () {
         $job->handle(app(DocumentProcessor::class));
 
         $file->refresh();
-        expect($file->display_name)->toBe('SWG/2025/001 - Swiggy - Food delivery');
+        expect($file->display_name)->toBe('SWG/2025/001_Swiggy_Food delivery');
     });
 
     it('sets display_name to invoice number, vendor, and description for an invoice imported via email', function () {
@@ -517,7 +517,7 @@ describe('ProcessImportedFile invoice display_name', function () {
         $job->handle(app(DocumentProcessor::class));
 
         $file->refresh();
-        expect($file->display_name)->toBe('AWS/2025/042 - AWS - Cloud services');
+        expect($file->display_name)->toBe('AWS/2025/042_AWS_Cloud services');
     });
 });
 

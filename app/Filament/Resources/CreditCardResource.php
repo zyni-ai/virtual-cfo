@@ -120,13 +120,12 @@ class CreditCardResource extends Resource
                             ->multiple()
                             ->options(function () {
                                 $user = Auth::user();
-                                /** @var \App\Models\Company|null $currentTenant */
+                                /** @var Company|null $currentTenant */
                                 $currentTenant = Filament::getTenant();
 
                                 return Company::query()
                                     ->whereHas('users', function (Builder $q) use ($user) {
-                                        $q->where('users.id', $user->id)
-                                            ->where('company_user.role', UserRole::Admin->value);
+                                        $q->where('users.id', $user->id);
                                     })
                                     ->when($currentTenant, fn (Builder $q) => $q->where('companies.id', '!=', $currentTenant->id))
                                     ->pluck('name', 'id');
@@ -182,7 +181,7 @@ class CreditCardResource extends Resource
                 SoftDeletingScope::class,
             ]);
 
-        /** @var \App\Models\Company|null $tenant */
+        /** @var Company|null $tenant */
         $tenant = Filament::getTenant();
 
         if ($tenant) {

@@ -171,10 +171,28 @@ describe('DisplayNameGenerator', function () {
         $file->load('transactions');
         $name = (new DisplayNameGenerator)->generate($file);
 
-        expect($name)
-            ->toStartWith('INV')
-            ->toContain('Test Vendor')
-            ->toContain('Office Assistant');
+        expect($name)->toBe('INV/2439_Test Vendor_Office Assistant');
+    });
+
+    it('strips legal suffixes from vendor name in invoice display name', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+        ]);
+        Transaction::factory()->create([
+            'imported_file_id' => $file->id,
+            'raw_data' => [
+                'invoice_number' => 'ZY24-0045',
+                'vendor_name' => 'Minds Creative Solutions Private Limited',
+                'line_items' => [
+                    ['description' => 'Website Development Project - Varuna Month - Jul\'24 to Aug\'24', 'amount' => 50000.00],
+                ],
+            ],
+        ]);
+
+        $file->load('transactions');
+        $name = (new DisplayNameGenerator)->generate($file);
+
+        expect($name)->toBe('ZY24-0045_Minds Creative Solutions_Website Development');
     });
 
     it('generates invoice display name with only vendor name when invoice number and line items are missing', function () {
@@ -191,6 +209,6 @@ describe('DisplayNameGenerator', function () {
         $file->load('transactions');
         $name = (new DisplayNameGenerator)->generate($file);
 
-        expect($name)->toContain('Simple Vendor');
+        expect($name)->toBe('Simple Vendor');
     });
 });
