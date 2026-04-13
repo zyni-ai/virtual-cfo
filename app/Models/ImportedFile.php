@@ -70,9 +70,11 @@ class ImportedFile extends Model
         'company_id',
         'inbound_email_id',
         'bank_name',
+        'account_holder_name',
         'card_variant',
         'account_number',
         'statement_period',
+        'opening_balance',
         'statement_type',
         'file_path',
         'original_filename',
@@ -127,6 +129,7 @@ class ImportedFile extends Model
             'total_rows' => 'integer',
             'mapped_rows' => 'integer',
             'is_matching' => 'boolean',
+            'opening_balance' => 'decimal:2',
         ];
     }
 

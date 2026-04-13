@@ -10,19 +10,24 @@ use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\WithCustomStartCell;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * @implements WithMapping<Transaction>
  */
-class TransactionCsvExport implements FromQuery, WithHeadings, WithMapping
+class TransactionCsvExport implements FromQuery, WithCustomStartCell, WithEvents, WithHeadings, WithMapping
 {
     /** @param Builder<Transaction>|null $baseQuery */
     public function __construct(
         public ?string $from = null,
         public ?string $until = null,
         public ?Builder $baseQuery = null,
+        public ?ImportedFile $importedFile = null,
     ) {}
 
     /**
@@ -34,7 +39,7 @@ class TransactionCsvExport implements FromQuery, WithHeadings, WithMapping
             $query = $this->baseQuery
                 ->clone()
                 ->whereNotNull('account_head_id')
-                ->with(['accountHead', 'importedFile'])
+                ->with(['accountHead'])
                 ->orderBy('date');
         } else {
             /** @var Company $tenant */
@@ -43,7 +48,7 @@ class TransactionCsvExport implements FromQuery, WithHeadings, WithMapping
             $query = Transaction::query()
                 ->where('company_id', $tenant->id)
                 ->whereNotNull('account_head_id')
-                ->with(['accountHead', 'importedFile'])
+                ->with(['accountHead'])
                 ->orderBy('date');
         }
 
@@ -58,6 +63,11 @@ class TransactionCsvExport implements FromQuery, WithHeadings, WithMapping
         return $query;
     }
 
+    public function startCell(): string
+    {
+        return $this->importedFile ? 'A4' : 'A1';
+    }
+
     /**
      * @return array<int, string>
      */
@@ -65,16 +75,14 @@ class TransactionCsvExport implements FromQuery, WithHeadings, WithMapping
     {
         return [
             'Date',
-            'Description',
             'Reference',
+            'Account Head',
             'Debit',
             'Credit',
             'Balance',
             'Currency',
-            'Account Head',
             'Account Head Group',
-            'Bank/Source',
-            'Mapping Type',
+            'Description',
         ];
     }
 
@@ -88,21 +96,45 @@ class TransactionCsvExport implements FromQuery, WithHeadings, WithMapping
         $date = $row->date;
         /** @var AccountHead|null $accountHead */
         $accountHead = $row->accountHead;
-        /** @var ImportedFile|null $importedFile */
-        $importedFile = $row->importedFile;
 
         return [
             $date->format('d M Y'),
-            $row->description,
             $row->reference_number,
+            $accountHead?->name,
             $row->debit !== null ? (float) $row->debit : null,
             $row->credit !== null ? (float) $row->credit : null,
             $row->balance !== null ? (float) $row->balance : null,
             $row->currency,
-            $accountHead?->name,
             $accountHead?->group_name,
-            $importedFile?->bank_name,
-            $row->mapping_type?->value,
+            $row->description,
         ];
+    }
+
+    /**
+     * @return array<class-string, callable>
+     */
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event): void {
+                $this->writeTransactionsMetadata($event->sheet->getDelegate());
+            },
+        ];
+    }
+
+    protected function writeTransactionsMetadata(Worksheet $sheet): void
+    {
+        if ($this->importedFile === null) {
+            return;
+        }
+
+        $sheet->setCellValue('A1', 'Bank:');
+        $sheet->setCellValue('B1', $this->importedFile->bank_name ?? '');
+        $sheet->setCellValue('A2', 'Account Holder:');
+        $sheet->setCellValue('B2', $this->importedFile->account_holder_name ?? '');
+        $sheet->setCellValue('A3', 'Statement Period:');
+        $sheet->setCellValue('B3', $this->importedFile->statement_period ?? '');
+
+        $sheet->getStyle('A1:A3')->getFont()->setBold(true);
     }
 }

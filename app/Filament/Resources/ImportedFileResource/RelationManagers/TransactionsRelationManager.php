@@ -420,6 +420,7 @@ class TransactionsRelationManager extends RelationManager
                                     from: $data['from'] ?? null,
                                     until: $data['until'] ?? null,
                                     baseQuery: Transaction::where('imported_file_id', $file->id),
+                                    importedFile: $file,
                                 ),
                                 'transactions-'.now()->format('Y-m-d-His').'.csv',
                             );

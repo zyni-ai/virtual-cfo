@@ -33,7 +33,7 @@ class TransactionSummarySheet implements FromCollection, WithCustomStartCell, Wi
 
     public function startCell(): string
     {
-        return $this->importedFile ? 'A3' : 'A1';
+        return $this->importedFile ? 'A5' : 'A1';
     }
 
     public function resolveAccountLabel(): string
@@ -45,14 +45,15 @@ class TransactionSummarySheet implements FromCollection, WithCustomStartCell, Wi
         $file = $this->importedFile;
         $bankName = $file->bank_name ?? '';
 
-        if (! $file->credit_card_id) {
-            return $bankName;
+        if ($file->credit_card_id) {
+            $file->loadMissing('creditCard');
+            $cardName = $file->creditCard?->name;
+            $bankName = $cardName ? trim("{$bankName} {$cardName}") : $bankName;
         }
 
-        $file->loadMissing('creditCard');
-        $cardName = $file->creditCard?->name;
+        $holderName = $file->account_holder_name;
 
-        return $cardName ? trim("{$bankName} {$cardName}") : $bankName;
+        return $holderName ? "{$bankName} — {$holderName}" : $bankName;
     }
 
     /**
@@ -141,10 +142,9 @@ class TransactionSummarySheet implements FromCollection, WithCustomStartCell, Wi
                 $sheet = $event->sheet->getDelegate();
 
                 $hasMetadata = $this->importedFile !== null;
-                $headerRow = $hasMetadata ? 3 : 1;
-                $dataStartRow = $hasMetadata ? 4 : 2;
+                $headerRow = $hasMetadata ? 5 : 1;
+                $dataStartRow = $hasMetadata ? 6 : 2;
 
-                // Capture highest data row BEFORE writing any new cells
                 $lastDataRow = $sheet->getHighestRow();
                 $totalsRow = $lastDataRow + 1;
 
@@ -153,13 +153,16 @@ class TransactionSummarySheet implements FromCollection, WithCustomStartCell, Wi
                     $sheet->setCellValue('B1', $this->resolveAccountLabel());
                     $sheet->setCellValue('A2', 'Statement Period:');
                     $sheet->setCellValue('B2', $this->importedFile->statement_period ?? '');
+                    $sheet->setCellValue('A3', 'Opening Balance:');
+                    $sheet->setCellValue('B3', $this->importedFile->opening_balance !== null ? (float) $this->importedFile->opening_balance : '');
 
-                    $sheet->getStyle('A1:A2')->getFont()->setBold(true);
+                    $sheet->getStyle('A1:A3')->getFont()->setBold(true);
                     $sheet->getRowDimension(1)->setRowHeight(20);
                     $sheet->getRowDimension(2)->setRowHeight(20);
+                    $sheet->getRowDimension(3)->setRowHeight(20);
+                    $sheet->getRowDimension(4)->setRowHeight(20);
                 }
 
-                // Column widths
                 $sheet->getColumnDimension('A')->setWidth(32);
                 $sheet->getColumnDimension('B')->setWidth(16);
                 $sheet->getColumnDimension('C')->setWidth(16);
@@ -171,11 +174,17 @@ class TransactionSummarySheet implements FromCollection, WithCustomStartCell, Wi
                 $sheet->setCellValue("C{$totalsRow}", "=SUM(C{$dataStartRow}:C{$lastDataRow})");
                 $sheet->setCellValue("D{$totalsRow}", "=SUM(D{$dataStartRow}:D{$lastDataRow})");
 
-                // Bold header row and totals row
                 $sheet->getStyle("{$headerRow}:{$headerRow}")->getFont()->setBold(true);
                 $sheet->getStyle("{$totalsRow}:{$totalsRow}")->getFont()->setBold(true);
 
-                // Row height for all rows
+                if ($hasMetadata) {
+                    $closingRow = $totalsRow + 1;
+                    $sheet->setCellValue("A{$closingRow}", 'Closing Balance');
+                    $sheet->setCellValue("B{$closingRow}", "=B3+C{$totalsRow}-B{$totalsRow}");
+                    $sheet->getStyle("{$closingRow}:{$closingRow}")->getFont()->setBold(true);
+                    $sheet->getRowDimension($closingRow)->setRowHeight(20);
+                }
+
                 for ($i = $headerRow; $i <= $totalsRow; $i++) {
                     $sheet->getRowDimension($i)->setRowHeight(20);
                 }

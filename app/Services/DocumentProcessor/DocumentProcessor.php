@@ -442,6 +442,7 @@ class DocumentProcessor
 
         $bankName = $response['bank_name'] ?? null;
         $accountNumber = $response['account_number'] ?? null;
+        $accountHolderName = ($response['account_holder_name'] ?? null) ?: null;
         $statementPeriod = $response['statement_period'] ?? null;
         $cardVariant = $response['card_variant'] ?? null;
         $transactions = $response['transactions'];
@@ -458,13 +459,21 @@ class DocumentProcessor
             return;
         }
 
-        DB::transaction(function () use ($file, $bankName, $accountNumber, $statementPeriod, $cardVariant, $transactions, $previousBalance) {
+        DB::transaction(function () use ($file, $bankName, $accountNumber, $accountHolderName, $statementPeriod, $cardVariant, $transactions, $previousBalance) {
             $fileUpdates = [
                 'status' => ImportStatus::Completed,
                 'total_rows' => count($transactions),
                 'mapped_rows' => 0,
                 'processed_at' => now(),
             ];
+
+            if ($accountHolderName !== null) {
+                $fileUpdates['account_holder_name'] = $accountHolderName;
+            }
+
+            if ($previousBalance !== null) {
+                $fileUpdates['opening_balance'] = $previousBalance;
+            }
 
             if ($bankName) {
                 $fileUpdates['bank_name'] = $bankName;
