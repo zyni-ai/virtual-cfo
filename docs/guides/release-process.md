@@ -71,6 +71,23 @@ Release notes are grouped by PR labels:
 
 The `.github/workflows/deploy.yml` workflow triggers automatically when a tag matching `v*` is pushed. Currently a placeholder — configure the deployment target when the hosting platform is decided.
 
+### Server PHP Configuration (Required Before First Deploy)
+
+The application relies on server-level PHP configuration rather than runtime `ini_set()` calls. These settings must be applied once to the production PHP-FPM pool config (e.g., `/etc/php/8.4/fpm/pool.d/www.conf`) or a `php.ini` override:
+
+```ini
+; Tally XML exports can exceed 10 MB — must match the 50 MB cap enforced by
+; Livewire and FileUpload. Mirrors .user.ini at the project root (used by Herd
+; for local development).
+upload_max_filesize = 50M
+post_max_size = 50M
+memory_limit = 512M
+```
+
+After editing, reload PHP-FPM: `sudo systemctl reload php8.4-fpm`
+
+> **Why no `ini_set()` in code?** Runtime overrides scatter infrastructure config across the codebase, apply only to specific code paths, and mask whether server configuration is correct. The `.user.ini` at the project root handles local development (Herd picks it up automatically); production must mirror it here.
+
 ### Post-deployment Steps
 
 After deployment completes, run these commands on the production server:

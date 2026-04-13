@@ -14,6 +14,7 @@ use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -182,7 +183,7 @@ class AccountHeadResource extends Resource
     }
 
     /**
-     * @return array<Actions\Action|\Filament\Schemas\Components\Component>
+     * @return array<Actions\Action|Component>
      */
     private static function tallyImportForm(): array
     {
@@ -202,8 +203,6 @@ class AccountHeadResource extends Resource
     private static function tallyImportAction(): Closure
     {
         return function (array $data): void {
-            ini_set('memory_limit', '512M');
-
             $filePath = $data['xml_file'];
             $xmlContent = Storage::disk('local')->get($filePath);
             /** @var Company $company */
