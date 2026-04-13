@@ -3,10 +3,12 @@
 use App\Models\AccountHead;
 use App\Models\BankAccount;
 use App\Models\Company;
+use App\Models\Connector;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 
 describe('Company factory', function () {
     it('creates a company with valid defaults', function () {
@@ -21,7 +23,7 @@ describe('Company factory', function () {
     });
 
     it('does not have financial_year column in database', function () {
-        expect(Illuminate\Support\Facades\Schema::hasColumn('companies', 'financial_year'))->toBeFalse();
+        expect(Schema::hasColumn('companies', 'financial_year'))->toBeFalse();
     });
 
     it('creates a zysk company with known defaults', function () {
@@ -81,7 +83,7 @@ describe('Company relationships', function () {
 describe('Company connectors relationship', function () {
     it('has many connectors', function () {
         $company = Company::factory()->create();
-        \App\Models\Connector::factory()->create(['company_id' => $company->id]);
+        Connector::factory()->create(['company_id' => $company->id]);
 
         expect($company->connectors)->toHaveCount(1);
     });

@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Models\AccountHead;
 use App\Models\TransactionAggregate;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TopAccountHeadsChart extends ChartWidget
@@ -17,7 +18,7 @@ class TopAccountHeadsChart extends ChartWidget
 
     protected function getData(): array
     {
-        /** @var \Illuminate\Support\Collection<int, TransactionAggregate> $aggregates */
+        /** @var Collection<int, TransactionAggregate> $aggregates */
         $aggregates = TransactionAggregate::query()
             ->whereNotNull('account_head_id')
             ->select('account_head_id')

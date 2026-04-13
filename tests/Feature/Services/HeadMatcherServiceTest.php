@@ -2,7 +2,9 @@
 
 use App\Ai\Agents\HeadMatcher;
 use App\Enums\MappingType;
+use App\Enums\MatchType;
 use App\Models\AccountHead;
+use App\Models\BankAccount;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
@@ -86,7 +88,7 @@ describe('HeadMatcherService AI matching with Agent::fake()', function () {
 
         HeadMapping::factory()->create([
             'pattern' => 'SALARY',
-            'match_type' => \App\Enums\MatchType::Contains,
+            'match_type' => MatchType::Contains,
             'account_head_id' => $salaryHead->id,
         ]);
 
@@ -208,7 +210,7 @@ describe('HeadMatcherService::matchForFile()', function () {
         $head = AccountHead::factory()->create(['name' => 'Salary']);
         HeadMapping::factory()->create([
             'pattern' => 'SALARY',
-            'match_type' => \App\Enums\MatchType::Contains,
+            'match_type' => MatchType::Contains,
             'account_head_id' => $head->id,
         ]);
 
@@ -225,7 +227,7 @@ describe('HeadMatcherService::matchForFile()', function () {
         $head = AccountHead::factory()->create();
         HeadMapping::factory()->create([
             'pattern' => 'EMI',
-            'match_type' => \App\Enums\MatchType::Contains,
+            'match_type' => MatchType::Contains,
             'account_head_id' => $head->id,
         ]);
 
@@ -251,13 +253,13 @@ describe('HeadMatcherService::matchForFile()', function () {
 
         HeadMapping::factory()->create([
             'pattern' => 'SALARY',
-            'match_type' => \App\Enums\MatchType::Contains,
+            'match_type' => MatchType::Contains,
             'account_head_id' => $head1->id,
             'usage_count' => 0,
         ]);
         $emiMapping = HeadMapping::factory()->create([
             'pattern' => 'EMI',
-            'match_type' => \App\Enums\MatchType::Contains,
+            'match_type' => MatchType::Contains,
             'account_head_id' => $head2->id,
             'usage_count' => 0,
         ]);
@@ -280,11 +282,11 @@ describe('HeadMatcherService bank name resolution', function () {
         $head = AccountHead::factory()->create(['name' => 'HDFC Transfer']);
         HeadMapping::factory()->forBank('HDFC Savings')->create([
             'pattern' => 'NEFT',
-            'match_type' => \App\Enums\MatchType::Contains,
+            'match_type' => MatchType::Contains,
             'account_head_id' => $head->id,
         ]);
 
-        $bankAccount = \App\Models\BankAccount::factory()->create(['name' => 'HDFC Savings']);
+        $bankAccount = BankAccount::factory()->create(['name' => 'HDFC Savings']);
         $file = ImportedFile::factory()->create([
             'bank_name' => 'HDFC Bank',
             'bank_account_id' => $bankAccount->id,
@@ -305,7 +307,7 @@ describe('HeadMatcherService bank name resolution', function () {
         $head = AccountHead::factory()->create(['name' => 'SBI Transfer']);
         HeadMapping::factory()->forBank('SBI')->create([
             'pattern' => 'NEFT',
-            'match_type' => \App\Enums\MatchType::Contains,
+            'match_type' => MatchType::Contains,
             'account_head_id' => $head->id,
         ]);
 

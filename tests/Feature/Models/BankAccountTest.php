@@ -5,6 +5,7 @@ use App\Models\BankAccount;
 use App\Models\Company;
 use App\Models\ImportedFile;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 describe('BankAccount factory', function () {
     it('creates a bank account with valid defaults', function () {
@@ -47,7 +48,7 @@ describe('BankAccount encryption', function () {
         expect($account->account_number)->toBe('1234567890123456');
 
         // Raw DB value should be different (encrypted)
-        $raw = \Illuminate\Support\Facades\DB::table('bank_accounts')
+        $raw = DB::table('bank_accounts')
             ->where('id', $account->id)
             ->value('account_number');
 

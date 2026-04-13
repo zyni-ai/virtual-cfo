@@ -13,6 +13,8 @@ use App\Notifications\LowConfidenceMatchesNotification;
 use App\Notifications\MemberRemovedNotification;
 use App\Notifications\MemberRoleChangedNotification;
 use App\Notifications\StatementReceivedByEmailNotification;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Notification;
 
 describe('Notification classes', function () {
@@ -29,7 +31,7 @@ describe('Notification classes', function () {
         ];
 
         foreach ($classes as $class) {
-            expect($class)->toImplement(Illuminate\Contracts\Queue\ShouldQueue::class);
+            expect($class)->toImplement(ShouldQueue::class);
         }
     });
 
@@ -250,7 +252,7 @@ describe('Notification toMail format', function () {
 
         $mail = $notification->toMail($file->uploader);
 
-        expect($mail)->toBeInstanceOf(Illuminate\Notifications\Messages\MailMessage::class)
+        expect($mail)->toBeInstanceOf(MailMessage::class)
             ->and($mail->subject)->toContain($file->original_filename)
             ->and($mail->actionUrl)->not->toBeEmpty();
     });
@@ -263,7 +265,7 @@ describe('Notification toMail format', function () {
 
         $mail = $notification->toMail(User::factory()->create());
 
-        expect($mail)->toBeInstanceOf(Illuminate\Notifications\Messages\MailMessage::class)
+        expect($mail)->toBeInstanceOf(MailMessage::class)
             ->and($mail->subject)->toContain('Accountant')
             ->and($mail->actionUrl)->not->toBeEmpty();
     });
@@ -274,7 +276,7 @@ describe('Notification toMail format', function () {
 
         $mail = $notification->toMail($invitation->inviter);
 
-        expect($mail)->toBeInstanceOf(Illuminate\Notifications\Messages\MailMessage::class)
+        expect($mail)->toBeInstanceOf(MailMessage::class)
             ->and($mail->subject)->toContain($invitation->email)
             ->and($mail->actionUrl)->not->toBeEmpty();
     });

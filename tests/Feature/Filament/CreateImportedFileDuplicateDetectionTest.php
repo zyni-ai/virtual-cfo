@@ -4,6 +4,7 @@ use App\Enums\ImportStatus;
 use App\Enums\StatementType;
 use App\Filament\Resources\ImportedFileResource\Pages\CreateImportedFile;
 use App\Models\ImportedFile;
+use Filament\Notifications\Notification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -156,7 +157,7 @@ describe('CreateImportedFile duplicate detection', function () {
             ])
             ->call('create')
             ->assertNotified(
-                \Filament\Notifications\Notification::make()
+                Notification::make()
                     ->danger()
                     ->title('Duplicate file detected')
                     ->body($expectedBody)

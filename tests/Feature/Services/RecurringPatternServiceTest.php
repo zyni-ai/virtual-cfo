@@ -1,11 +1,13 @@
 <?php
 
+use App\Ai\Agents\HeadMatcher;
 use App\Enums\MappingType;
 use App\Models\AccountHead;
 use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Models\RecurringPattern;
 use App\Models\Transaction;
+use App\Services\HeadMatcher\HeadMatcherService;
 use App\Services\RecurringPatterns\RecurringPatternService;
 use Carbon\Carbon;
 
@@ -364,9 +366,9 @@ describe('HeadMatcher recurring pattern integration', function () {
         ]);
 
         // Fake AI — it should NOT be called for this transaction
-        \App\Ai\Agents\HeadMatcher::fake([['matches' => []]]);
+        HeadMatcher::fake([['matches' => []]]);
 
-        $service = app(\App\Services\HeadMatcher\HeadMatcherService::class);
+        $service = app(HeadMatcherService::class);
         $results = $service->matchForFile($file);
 
         $transaction->refresh();

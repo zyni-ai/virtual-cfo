@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -47,7 +48,7 @@ class ActivityLogExport implements FromQuery, WithHeadings, WithMapping
     public function map(mixed $row): array
     {
         /** @var Activity $row */
-        /** @var \App\Models\User|null $causer */
+        /** @var User|null $causer */
         $causer = $row->causer;
 
         return [

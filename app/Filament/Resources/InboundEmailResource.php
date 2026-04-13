@@ -5,9 +5,11 @@ namespace App\Filament\Resources;
 use App\Enums\InboundEmailStatus;
 use App\Enums\NavigationGroup;
 use App\Filament\Resources\InboundEmailResource\Pages;
+use App\Models\Company;
 use App\Models\InboundEmail;
 use BackedEnum;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
@@ -46,7 +48,7 @@ class InboundEmailResource extends Resource
     /** @return Builder<InboundEmail> */
     public static function getEloquentQuery(): Builder
     {
-        /** @var \App\Models\Company $company */
+        /** @var Company $company */
         $company = Filament::getTenant();
 
         /** @var Builder<InboundEmail> */
@@ -96,8 +98,8 @@ class InboundEmailResource extends Resource
 
                 Tables\Filters\Filter::make('received_at')
                     ->form([
-                        \Filament\Forms\Components\DatePicker::make('from')->label('From Date'),
-                        \Filament\Forms\Components\DatePicker::make('until')->label('Until Date'),
+                        DatePicker::make('from')->label('From Date'),
+                        DatePicker::make('until')->label('Until Date'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query

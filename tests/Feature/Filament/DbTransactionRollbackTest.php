@@ -5,8 +5,11 @@ use App\Enums\MappingType;
 use App\Enums\MatchMethod;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
+use App\Filament\Resources\ImportedFileResource;
+use App\Filament\Resources\ImportedFileResource\Pages\CreateImportedFile;
 use App\Filament\Resources\ImportedFileResource\Pages\ListImportedFiles;
 use App\Filament\Resources\ReconciliationResource\Pages\ListReconciliation;
+use App\Filament\Resources\TransactionResource;
 use App\Filament\Resources\TransactionResource\Pages\ListTransactions;
 use App\Jobs\ProcessImportedFile;
 use App\Models\AccountHead;
@@ -100,7 +103,7 @@ describe('DB Transaction - Reprocess', function () {
     });
 
     it('uses DB::transaction in the reprocess action', function () {
-        $reflection = new ReflectionClass(\App\Filament\Resources\ImportedFileResource::class);
+        $reflection = new ReflectionClass(ImportedFileResource::class);
         $source = file_get_contents($reflection->getFileName());
 
         expect($source)->toContain('DB::transaction(');
@@ -153,7 +156,7 @@ describe('DB Transaction - Assign Head', function () {
     });
 
     it('uses DB::transaction in the assign_head action', function () {
-        $reflection = new ReflectionClass(\App\Filament\Resources\TransactionResource::class);
+        $reflection = new ReflectionClass(TransactionResource::class);
         $source = file_get_contents($reflection->getFileName());
 
         // Should contain DB::transaction for both assign_head and bulk_assign_head
@@ -243,7 +246,7 @@ describe('DB Transaction - Force Reimport', function () {
         // CreateRecord already wraps mutateFormDataBeforeCreate + create + afterCreate
         // in a DB transaction. The force_reimport path (transactions delete + existing delete)
         // runs inside mutateFormDataBeforeCreate, so it's already transactional.
-        $reflection = new ReflectionClass(\App\Filament\Resources\ImportedFileResource\Pages\CreateImportedFile::class);
+        $reflection = new ReflectionClass(CreateImportedFile::class);
         $source = file_get_contents($reflection->getFileName());
 
         // The force reimport uses Halt->rollBackDatabaseTransaction() which confirms

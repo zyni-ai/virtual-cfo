@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\MappingType;
+use App\Enums\ReconciliationStatus;
 use App\Models\AccountHead;
 use App\Models\Company;
 use App\Models\ImportedFile;
@@ -10,7 +11,7 @@ use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Transaction>
+ * @extends Factory<Transaction>
  */
 class TransactionFactory extends Factory
 {
@@ -43,7 +44,7 @@ class TransactionFactory extends Factory
             'ai_confidence' => null,
             'raw_data' => null,
             'bank_format' => null,
-            'reconciliation_status' => \App\Enums\ReconciliationStatus::Unreconciled,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
         ];
     }
 

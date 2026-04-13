@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -31,12 +32,12 @@ describe('Row-Level Security', function () {
     afterEach(function () {
         try {
             DB::unprepared('RESET ROLE');
-        } catch (\Throwable) {
+        } catch (Throwable) {
         }
 
         try {
             DB::unprepared("SET app.current_company_id = ''");
-        } catch (\Throwable) {
+        } catch (Throwable) {
         }
 
         Transaction::withoutGlobalScopes()->whereIn('company_id', [$this->companyA->id, $this->companyB->id])->forceDelete();
@@ -147,7 +148,7 @@ describe('Row-Level Security', function () {
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             $threw = true;
         }
 

@@ -3,6 +3,7 @@
 use App\Ai\Agents\HeadMatcher;
 use App\Ai\Agents\StatementParser;
 use App\Ai\Middleware\AuditLlmCalls;
+use Laravel\Ai\Contracts\Providers\TextProvider;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\Meta;
@@ -11,7 +12,7 @@ use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
     $this->middleware = new AuditLlmCalls;
-    $this->provider = Mockery::mock(\Laravel\Ai\Contracts\Providers\TextProvider::class);
+    $this->provider = Mockery::mock(TextProvider::class);
 });
 
 describe('AuditLlmCalls middleware', function () {

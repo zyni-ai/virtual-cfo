@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Models\TransactionAggregate;
 use App\Services\AggregateService;
 use App\Services\HeadMatcher\HeadMatcherService;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 
 describe('MatchTransactionHeads job', function () {
@@ -59,7 +60,7 @@ describe('MatchTransactionHeads job', function () {
 
     it('implements ShouldQueue', function () {
         expect(MatchTransactionHeads::class)
-            ->toImplement(Illuminate\Contracts\Queue\ShouldQueue::class);
+            ->toImplement(ShouldQueue::class);
     });
 
     it('has exponential backoff configured', function () {

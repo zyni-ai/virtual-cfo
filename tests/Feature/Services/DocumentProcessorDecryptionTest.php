@@ -12,6 +12,7 @@ use App\Services\DocumentProcessor\DocumentProcessor;
 use App\Services\DocumentProcessor\PdfDecryptionService;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
 
 beforeEach(function () {
     Storage::fake('local');
@@ -20,9 +21,9 @@ beforeEach(function () {
 /**
  * Create a mock PdfDecryptionService and bind it into the container.
  *
- * @return Mockery\MockInterface&PdfDecryptionService
+ * @return MockInterface&PdfDecryptionService
  */
-function mockDecryptionService(bool $qpdfAvailable = true, bool $passwordProtected = false): Mockery\MockInterface
+function mockDecryptionService(bool $qpdfAvailable = true, bool $passwordProtected = false): MockInterface
 {
     $mock = Mockery::mock(PdfDecryptionService::class);
     $mock->shouldReceive('isPasswordProtected')->andReturn($passwordProtected);

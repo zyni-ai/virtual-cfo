@@ -3,6 +3,7 @@
 use App\Enums\DuplicateConfidence;
 use App\Enums\DuplicateStatus;
 use App\Models\BankAccount;
+use App\Models\Company;
 use App\Models\DuplicateFlag;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
@@ -245,7 +246,7 @@ describe('DuplicateDetectionService', function () {
 
         it('scopes detection to same company only', function () {
             // Create other company's data BEFORE tenant context to avoid auto-association
-            $otherCompany = \App\Models\Company::factory()->create();
+            $otherCompany = Company::factory()->create();
             $otherBankAccount = BankAccount::factory()->for($otherCompany)->create();
             $otherFile = ImportedFile::factory()->for($otherCompany)->create([
                 'bank_account_id' => $otherBankAccount->id,

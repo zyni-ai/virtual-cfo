@@ -2,6 +2,7 @@
 
 use App\Enums\ConnectorProvider;
 use App\Enums\ZohoDataCenter;
+use App\Models\Company;
 use App\Models\Connector;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
@@ -92,7 +93,7 @@ describe('ZohoOAuthRedirectController', function () {
     });
 
     it('rejects unauthenticated access', function () {
-        $company = \App\Models\Company::factory()->create();
+        $company = Company::factory()->create();
 
         $response = $this->get(route('connectors.zoho.redirect', ['company' => $company]));
 
@@ -102,7 +103,7 @@ describe('ZohoOAuthRedirectController', function () {
 
     it('rejects access to a company the user does not belong to', function () {
         asUser();
-        $otherCompany = \App\Models\Company::factory()->create();
+        $otherCompany = Company::factory()->create();
 
         $response = $this->get(route('connectors.zoho.redirect', ['company' => $otherCompany]));
 

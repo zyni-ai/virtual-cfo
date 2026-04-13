@@ -13,7 +13,7 @@ class SetTenantDatabaseContext
     /**
      * Set the PostgreSQL session variable for RLS tenant isolation.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {

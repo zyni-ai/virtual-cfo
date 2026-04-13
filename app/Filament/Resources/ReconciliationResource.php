@@ -8,6 +8,7 @@ use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
 use App\Filament\Resources\ReconciliationResource\Pages;
 use App\Jobs\ReconcileImportedFiles;
+use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\Reconciliation\ReconciliationService;
@@ -22,6 +23,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Carbon;
 
 class ReconciliationResource extends Resource
@@ -46,7 +48,7 @@ class ReconciliationResource extends Resource
                 'importedFile',
                 'accountHead',
                 /** @phpstan-ignore method.notFound */
-                'reconciliationMatchesAsBank' => fn (\Illuminate\Database\Eloquent\Relations\Relation $q) => $q->suggested(),
+                'reconciliationMatchesAsBank' => fn (Relation $q) => $q->suggested(),
             ])
             ->whereHas('importedFile', fn (Builder $q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]));
     }
@@ -210,7 +212,7 @@ class ReconciliationResource extends Resource
                         Select::make('bank_file_id')
                             ->label('Bank Statement File')
                             ->options(function () {
-                                /** @var \App\Models\Company $company */
+                                /** @var Company $company */
                                 $company = Filament::getTenant();
 
                                 return ImportedFile::where('company_id', $company->id)
@@ -224,7 +226,7 @@ class ReconciliationResource extends Resource
                         Select::make('invoice_file_id')
                             ->label('Invoice File')
                             ->options(function () {
-                                /** @var \App\Models\Company $company */
+                                /** @var Company $company */
                                 $company = Filament::getTenant();
 
                                 return ImportedFile::where('company_id', $company->id)

@@ -6,6 +6,7 @@ use App\Filament\Resources\CreditCardResource\Pages\EditCreditCard;
 use App\Filament\Resources\CreditCardResource\Pages\ListCreditCards;
 use App\Models\CreditCard;
 use App\Models\ImportedFile;
+use Illuminate\Support\Facades\DB;
 
 use function Pest\Livewire\livewire;
 
@@ -107,7 +108,7 @@ describe('CreditCardResource', function () {
 
         expect($card->pdf_password)->toBe('mypassword');
 
-        $raw = \Illuminate\Support\Facades\DB::table('credit_cards')
+        $raw = DB::table('credit_cards')
             ->where('id', $card->id)
             ->value('pdf_password');
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DuplicateConfidence;
 use App\Enums\DuplicateStatus;
+use Database\Factories\DuplicateFlagFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class DuplicateFlag extends Model
 {
-    /** @use HasFactory<\Database\Factories\DuplicateFlagFactory> */
+    /** @use HasFactory<DuplicateFlagFactory> */
     use HasFactory;
 
     protected $fillable = [

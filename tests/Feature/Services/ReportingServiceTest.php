@@ -2,6 +2,7 @@
 
 use App\Models\AccountHead;
 use App\Models\BankAccount;
+use App\Models\Company;
 use App\Models\CreditCard;
 use App\Models\TransactionAggregate;
 use App\Services\ReportingService;
@@ -155,7 +156,7 @@ describe('ReportingService', function () {
             TransactionAggregate::factory()->create(['company_id' => $company->id]);
 
             // Other company aggregate (created before tenant context)
-            $otherCompany = \App\Models\Company::factory()->create();
+            $otherCompany = Company::factory()->create();
             TransactionAggregate::factory()->create(['company_id' => $otherCompany->id]);
 
             $results = $this->service->filteredAggregatesQuery()->get();

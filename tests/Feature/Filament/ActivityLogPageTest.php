@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\NavigationGroup;
 use App\Enums\UserRole;
 use App\Filament\Resources\ActivityLogResource;
 use App\Filament\Resources\ActivityLogResource\Pages\ListActivityLog;
@@ -177,7 +178,7 @@ describe('Activity Log Page', function () {
 
     describe('Navigation', function () {
         it('is in the Company navigation group', function () {
-            expect(ActivityLogResource::getNavigationGroup())->toBe(\App\Enums\NavigationGroup::Company);
+            expect(ActivityLogResource::getNavigationGroup())->toBe(NavigationGroup::Company);
         });
     });
 });

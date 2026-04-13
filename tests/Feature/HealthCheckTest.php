@@ -35,7 +35,7 @@ describe('Health check endpoint', function () {
 
     it('returns 503 when database is unreachable', function () {
         DB::shouldReceive('connection->getPdo')
-            ->andThrow(new \RuntimeException('Connection refused'));
+            ->andThrow(new RuntimeException('Connection refused'));
 
         $response = $this->getJson('/health');
 

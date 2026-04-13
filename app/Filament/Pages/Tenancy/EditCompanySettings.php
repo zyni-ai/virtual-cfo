@@ -4,6 +4,7 @@ namespace App\Filament\Pages\Tenancy;
 
 use App\Enums\ConnectorProvider;
 use App\Enums\ZohoDataCenter;
+use App\Models\Company;
 use App\Models\Connector;
 use App\Services\Connectors\ZohoInvoiceService;
 use App\Support\GstinValidator;
@@ -14,6 +15,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Pages\Tenancy\EditTenantProfile;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -175,7 +177,7 @@ class EditCompanySettings extends EditTenantProfile
                 ])
                 ->modalSubmitActionLabel('Connect')
                 ->action(function (array $data): void {
-                    /** @var \App\Models\Company $company */
+                    /** @var Company $company */
                     $company = Filament::getTenant();
 
                     Connector::updateOrCreate(
@@ -251,7 +253,7 @@ class EditCompanySettings extends EditTenantProfile
     }
 
     /**
-     * @return array<int, \Filament\Schemas\Components\Component>
+     * @return array<int, Component>
      */
     protected function getIntegrationsSchema(): array
     {
@@ -281,7 +283,7 @@ class EditCompanySettings extends EditTenantProfile
 
     protected function getZohoConnector(): ?Connector
     {
-        /** @var \App\Models\Company|null $company */
+        /** @var Company|null $company */
         $company = Filament::getTenant();
 
         return $company

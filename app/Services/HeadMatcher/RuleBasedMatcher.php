@@ -3,6 +3,7 @@
 namespace App\Services\HeadMatcher;
 
 use App\Enums\MappingType;
+use App\Enums\MatchType;
 use App\Models\HeadMapping;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Builder;
@@ -129,11 +130,11 @@ class RuleBasedMatcher
     /**
      * Get the specificity score for a match type.
      *
-     * @param  \App\Enums\MatchType|string  $matchType
+     * @param  MatchType|string  $matchType
      */
     private function matchTypeSpecificity(mixed $matchType): int
     {
-        $value = $matchType instanceof \App\Enums\MatchType ? $matchType->value : (string) $matchType;
+        $value = $matchType instanceof MatchType ? $matchType->value : (string) $matchType;
 
         return self::MATCH_TYPE_SPECIFICITY[$value] ?? 0;
     }
