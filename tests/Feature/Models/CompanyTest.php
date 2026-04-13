@@ -3,10 +3,12 @@
 use App\Models\AccountHead;
 use App\Models\BankAccount;
 use App\Models\Company;
+use App\Models\Connector;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 
 describe('Company factory', function () {
     it('creates a company with valid defaults', function () {
@@ -21,16 +23,18 @@ describe('Company factory', function () {
     });
 
     it('does not have financial_year column in database', function () {
-        expect(Illuminate\Support\Facades\Schema::hasColumn('companies', 'financial_year'))->toBeFalse();
+        expect(Schema::hasColumn('companies', 'financial_year'))->toBeFalse();
     });
 
-    it('creates a zysk company with known defaults', function () {
-        $company = Company::factory()->zysk()->create();
+    it('creates a company with known defaults via knownDefaults state', function () {
+        $company = Company::factory()->knownDefaults()->create();
 
-        expect($company->name)->toBe('Zysk Technologies Private Limited - 2025 - 2026')
-            ->and($company->gstin)->toBe('29AABCZ5012F1ZG')
-            ->and($company->state)->toBe('Karnataka');
+        expect($company->name)->toBe('Acme Corp Private Limited - 2025 - 2026')
+            ->and($company->gstin)->toBe('27AABCA5012F1ZA')
+            ->and($company->state)->toBe('Maharashtra')
+            ->and($company->name)->not->toContain('Zysk');
     });
+
 });
 
 describe('Company relationships', function () {
@@ -81,7 +85,7 @@ describe('Company relationships', function () {
 describe('Company connectors relationship', function () {
     it('has many connectors', function () {
         $company = Company::factory()->create();
-        \App\Models\Connector::factory()->create(['company_id' => $company->id]);
+        Connector::factory()->create(['company_id' => $company->id]);
 
         expect($company->connectors)->toHaveCount(1);
     });

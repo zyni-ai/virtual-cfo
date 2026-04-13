@@ -7,13 +7,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Create the initial company from config defaults
+        // Create the initial company from config defaults.
+        // NOTE: This migration ran once in production. The config/company.php file does not
+        // exist; config() calls resolve to null and the DB defaults ('Regular', 'INR') apply.
+        // On fresh installs the company created here will be replaced via RegisterCompany.
         $companyId = DB::table('companies')->insertGetId([
-            'name' => config('company.name', 'Zysk Technologies Private Limited - 2025 - 2026'),
-            'gstin' => config('company.gstin', '29AABCZ5012F1ZG'),
-            'state' => config('company.state', 'Karnataka'),
+            'name' => config('company.name', ''),
+            'gstin' => config('company.gstin'),
+            'state' => config('company.state'),
             'gst_registration_type' => config('company.gst_registration_type', 'Regular'),
-            'financial_year' => config('company.financial_year', '2025-2026'),
             'currency' => config('company.currency', 'INR'),
             'created_at' => now(),
             'updated_at' => now(),
