@@ -2,9 +2,12 @@
 
 namespace App\Services\TallyExport;
 
+use App\Enums\StatementType;
+use App\Models\AccountHead;
 use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class TallyExportService
@@ -19,14 +22,14 @@ class TallyExportService
     {
         $importedFile->loadMissing(['company', 'bankAccount']);
 
-        /** @var \Illuminate\Support\Collection<int, Transaction> $transactions */
+        /** @var Collection<int, Transaction> $transactions */
         $transactions = $importedFile->transactions()
             ->whereNotNull('account_head_id')
             ->with('accountHead')
             ->orderBy('date')
             ->get();
 
-        return $this->generateXml($transactions, $importedFile->company, $importedFile->bankAccount?->name);
+        return $this->generateXml($transactions, $importedFile->company, $importedFile->bankAccount?->name, $importedFile);
     }
 
     /**
@@ -46,6 +49,7 @@ class TallyExportService
             $transactions,
             $importedFile?->company,
             $importedFile?->bankAccount?->name,
+            $importedFile,
         );
     }
 
@@ -54,11 +58,10 @@ class TallyExportService
      *
      * @param  Collection<int, Transaction>  $transactions
      */
-    private function generateXml(Collection $transactions, ?Company $company, ?string $bankLedgerName): string
+    private function generateXml(Collection $transactions, ?Company $company, ?string $bankLedgerName, ?ImportedFile $importedFile = null): string
     {
         $this->voucherCounters = [];
         $companyName = $company?->name ?? '';
-        $e = fn (string $value): string => htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
         $xml .= '<ENVELOPE>'."\n";
@@ -70,13 +73,13 @@ class TallyExportService
         $xml .= '      <REQUESTDESC>'."\n";
         $xml .= '        <REPORTNAME>All Masters</REPORTNAME>'."\n";
         $xml .= '        <STATICVARIABLES>'."\n";
-        $xml .= '          <SVCURRENTCOMPANY>'.$e($companyName).'</SVCURRENTCOMPANY>'."\n";
+        $xml .= '          <SVCURRENTCOMPANY>'.$this->escapeXml($companyName).'</SVCURRENTCOMPANY>'."\n";
         $xml .= '        </STATICVARIABLES>'."\n";
         $xml .= '      </REQUESTDESC>'."\n";
         $xml .= '      <REQUESTDATA>'."\n";
 
         foreach ($transactions as $transaction) {
-            $xml .= $this->generateVoucher($transaction, $company, $bankLedgerName);
+            $xml .= $this->generateVoucher($transaction, $company, $bankLedgerName, $importedFile);
         }
 
         if ($company && $transactions->isNotEmpty()) {
@@ -92,42 +95,42 @@ class TallyExportService
     }
 
     /**
-     * Generate a single Tally voucher XML element (Payment or Receipt).
+     * Generate a single Tally voucher XML element (Payment, Receipt, or Journal).
      */
-    private function generateVoucher(Transaction $transaction, ?Company $company, ?string $bankLedgerName): string
+    private function generateVoucher(Transaction $transaction, ?Company $company, ?string $bankLedgerName, ?ImportedFile $importedFile = null): string
     {
+        if ($importedFile?->statement_type === StatementType::Invoice) {
+            return $this->generateInvoiceJournalVoucher($transaction, $company);
+        }
+
         $isPayment = $transaction->debit !== null;
         $voucherType = $isPayment ? 'Payment' : 'Receipt';
         $amount = (float) ($isPayment ? $transaction->debit : $transaction->credit);
-        /** @var \Illuminate\Support\Carbon $transactionDate */
+        /** @var Carbon $transactionDate */
         $transactionDate = $transaction->date;
         $date = $transactionDate->format('Ymd');
-        /** @var \App\Models\AccountHead|null $accountHead */
+        /** @var AccountHead|null $accountHead */
         $accountHead = $transaction->accountHead;
         $headName = $accountHead?->name ?? 'Unknown';
         $bankName = $bankLedgerName ?? 'Bank Account';
         $voucherNumber = $this->nextVoucherNumber($voucherType);
 
-        $e = fn (string $value): string => htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-
         $xml = '        <TALLYMESSAGE xmlns:UDF="TallyUDF">'."\n";
-        $xml .= '          <VOUCHER VCHTYPE="'.$e($voucherType).'" ACTION="Create" OBJVIEW="Accounting Voucher View">'."\n";
+        $xml .= '          <VOUCHER VCHTYPE="'.$this->escapeXml($voucherType).'" ACTION="Create" OBJVIEW="Accounting Voucher View">'."\n";
         $xml .= '            <DATE>'.$date.'</DATE>'."\n";
         $xml .= '            <VCHSTATUSDATE>'.$date.'</VCHSTATUSDATE>'."\n";
-        $xml .= '            <NARRATION>'.$e($transaction->description ?? '').'</NARRATION>'."\n";
-        $xml .= '            <VOUCHERTYPENAME>'.$e($voucherType).'</VOUCHERTYPENAME>'."\n";
+        $xml .= '            <NARRATION>'.$this->escapeXml($transaction->description ?? '').'</NARRATION>'."\n";
+        $xml .= '            <VOUCHERTYPENAME>'.$this->escapeXml($voucherType).'</VOUCHERTYPENAME>'."\n";
         $xml .= '            <VOUCHERNUMBER>'.$voucherNumber.'</VOUCHERNUMBER>'."\n";
-        $xml .= '            <PARTYLEDGERNAME>'.$e($headName).'</PARTYLEDGERNAME>'."\n";
+        $xml .= '            <PARTYLEDGERNAME>'.$this->escapeXml($headName).'</PARTYLEDGERNAME>'."\n";
 
         if ($company) {
-            $xml .= '            <CMPGSTIN>'.$e($company->gstin ?? '').'</CMPGSTIN>'."\n";
-            $xml .= '            <CMPGSTREGISTRATIONTYPE>'.$e($company->gst_registration_type ?? 'Regular').'</CMPGSTREGISTRATIONTYPE>'."\n";
-            $xml .= '            <CMPGSTSTATE>'.$e($company->state ?? '').'</CMPGSTSTATE>'."\n";
+            $xml .= '            <CMPGSTIN>'.$this->escapeXml($company->gstin ?? '').'</CMPGSTIN>'."\n";
+            $xml .= '            <CMPGSTREGISTRATIONTYPE>'.$this->escapeXml($company->gst_registration_type ?? 'Regular').'</CMPGSTREGISTRATIONTYPE>'."\n";
+            $xml .= '            <CMPGSTSTATE>'.$this->escapeXml($company->state ?? '').'</CMPGSTSTATE>'."\n";
         }
 
         $xml .= '            <EFFECTIVEDATE>'.$date.'</EFFECTIVEDATE>'."\n";
-
-        // Boilerplate boolean flags
         $xml .= '            <ISDELETED>No</ISDELETED>'."\n";
         $xml .= '            <ISCANCELLED>No</ISCANCELLED>'."\n";
         $xml .= '            <ISONHOLD>No</ISONHOLD>'."\n";
@@ -135,11 +138,10 @@ class TallyExportService
         $xml .= '            <AUDITED>No</AUDITED>'."\n";
         $xml .= '            <HASCASHFLOW>Yes</HASCASHFLOW>'."\n";
 
-        // Ledger entries
         if ($isPayment) {
-            $xml .= $this->generatePaymentLedgerEntries($headName, $bankName, $amount, $date, $e);
+            $xml .= $this->generatePaymentLedgerEntries($headName, $bankName, $amount, $date);
         } else {
-            $xml .= $this->generateReceiptLedgerEntries($headName, $bankName, $amount, $date, $e);
+            $xml .= $this->generateReceiptLedgerEntries($headName, $bankName, $amount, $date);
         }
 
         $xml .= '          </VOUCHER>'."\n";
@@ -149,28 +151,162 @@ class TallyExportService
     }
 
     /**
+     * Generate a Journal voucher for an invoice transaction with GST breakup.
+     * Multi-leg: expense debit, CGST/SGST (or IGST) debits, TDS credit (optional), vendor party credit.
+     */
+    private function generateInvoiceJournalVoucher(Transaction $transaction, ?Company $company): string
+    {
+        /** @var Carbon $transactionDate */
+        $transactionDate = $transaction->date;
+        $date = $transactionDate->format('Ymd');
+        /** @var AccountHead|null $accountHead */
+        $accountHead = $transaction->accountHead;
+        $headName = $accountHead?->name ?? 'Unknown';
+        $voucherNumber = $this->nextVoucherNumber('Journal');
+
+        /** @var array<string, mixed> $raw */
+        $raw = $transaction->raw_data ?? [];
+        $vendorName = (string) ($raw['vendor_name'] ?? 'Unknown Vendor');
+        $vendorGstin = (string) ($raw['vendor_gstin'] ?? '');
+        $invoiceNumber = (string) ($raw['invoice_number'] ?? '');
+        $baseAmount = (float) ($raw['base_amount'] ?? 0);
+        $cgstRate = $raw['cgst_rate'] ?? null;
+        $cgstAmount = (float) ($raw['cgst_amount'] ?? 0);
+        $sgstRate = $raw['sgst_rate'] ?? null;
+        $sgstAmount = (float) ($raw['sgst_amount'] ?? 0);
+        $igstRate = $raw['igst_rate'] ?? null;
+        $igstAmount = (float) ($raw['igst_amount'] ?? 0);
+        $tdsAmount = (float) ($raw['tds_amount'] ?? 0);
+        $totalAmount = (float) ($raw['total_amount'] ?? (float) ($transaction->debit ?? 0));
+
+        $narration = $invoiceNumber
+            ? "Invoice No: {$invoiceNumber} payment towards {$vendorName}"
+            : "Invoice payment towards {$vendorName}";
+
+        $xml = '        <TALLYMESSAGE xmlns:UDF="TallyUDF">'."\n";
+        $xml .= '          <VOUCHER VCHTYPE="Journal" ACTION="Create" OBJVIEW="Accounting Voucher View">'."\n";
+        $xml .= '            <DATE>'.$date.'</DATE>'."\n";
+        $xml .= '            <VCHSTATUSDATE>'.$date.'</VCHSTATUSDATE>'."\n";
+        $xml .= '            <NARRATION>'.$this->escapeXml($narration).'</NARRATION>'."\n";
+        $xml .= '            <VOUCHERTYPENAME>Journal</VOUCHERTYPENAME>'."\n";
+        $xml .= '            <VOUCHERNUMBER>'.$voucherNumber.'</VOUCHERNUMBER>'."\n";
+        $xml .= '            <PARTYLEDGERNAME>'.$this->escapeXml($vendorName).'</PARTYLEDGERNAME>'."\n";
+        $xml .= '            <GSTREGISTRATIONTYPE>Regular</GSTREGISTRATIONTYPE>'."\n";
+
+        if ($vendorGstin !== '') {
+            $xml .= '            <PARTYGSTIN>'.$this->escapeXml($vendorGstin).'</PARTYGSTIN>'."\n";
+        }
+
+        if ($company) {
+            $xml .= '            <CMPGSTIN>'.$this->escapeXml($company->gstin ?? '').'</CMPGSTIN>'."\n";
+            $xml .= '            <CMPGSTREGISTRATIONTYPE>'.$this->escapeXml($company->gst_registration_type ?? 'Regular').'</CMPGSTREGISTRATIONTYPE>'."\n";
+            $xml .= '            <CMPGSTSTATE>'.$this->escapeXml($company->state ?? '').'</CMPGSTSTATE>'."\n";
+        }
+
+        $xml .= '            <EFFECTIVEDATE>'.$date.'</EFFECTIVEDATE>'."\n";
+        $xml .= '            <ISDELETED>No</ISDELETED>'."\n";
+        $xml .= '            <ISCANCELLED>No</ISCANCELLED>'."\n";
+        $xml .= '            <ISONHOLD>No</ISONHOLD>'."\n";
+        $xml .= '            <ISOPTIONAL>No</ISOPTIONAL>'."\n";
+        $xml .= '            <AUDITED>No</AUDITED>'."\n";
+
+        $xml .= $this->generateExpenseLedgerEntry($headName, $baseAmount, $cgstRate, $sgstRate);
+        $xml .= $this->generateGstLedgerEntries($igstRate, $igstAmount, $cgstRate, $cgstAmount, $sgstRate, $sgstAmount);
+
+        if ($tdsAmount > 0) {
+            $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
+            $xml .= '              <LEDGERNAME>TDS Payable</LEDGERNAME>'."\n";
+            $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
+            $xml .= '              <AMOUNT>'.number_format($tdsAmount, 2, '.', '').'</AMOUNT>'."\n";
+            $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
+        }
+
+        $partyAmount = $tdsAmount > 0 ? $totalAmount - $tdsAmount : $totalAmount;
+        $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($vendorName).'</LEDGERNAME>'."\n";
+        $xml .= '              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>'."\n";
+        $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
+        $xml .= '              <AMOUNT>'.number_format($partyAmount, 2, '.', '').'</AMOUNT>'."\n";
+        $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
+
+        $xml .= '          </VOUCHER>'."\n";
+        $xml .= '        </TALLYMESSAGE>'."\n";
+
+        return $xml;
+    }
+
+    private function generateExpenseLedgerEntry(string $headName, float $baseAmount, mixed $cgstRate, mixed $sgstRate): string
+    {
+        $xml = '            <ALLLEDGERENTRIES.LIST>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($headName).'</LEDGERNAME>'."\n";
+        $xml .= '              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>'."\n";
+        $xml .= '              <AMOUNT>-'.number_format($baseAmount, 2, '.', '').'</AMOUNT>'."\n";
+
+        if ($cgstRate !== null && $sgstRate !== null) {
+            $xml .= '              <RATEDETAILS.LIST>'."\n";
+            $xml .= '                <GSTRATEDUTYHEAD>CGST</GSTRATEDUTYHEAD>'."\n";
+            $xml .= '                <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>'."\n";
+            $xml .= '              </RATEDETAILS.LIST>'."\n";
+            $xml .= '              <RATEDETAILS.LIST>'."\n";
+            $xml .= '                <GSTRATEDUTYHEAD>SGST/UTGST</GSTRATEDUTYHEAD>'."\n";
+            $xml .= '                <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>'."\n";
+            $xml .= '              </RATEDETAILS.LIST>'."\n";
+        }
+
+        $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
+
+        return $xml;
+    }
+
+    private function generateGstLedgerEntries(mixed $igstRate, float $igstAmount, mixed $cgstRate, float $cgstAmount, mixed $sgstRate, float $sgstAmount): string
+    {
+        if ($igstRate !== null && $igstAmount > 0) {
+            return $this->generateTaxLedgerEntry("Input Igst @ {$igstRate}%", $igstAmount);
+        }
+
+        $xml = '';
+
+        if ($cgstRate !== null && $cgstAmount > 0) {
+            $xml .= $this->generateTaxLedgerEntry("Input Cgst @ {$cgstRate}%", $cgstAmount);
+        }
+
+        if ($sgstRate !== null && $sgstAmount > 0) {
+            $xml .= $this->generateTaxLedgerEntry("Input Sgst @ {$sgstRate}%", $sgstAmount);
+        }
+
+        return $xml;
+    }
+
+    private function generateTaxLedgerEntry(string $ledgerName, float $amount): string
+    {
+        $xml = '            <ALLLEDGERENTRIES.LIST>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($ledgerName).'</LEDGERNAME>'."\n";
+        $xml .= '              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>'."\n";
+        $xml .= '              <AMOUNT>-'.number_format($amount, 2, '.', '').'</AMOUNT>'."\n";
+        $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
+
+        return $xml;
+    }
+
+    /**
      * Generate ledger entries for a Payment voucher.
      * Debit: expense/party (negative amount, ISDEEMEDPOSITIVE=Yes)
      * Credit: bank (positive amount, ISDEEMEDPOSITIVE=No)
-     *
-     * @param  \Closure(string): string  $e
      */
-    private function generatePaymentLedgerEntries(string $headName, string $bankName, float $amount, string $date, \Closure $e): string
+    private function generatePaymentLedgerEntries(string $headName, string $bankName, float $amount, string $date): string
     {
         $formattedAmount = number_format($amount, 2, '.', '');
 
         $xml = '';
 
-        // Debit leg: Expense/Party
         $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$e($headName).'</LEDGERNAME>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($headName).'</LEDGERNAME>'."\n";
         $xml .= '              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>'."\n";
         $xml .= '              <AMOUNT>-'.$formattedAmount.'</AMOUNT>'."\n";
         $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
 
-        // Credit leg: Bank
         $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$e($bankName).'</LEDGERNAME>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($bankName).'</LEDGERNAME>'."\n";
         $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
         $xml .= '              <AMOUNT>'.$formattedAmount.'</AMOUNT>'."\n";
         $xml .= '              <BANKALLOCATIONS.LIST>'."\n";
@@ -189,18 +325,15 @@ class TallyExportService
      * Generate ledger entries for a Receipt voucher.
      * Debit: bank (negative amount, ISDEEMEDPOSITIVE=Yes)
      * Credit: party/income (positive amount, ISDEEMEDPOSITIVE=No)
-     *
-     * @param  \Closure(string): string  $e
      */
-    private function generateReceiptLedgerEntries(string $headName, string $bankName, float $amount, string $date, \Closure $e): string
+    private function generateReceiptLedgerEntries(string $headName, string $bankName, float $amount, string $date): string
     {
         $formattedAmount = number_format($amount, 2, '.', '');
 
         $xml = '';
 
-        // Debit leg: Bank
         $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$e($bankName).'</LEDGERNAME>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($bankName).'</LEDGERNAME>'."\n";
         $xml .= '              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>'."\n";
         $xml .= '              <AMOUNT>-'.$formattedAmount.'</AMOUNT>'."\n";
         $xml .= '              <BANKALLOCATIONS.LIST>'."\n";
@@ -212,9 +345,8 @@ class TallyExportService
         $xml .= '              </BANKALLOCATIONS.LIST>'."\n";
         $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
 
-        // Credit leg: Party/Income
         $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$e($headName).'</LEDGERNAME>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($headName).'</LEDGERNAME>'."\n";
         $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
         $xml .= '              <AMOUNT>'.$formattedAmount.'</AMOUNT>'."\n";
         $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
@@ -227,14 +359,12 @@ class TallyExportService
      */
     private function generateCompanyFooter(Company $company): string
     {
-        $e = fn (string $value): string => htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-
         $xml = '        <TALLYMESSAGE xmlns:UDF="TallyUDF">'."\n";
         $xml .= '          <COMPANY>'."\n";
         $xml .= '            <REMOTECMPINFO.LIST MERGE="Yes">'."\n";
-        $xml .= '              <NAME>'.$e($company->gstin ?? '').'</NAME>'."\n";
-        $xml .= '              <REMOTECMPNAME>'.$e($company->name ?? '').'</REMOTECMPNAME>'."\n";
-        $xml .= '              <REMOTECMPSTATE>'.$e($company->state ?? '').'</REMOTECMPSTATE>'."\n";
+        $xml .= '              <NAME>'.$this->escapeXml($company->gstin ?? '').'</NAME>'."\n";
+        $xml .= '              <REMOTECMPNAME>'.$this->escapeXml($company->name ?? '').'</REMOTECMPNAME>'."\n";
+        $xml .= '              <REMOTECMPSTATE>'.$this->escapeXml($company->state ?? '').'</REMOTECMPSTATE>'."\n";
         $xml .= '            </REMOTECMPINFO.LIST>'."\n";
         $xml .= '          </COMPANY>'."\n";
         $xml .= '        </TALLYMESSAGE>'."\n";
@@ -252,5 +382,10 @@ class TallyExportService
         }
 
         return ++$this->voucherCounters[$voucherType];
+    }
+
+    private function escapeXml(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
     }
 }

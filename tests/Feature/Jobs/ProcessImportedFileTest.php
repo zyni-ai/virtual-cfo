@@ -456,7 +456,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
 });
 
 describe('ProcessImportedFile invoice display_name', function () {
-    it('sets display_name to vendor_name_Invoice for a manually uploaded invoice', function () {
+    it('sets display_name to invoice number, vendor, and description for a manually uploaded invoice', function () {
         Storage::fake('local');
         Storage::put('statements/invoice.pdf', 'fake-pdf-content');
 
@@ -485,10 +485,10 @@ describe('ProcessImportedFile invoice display_name', function () {
         $job->handle(app(DocumentProcessor::class));
 
         $file->refresh();
-        expect($file->display_name)->toBe('Swiggy_Invoice');
+        expect($file->display_name)->toBe('SWG/2025/001 - Swiggy - Food delivery');
     });
 
-    it('sets display_name to vendor_name_Invoice for an invoice imported via email', function () {
+    it('sets display_name to invoice number, vendor, and description for an invoice imported via email', function () {
         Storage::fake('local');
         Storage::put('statements/invoice.pdf', 'fake-pdf-content');
 
@@ -517,7 +517,7 @@ describe('ProcessImportedFile invoice display_name', function () {
         $job->handle(app(DocumentProcessor::class));
 
         $file->refresh();
-        expect($file->display_name)->toBe('AWS_Invoice');
+        expect($file->display_name)->toBe('AWS/2025/042 - AWS - Cloud services');
     });
 });
 
