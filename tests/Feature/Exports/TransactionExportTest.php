@@ -345,6 +345,22 @@ describe('TransactionSummarySheet', function () {
         expect($sheet->startCell())->toBe('A1');
     });
 
+    it('net amount is never negative even when credit exceeds debit', function () {
+        $head = AccountHead::factory()->create(['name' => 'Sales Income']);
+
+        Transaction::factory()->mapped($head)->credit(5000)->create();
+        Transaction::factory()->mapped($head)->debit(1000)->create();
+
+        $sheet = new TransactionSummarySheet;
+        $data = $sheet->collection();
+
+        $row = $data->firstWhere('account_head', 'Sales Income');
+
+        expect($row)->not->toBeNull()
+            ->and((float) $row['net_amount'])->toBe(4000.0)
+            ->and((float) $row['net_amount'])->toBeGreaterThanOrEqual(0.0);
+    });
+
     it('summary sheet groups by account head with correct totals', function () {
         $head1 = AccountHead::factory()->create([
             'name' => 'Office Rent',
