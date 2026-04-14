@@ -11,7 +11,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ImportedFile>
+ * @extends Factory<ImportedFile>
  */
 class ImportedFileFactory extends Factory
 {
@@ -80,6 +80,15 @@ class ImportedFileFactory extends Factory
             'statement_type' => StatementType::Invoice,
             'file_path' => 'statements/'.fake()->uuid().'.pdf',
             'original_filename' => 'invoice_'.fake()->date('Y_m').'.pdf',
+        ]);
+    }
+
+    public function salesInvoice(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'statement_type' => StatementType::SalesInvoice,
+            'file_path' => 'statements/'.fake()->uuid().'.pdf',
+            'original_filename' => 'sales_invoice_'.fake()->date('Y_m').'.pdf',
         ]);
     }
 

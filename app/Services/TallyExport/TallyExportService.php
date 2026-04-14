@@ -71,7 +71,8 @@ class TallyExportService
         $xml .= '  <BODY>'."\n";
         $xml .= '    <IMPORTDATA>'."\n";
         $xml .= '      <REQUESTDESC>'."\n";
-        $xml .= '        <REPORTNAME>All Masters</REPORTNAME>'."\n";
+        $reportName = $importedFile?->statement_type === StatementType::SalesInvoice ? 'Vouchers' : 'All Masters';
+        $xml .= '        <REPORTNAME>'.$reportName.'</REPORTNAME>'."\n";
         $xml .= '        <STATICVARIABLES>'."\n";
         $xml .= '          <SVCURRENTCOMPANY>'.$this->escapeXml($companyName).'</SVCURRENTCOMPANY>'."\n";
         $xml .= '        </STATICVARIABLES>'."\n";
@@ -99,6 +100,10 @@ class TallyExportService
      */
     private function generateVoucher(Transaction $transaction, ?Company $company, ?string $bankLedgerName, ?ImportedFile $importedFile = null): string
     {
+        if ($importedFile?->statement_type === StatementType::SalesInvoice) {
+            return $this->generateSalesVoucher($transaction, $company);
+        }
+
         if ($importedFile?->statement_type === StatementType::Invoice) {
             return $this->generateInvoiceJournalVoucher($transaction, $company);
         }
@@ -231,6 +236,163 @@ class TallyExportService
 
         $xml .= '          </VOUCHER>'."\n";
         $xml .= '        </TALLYMESSAGE>'."\n";
+
+        return $xml;
+    }
+
+    /**
+     * Generate a Sales voucher for an outward (sales) invoice.
+     * Multi-leg: customer party debit, sales revenue credit, Output GST credits.
+     */
+    private function generateSalesVoucher(Transaction $transaction, ?Company $company): string
+    {
+        /** @var Carbon $transactionDate */
+        $transactionDate = $transaction->date;
+
+        /** @var array<string, mixed> $raw */
+        $raw = $transaction->raw_data ?? [];
+        $invoiceDateRaw = (string) ($raw['invoice_date'] ?? '');
+        $date = $invoiceDateRaw !== ''
+            ? Carbon::parse($invoiceDateRaw)->format('Ymd')
+            : $transactionDate->format('Ymd');
+
+        /** @var AccountHead|null $accountHead */
+        $accountHead = $transaction->accountHead;
+        $voucherNumber = (string) ($raw['invoice_number'] ?? $this->nextVoucherNumber('Sales'));
+
+        $buyerName = (string) ($raw['buyer_name'] ?? 'Unknown Buyer');
+        $buyerGstin = (string) ($raw['buyer_gstin'] ?? '');
+        $placeOfSupply = (string) ($raw['place_of_supply'] ?? '');
+        $serviceName = (string) ($raw['service_name'] ?? ($accountHead?->name ?? 'Unknown'));
+        $hsnSac = (string) ($raw['hsn_sac'] ?? '');
+        $narration = (string) ($raw['description'] ?? $transaction->description ?? '');
+        $baseAmount = (float) ($raw['base_amount'] ?? 0);
+        $cgstRate = $raw['cgst_rate'] ?? null;
+        $cgstAmount = (float) ($raw['cgst_amount'] ?? 0);
+        $sgstRate = $raw['sgst_rate'] ?? null;
+        $sgstAmount = (float) ($raw['sgst_amount'] ?? 0);
+        $igstRate = $raw['igst_rate'] ?? null;
+        $igstAmount = (float) ($raw['igst_amount'] ?? 0);
+
+        /** @var array<int, string> $buyerAddress */
+        $buyerAddress = is_array($raw['buyer_address'] ?? null) ? $raw['buyer_address'] : [];
+
+        $hasIgst = $igstRate !== null && $igstAmount > 0;
+        $partyAmount = $hasIgst
+            ? $baseAmount + $igstAmount
+            : $baseAmount + $cgstAmount + $sgstAmount;
+
+        $xml = '        <TALLYMESSAGE xmlns:UDF="TallyUDF">'."\n";
+        $xml .= '          <VOUCHER VCHTYPE="Sales" ACTION="Create" OBJVIEW="Invoice Voucher View">'."\n";
+        $xml .= '            <DATE>'.$date.'</DATE>'."\n";
+        $xml .= '            <NARRATION>'.$this->escapeXml($narration).'</NARRATION>'."\n";
+        $xml .= '            <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>'."\n";
+        $xml .= '            <VOUCHERNUMBER>'.$this->escapeXml($voucherNumber).'</VOUCHERNUMBER>'."\n";
+        $xml .= '            <PARTYLEDGERNAME>'.$this->escapeXml($buyerName).'</PARTYLEDGERNAME>'."\n";
+        $xml .= '            <PARTYMAILINGNAME>'.$this->escapeXml($buyerName).'</PARTYMAILINGNAME>'."\n";
+
+        if ($buyerGstin !== '') {
+            $xml .= '            <PARTYGSTIN>'.$this->escapeXml($buyerGstin).'</PARTYGSTIN>'."\n";
+        }
+
+        if ($company) {
+            $xml .= '            <CMPGSTIN>'.$this->escapeXml($company->gstin ?? '').'</CMPGSTIN>'."\n";
+            $xml .= '            <CMPGSTREGISTRATIONTYPE>'.$this->escapeXml($company->gst_registration_type ?? 'Regular').'</CMPGSTREGISTRATIONTYPE>'."\n";
+            $xml .= '            <CMPGSTSTATE>'.$this->escapeXml($company->state ?? '').'</CMPGSTSTATE>'."\n";
+        }
+
+        $xml .= '            <GSTREGISTRATIONTYPE>Regular</GSTREGISTRATIONTYPE>'."\n";
+
+        if ($placeOfSupply !== '') {
+            $xml .= '            <STATENAME>'.$this->escapeXml($placeOfSupply).'</STATENAME>'."\n";
+            $xml .= '            <PLACEOFSUPPLY>'.$this->escapeXml($placeOfSupply).'</PLACEOFSUPPLY>'."\n";
+        }
+
+        $xml .= '            <ISINVOICE>Yes</ISINVOICE>'."\n";
+        $xml .= '            <VCHENTRYMORE>Accounting Invoice</VCHENTRYMORE>'."\n";
+        $xml .= '            <NUMBERINGSTYLE>Manual</NUMBERINGSTYLE>'."\n";
+        $xml .= '            <EFFECTIVEDATE>'.$date.'</EFFECTIVEDATE>'."\n";
+        $xml .= '            <ISREVERSCHARGEAPPLICABLE>No</ISREVERSCHARGEAPPLICABLE>'."\n";
+        $xml .= '            <ISELIGIBLEFORLITC>Yes</ISELIGIBLEFORLITC>'."\n";
+
+        if ($buyerAddress !== []) {
+            $xml .= '            <ADDRESS.LIST TYPE="String">'."\n";
+            foreach ($buyerAddress as $line) {
+                $xml .= '              <ADDRESS>'.$this->escapeXml($line).'</ADDRESS>'."\n";
+            }
+            $xml .= '            </ADDRESS.LIST>'."\n";
+        }
+
+        $xml .= '            <LEDGERENTRIES.LIST>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($buyerName).'</LEDGERNAME>'."\n";
+        $xml .= '              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>'."\n";
+        $xml .= '              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>'."\n";
+        $xml .= '              <AMOUNT>-'.number_format($partyAmount, 2, '.', '').'</AMOUNT>'."\n";
+        $xml .= '            </LEDGERENTRIES.LIST>'."\n";
+
+        $xml .= '            <LEDGERENTRIES.LIST>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($serviceName).'</LEDGERNAME>'."\n";
+        $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
+        $xml .= '              <ISPARTYLEDGER>No</ISPARTYLEDGER>'."\n";
+        $xml .= '              <AMOUNT>'.number_format($baseAmount, 2, '.', '').'</AMOUNT>'."\n";
+
+        if ($hsnSac !== '') {
+            $xml .= '              <GSTHSNNAME>'.$this->escapeXml($hsnSac).'</GSTHSNNAME>'."\n";
+        }
+
+        $xml .= '              <GSTOVRDNTAXABILITY>Taxable</GSTOVRDNTAXABILITY>'."\n";
+        $xml .= '              <GSTOVRDNTYPEOFSUPPLY>Services</GSTOVRDNTYPEOFSUPPLY>'."\n";
+
+        if ($hasIgst) {
+            $xml .= '              <RATEDETAILS.LIST>'."\n";
+            $xml .= '                <GSTRATEDUTYHEAD>IGST</GSTRATEDUTYHEAD>'."\n";
+            $xml .= '                <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>'."\n";
+            $xml .= '                <GSTRATE>'.$igstRate.'</GSTRATE>'."\n";
+            $xml .= '              </RATEDETAILS.LIST>'."\n";
+        } elseif ($cgstRate !== null && $sgstRate !== null) {
+            $xml .= '              <RATEDETAILS.LIST>'."\n";
+            $xml .= '                <GSTRATEDUTYHEAD>CGST</GSTRATEDUTYHEAD>'."\n";
+            $xml .= '                <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>'."\n";
+            $xml .= '                <GSTRATE>'.$cgstRate.'</GSTRATE>'."\n";
+            $xml .= '              </RATEDETAILS.LIST>'."\n";
+            $xml .= '              <RATEDETAILS.LIST>'."\n";
+            $xml .= '                <GSTRATEDUTYHEAD>SGST/UTGST</GSTRATEDUTYHEAD>'."\n";
+            $xml .= '                <GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>'."\n";
+            $xml .= '                <GSTRATE>'.$sgstRate.'</GSTRATE>'."\n";
+            $xml .= '              </RATEDETAILS.LIST>'."\n";
+        }
+
+        $xml .= '            </LEDGERENTRIES.LIST>'."\n";
+
+        if ($hasIgst) {
+            $xml .= $this->generateOutputTaxLedgerEntry("Output Igst @ {$igstRate}%", $igstRate, $igstAmount);
+        } else {
+            if ($cgstRate !== null && $cgstAmount > 0) {
+                $xml .= $this->generateOutputTaxLedgerEntry("Output Cgst @ {$cgstRate}%", $cgstRate, $cgstAmount);
+            }
+
+            if ($sgstRate !== null && $sgstAmount > 0) {
+                $xml .= $this->generateOutputTaxLedgerEntry("Output Sgst @ {$sgstRate}%", $sgstRate, $sgstAmount);
+            }
+        }
+
+        $xml .= '          </VOUCHER>'."\n";
+        $xml .= '        </TALLYMESSAGE>'."\n";
+
+        return $xml;
+    }
+
+    private function generateOutputTaxLedgerEntry(string $ledgerName, float|int $rate, float $amount): string
+    {
+        $xml = '            <LEDGERENTRIES.LIST>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($ledgerName).'</LEDGERNAME>'."\n";
+        $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
+        $xml .= '              <ISPARTYLEDGER>No</ISPARTYLEDGER>'."\n";
+        $xml .= '              <RATEOFINVOICETAX.LIST TYPE="Number">'."\n";
+        $xml .= '                <RATEOFINVOICETAX>'.$rate.'</RATEOFINVOICETAX>'."\n";
+        $xml .= '              </RATEOFINVOICETAX.LIST>'."\n";
+        $xml .= '              <AMOUNT>'.number_format($amount, 2, '.', '').'</AMOUNT>'."\n";
+        $xml .= '            </LEDGERENTRIES.LIST>'."\n";
 
         return $xml;
     }
