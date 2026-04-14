@@ -8,12 +8,12 @@ use App\Models\TransactionAggregate;
 use App\Services\ReportingService;
 use Illuminate\Support\Carbon;
 
-beforeEach(function () {
-    asUser();
-    $this->service = app(ReportingService::class);
-});
-
 describe('ReportingService', function () {
+    beforeEach(function () {
+        asUser();
+        $this->service = app(ReportingService::class);
+    });
+
     describe('financialYearMonths', function () {
         it('returns 12 months from April to March for a date in the middle of the FY', function () {
             $months = $this->service->financialYearMonths(Carbon::create(2025, 8, 15));
