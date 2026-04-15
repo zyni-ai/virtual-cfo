@@ -123,7 +123,7 @@ describe('Connector settings in EditCompanySettings', function () {
         $this->mock(ZohoInvoiceService::class, function ($mock) {
             $mock->shouldReceive('syncForCompany')
                 ->once()
-                ->andThrow(new \RuntimeException('API connection failed'));
+                ->andThrow(new RuntimeException('API connection failed'));
         });
 
         livewire(EditCompanySettings::class)

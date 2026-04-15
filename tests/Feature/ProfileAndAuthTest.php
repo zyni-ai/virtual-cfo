@@ -5,6 +5,8 @@ use App\Filament\Pages\Auth\EditProfile;
 use App\Models\User;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
+use Filament\Auth\Notifications\ResetPassword;
+use Filament\Auth\Pages\PasswordReset\RequestPasswordReset;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
@@ -76,7 +78,7 @@ describe('Profile page', function () {
 
 describe('Password reset', function () {
     it('request page renders with email field', function () {
-        Livewire::test(\Filament\Auth\Pages\PasswordReset\RequestPasswordReset::class)
+        Livewire::test(RequestPasswordReset::class)
             ->assertSuccessful()
             ->assertFormFieldExists('email');
     });
@@ -86,14 +88,14 @@ describe('Password reset', function () {
 
         $user = User::factory()->create(['email' => 'reset@example.com']);
 
-        Livewire::test(\Filament\Auth\Pages\PasswordReset\RequestPasswordReset::class)
+        Livewire::test(RequestPasswordReset::class)
             ->fillForm([
                 'email' => 'reset@example.com',
             ])
             ->call('request')
             ->assertNotified();
 
-        Notification::assertSentTo($user, \Filament\Auth\Notifications\ResetPassword::class);
+        Notification::assertSentTo($user, ResetPassword::class);
     });
 });
 

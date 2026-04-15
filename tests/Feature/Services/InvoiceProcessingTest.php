@@ -267,7 +267,7 @@ describe('DocumentProcessor invoice routing', function () {
         Log::shouldReceive('warning')->once();
 
         expect(fn () => $this->processor->process($file))
-            ->toThrow(\RuntimeException::class, 'InvoiceParser response missing required fields');
+            ->toThrow(RuntimeException::class, 'InvoiceParser response missing required fields');
     });
 
     it('marks file as failed when invoice_number is missing', function () {
@@ -304,7 +304,7 @@ describe('DocumentProcessor invoice routing', function () {
         Log::shouldReceive('warning')->once();
 
         expect(fn () => $this->processor->process($file))
-            ->toThrow(\RuntimeException::class, 'InvoiceParser response missing required fields');
+            ->toThrow(RuntimeException::class, 'InvoiceParser response missing required fields');
     });
 
     it('updates bank_name on imported file with vendor name', function () {
@@ -410,7 +410,7 @@ describe('ProcessImportedFile job with InvoiceParser', function () {
 
         try {
             $job->handle(app(DocumentProcessor::class));
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Expected — missing required fields
         }
 

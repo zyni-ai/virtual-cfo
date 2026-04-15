@@ -6,6 +6,7 @@ use App\Jobs\ReconcileImportedFiles;
 use App\Models\ImportedFile;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
+use App\Services\Reconciliation\ReconciliationService;
 
 describe('ReconcileImportedFiles Job', function () {
     it('runs reconciliation and enrichment for the given files', function () {
@@ -39,7 +40,7 @@ describe('ReconcileImportedFiles Job', function () {
         ]);
 
         $job = new ReconcileImportedFiles($bankFile, $invoiceFile);
-        $job->handle(new \App\Services\Reconciliation\ReconciliationService);
+        $job->handle(new ReconciliationService);
 
         // Should have created a match
         expect(ReconciliationMatch::count())->toBe(1);

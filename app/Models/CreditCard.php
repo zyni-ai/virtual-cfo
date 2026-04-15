@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ImportStatus;
 use App\Jobs\ProcessImportedFile;
+use Database\Factories\CreditCardFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,7 +18,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class CreditCard extends Model
 {
-    /** @use HasFactory<\Database\Factories\CreditCardFactory> */
+    /** @use HasFactory<CreditCardFactory> */
     use HasFactory;
 
     use LogsActivity;

@@ -7,13 +7,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property array<string, mixed>|null $settings
- * @property \Illuminate\Support\Carbon|null $token_expires_at
- * @property \Illuminate\Support\Carbon|null $last_synced_at
+ * @property Carbon|null $token_expires_at
+ * @property Carbon|null $last_synced_at
  */
 class Connector extends Model
 {

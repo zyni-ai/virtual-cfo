@@ -671,15 +671,12 @@ class DocumentProcessor
                 'bank_format' => $vendorName,
             ]);
 
-            $serviceDescription = ($rawData['line_items'][0]['description'] ?? null);
-            $displayName = implode(' - ', array_filter([$invoiceNumber, $vendorName, $serviceDescription]));
-
             $file->update([
                 'status' => ImportStatus::Completed,
                 'total_rows' => 1,
                 'mapped_rows' => 0,
                 'processed_at' => now(),
-                'display_name' => $displayName,
+                'display_name' => $this->displayNameGenerator->generate($file),
             ]);
         });
     }

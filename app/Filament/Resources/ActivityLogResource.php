@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\NavigationGroup;
 use App\Exports\ActivityLogExport;
 use App\Filament\Resources\ActivityLogResource\Pages;
+use App\Models\Company;
 use BackedEnum;
 use Filament\Actions;
 use Filament\Facades\Filament;
@@ -13,6 +14,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Activitylog\Models\Activity;
@@ -62,7 +64,7 @@ class ActivityLogResource extends Resource
     /** @return Builder<Activity> */
     public static function getEloquentQuery(): Builder
     {
-        /** @var \App\Models\Company $company */
+        /** @var Company $company */
         $company = Filament::getTenant();
         $tenantUserIds = $company->users()->pluck('users.id');
 
@@ -127,7 +129,7 @@ class ActivityLogResource extends Resource
                 Tables\Filters\SelectFilter::make('causer_id')
                     ->label('User')
                     ->options(function () {
-                        /** @var \App\Models\Company $company */
+                        /** @var Company $company */
                         $company = Filament::getTenant();
 
                         return $company->users()
@@ -138,7 +140,7 @@ class ActivityLogResource extends Resource
                 Tables\Filters\SelectFilter::make('subject_type')
                     ->label('Subject Type')
                     ->options(function () {
-                        /** @var \App\Models\Company $company */
+                        /** @var Company $company */
                         $company = Filament::getTenant();
                         $tenantUserIds = $company->users()->pluck('users.id');
 
@@ -156,7 +158,7 @@ class ActivityLogResource extends Resource
                     ->label('Export CSV')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->action(function () {
-                        /** @var \App\Models\Company $company */
+                        /** @var Company $company */
                         $company = Filament::getTenant();
                         $tenantUserIds = $company->users()->pluck('users.id');
 
@@ -171,7 +173,7 @@ class ActivityLogResource extends Resource
     /**
      * Mask sensitive fields in a properties array and return a formatted string.
      *
-     * @param  array<string, mixed>|\Illuminate\Support\Collection<string, mixed>|null  $properties
+     * @param  array<string, mixed>|Collection<string, mixed>|null  $properties
      */
     public static function maskProperties(mixed $properties): string
     {
@@ -179,7 +181,7 @@ class ActivityLogResource extends Resource
             return '—';
         }
 
-        $data = $properties instanceof \Illuminate\Support\Collection
+        $data = $properties instanceof Collection
             ? $properties->toArray()
             : $properties;
 

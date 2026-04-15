@@ -9,6 +9,7 @@ use App\Filament\Widgets\RecurringAutoMappedWidget;
 use App\Filament\Widgets\TopAccountHeadsChart;
 use App\Filament\Widgets\TransactionStatsOverview;
 use App\Models\ImportedFile;
+use App\Models\Transaction;
 use Filament\Widgets\AccountWidget;
 
 use function Pest\Livewire\livewire;
@@ -86,8 +87,8 @@ describe('TransactionStatsOverview widget', function () {
     });
 
     it('shows transaction counts and mapped percentage', function () {
-        \App\Models\Transaction::factory()->unmapped()->count(3)->create();
-        \App\Models\Transaction::factory()->mapped()->count(7)->create();
+        Transaction::factory()->unmapped()->count(3)->create();
+        Transaction::factory()->mapped()->count(7)->create();
 
         livewire(TransactionStatsOverview::class)->assertSuccessful();
     });

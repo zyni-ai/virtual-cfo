@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\AccountType;
 use App\Enums\ImportStatus;
 use App\Jobs\ProcessImportedFile;
+use Database\Factories\BankAccountFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +17,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class BankAccount extends Model
 {
-    /** @use HasFactory<\Database\Factories\BankAccountFactory> */
+    /** @use HasFactory<BankAccountFactory> */
     use HasFactory;
 
     use LogsActivity;

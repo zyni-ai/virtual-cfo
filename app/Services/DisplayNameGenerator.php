@@ -36,8 +36,8 @@ class DisplayNameGenerator
         $raw = $firstTransaction?->raw_data;
 
         $invoiceNumber = $raw['invoice_number'] ?? null;
-        $vendorName = $raw['vendor_name'] ?? null;
-        $description = $raw['line_items'][0]['description'] ?? null;
+        $vendorName = $this->stripCompanySuffix($raw['vendor_name'] ?? null);
+        $description = $this->shortenDescription($raw['line_items'][0]['description'] ?? null);
 
         $parts = array_filter([$invoiceNumber, $vendorName, $description]);
 
@@ -45,7 +45,28 @@ class DisplayNameGenerator
             return $file->bank_name ?? 'Invoice';
         }
 
-        return implode(' - ', $parts);
+        return implode('_', $parts);
+    }
+
+    private function stripCompanySuffix(?string $name): ?string
+    {
+        if (! $name) {
+            return null;
+        }
+
+        return trim(preg_replace('/\s+(?:Private Limited|Pvt\.?\s*Ltd\.?|Limited|Ltd\.?|LLP)\s*$/i', '', $name) ?? $name);
+    }
+
+    private function shortenDescription(?string $description): ?string
+    {
+        if (! $description) {
+            return null;
+        }
+
+        $primary = explode(' - ', $description)[0];
+        $words = array_values(array_filter(explode(' ', trim($primary))));
+
+        return implode(' ', array_slice($words, 0, 2));
     }
 
     private function resolvePeriod(ImportedFile $file): string

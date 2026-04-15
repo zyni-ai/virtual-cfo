@@ -23,7 +23,16 @@
       "mcp__memory__read_graph",
       "WebFetch(domain:docs.anthropic.com)",
       "WebFetch(domain:filamentphp.com)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "mcp__plugin_laravel-boost_laravel-boost__database-schema",
+      "mcp__plugin_laravel-boost_laravel-boost__list-routes",
+      "mcp__plugin_laravel-boost_laravel-boost__tinker",
+      "mcp__plugin_laravel-boost_laravel-boost__search-docs",
+      "mcp__plugin_laravel-boost_laravel-boost__browser-logs",
+      "mcp__plugin_laravel-boost_laravel-boost__last-error",
+      "Bash(xargs grep:*)",
+      "Bash(grep -n \"^use\\\\|Actions\\\\\\\\\\\\\\\\Action\\\\|Notifications\\\\\\\\\\\\\\\\Actions\" vendor/filament/notifications/src/Notification.php)",
+      "mcp__plugin_laravel-boost_laravel-boost__database-query"
     ]
   },
   "enableAllProjectMcpServers": true,

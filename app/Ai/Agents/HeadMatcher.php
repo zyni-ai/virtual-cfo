@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Middleware\AuditLlmCalls;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\MaxTokens;
 use Laravel\Ai\Attributes\Provider;
@@ -24,12 +25,12 @@ class HeadMatcher implements Agent, HasMiddleware, HasStructuredOutput
     protected string $chartOfAccounts = '';
 
     /**
-     * @return array<int, \App\Ai\Middleware\AuditLlmCalls>
+     * @return array<int, AuditLlmCalls>
      */
     public function middleware(): array
     {
         return [
-            new \App\Ai\Middleware\AuditLlmCalls,
+            new AuditLlmCalls,
         ];
     }
 

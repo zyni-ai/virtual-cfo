@@ -5,6 +5,7 @@ use App\Filament\Resources\ImportedFileResource\Pages\CreateImportedFile;
 use App\Filament\Resources\ImportedFileResource\Pages\ListImportedFiles;
 use App\Filament\Resources\ImportedFileResource\Pages\ViewImportedFile;
 use App\Models\ImportedFile;
+use Filament\Notifications\Notification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -125,7 +126,7 @@ describe('ImportedFile display_name in duplicate notification', function () {
             ])
             ->call('create')
             ->assertNotified(
-                \Filament\Notifications\Notification::make()
+                Notification::make()
                     ->danger()
                     ->title('Duplicate file detected')
                     ->body("This file was already imported on {$importedDate} as \"HDFC_Jan 2025\". Enable \"Force re-import\" to replace it.")

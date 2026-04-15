@@ -5,10 +5,12 @@ use App\Enums\UserRole;
 use App\Filament\Resources\CreditCardResource\Pages\ListCreditCards;
 use App\Filament\Resources\TransactionResource\Pages\ListTransactions;
 use App\Models\AccountHead;
+use App\Models\BankAccount;
 use App\Models\Company;
 use App\Models\CreditCard;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
+use Spatie\Activitylog\Models\Activity;
 
 use function Pest\Livewire\livewire;
 
@@ -262,7 +264,7 @@ describe('Cross-Tenant Credit Card Sharing', function () {
 
             $tx->moveToCompany($targetCompany);
 
-            $activity = \Spatie\Activitylog\Models\Activity::where('subject_type', Transaction::class)
+            $activity = Activity::where('subject_type', Transaction::class)
                 ->where('subject_id', $tx->id)
                 ->latest()
                 ->first();
@@ -324,7 +326,7 @@ describe('Cross-Tenant Credit Card Sharing', function () {
 
     describe('Bank Accounts', function () {
         it('does not have share functionality on bank accounts', function () {
-            $bankAccount = \App\Models\BankAccount::factory()->create([
+            $bankAccount = BankAccount::factory()->create([
                 'company_id' => $this->company->id,
             ]);
 

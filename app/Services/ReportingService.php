@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Company;
 use App\Models\TransactionAggregate;
 use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +21,7 @@ class ReportingService
     {
         $ref ??= now();
 
-        /** @var \App\Models\Company|null $tenant */
+        /** @var Company|null $tenant */
         $tenant = Filament::getTenant();
         $fyStartMonth = (int) ($tenant?->fy_start_month ?: 4);
 

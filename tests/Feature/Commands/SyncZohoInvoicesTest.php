@@ -3,6 +3,7 @@
 use App\Models\Company;
 use App\Models\Connector;
 use App\Services\Connectors\ZohoInvoiceService;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -81,7 +82,7 @@ describe('SyncZohoInvoices command', function () {
         $this->partialMock(ZohoInvoiceService::class, function ($mock) {
             $mock->shouldReceive('syncForCompany')
                 ->once()
-                ->andThrow(new \RuntimeException('API error'));
+                ->andThrow(new RuntimeException('API error'));
             $mock->shouldReceive('syncForCompany')
                 ->once()
                 ->andReturn(0);
@@ -99,7 +100,7 @@ describe('SyncZohoInvoices command', function () {
     });
 
     it('is scheduled hourly', function () {
-        $schedule = app(\Illuminate\Console\Scheduling\Schedule::class);
+        $schedule = app(Schedule::class);
         $events = collect($schedule->events())->filter(function ($event) {
             return str_contains($event->command ?? '', 'connectors:sync-zoho');
         });

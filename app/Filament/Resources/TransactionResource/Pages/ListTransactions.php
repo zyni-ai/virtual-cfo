@@ -7,6 +7,7 @@ use App\Enums\MatchType;
 use App\Filament\Resources\TransactionResource;
 use App\Filament\Widgets\TransactionStatsOverview;
 use App\Models\AccountHead;
+use App\Models\Company;
 use App\Models\HeadMapping;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
@@ -70,7 +71,7 @@ class ListTransactions extends ListRecords
                         ->default(true),
                 ])
                 ->action(function (array $data): void {
-                    /** @var \App\Models\Company|null $tenant */
+                    /** @var Company|null $tenant */
                     $tenant = Filament::getTenant();
                     $companyId = $tenant?->id;
 

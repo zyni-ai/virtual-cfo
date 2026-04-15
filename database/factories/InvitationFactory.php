@@ -4,12 +4,13 @@ namespace Database\Factories;
 
 use App\Enums\UserRole;
 use App\Models\Company;
+use App\Models\Invitation;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends Factory<\App\Models\Invitation>
+ * @extends Factory<Invitation>
  */
 class InvitationFactory extends Factory
 {

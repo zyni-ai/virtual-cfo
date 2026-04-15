@@ -3,6 +3,11 @@
 use App\Ai\Agents\HeadMatcher;
 use App\Ai\Agents\StatementParser;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Ai\Attributes\Provider;
+use Laravel\Ai\Attributes\Timeout;
+use Laravel\Ai\Contracts\Agent;
+use Laravel\Ai\Contracts\HasStructuredOutput;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 
 describe('AI provider configuration', function () {
     it('has an openrouter provider configured', function () {
@@ -21,11 +26,11 @@ describe('AI provider configuration', function () {
 
 describe('StatementParser agent', function () {
     it('implements Agent interface', function () {
-        expect(StatementParser::class)->toImplement(Laravel\Ai\Contracts\Agent::class);
+        expect(StatementParser::class)->toImplement(Agent::class);
     });
 
     it('implements HasStructuredOutput', function () {
-        expect(StatementParser::class)->toImplement(Laravel\Ai\Contracts\HasStructuredOutput::class);
+        expect(StatementParser::class)->toImplement(HasStructuredOutput::class);
     });
 
     it('has instructions', function () {
@@ -58,7 +63,7 @@ describe('StatementParser agent', function () {
 describe('StatementParser provider', function () {
     it('uses the openrouter provider', function () {
         $attributes = (new ReflectionClass(StatementParser::class))
-            ->getAttributes(Laravel\Ai\Attributes\Provider::class);
+            ->getAttributes(Provider::class);
 
         expect($attributes)->toHaveCount(1)
             ->and($attributes[0]->getArguments()[0])->toBe('openrouter');
@@ -74,7 +79,7 @@ describe('StatementParser provider', function () {
 describe('StatementParser timeout', function () {
     it('has a 300 second timeout', function () {
         $attributes = (new ReflectionClass(StatementParser::class))
-            ->getAttributes(Laravel\Ai\Attributes\Timeout::class);
+            ->getAttributes(Timeout::class);
 
         expect($attributes)->toHaveCount(1)
             ->and($attributes[0]->getArguments()[0])->toBe(300);
@@ -83,11 +88,11 @@ describe('StatementParser timeout', function () {
 
 describe('HeadMatcher agent', function () {
     it('implements Agent interface', function () {
-        expect(HeadMatcher::class)->toImplement(Laravel\Ai\Contracts\Agent::class);
+        expect(HeadMatcher::class)->toImplement(Agent::class);
     });
 
     it('implements HasStructuredOutput', function () {
-        expect(HeadMatcher::class)->toImplement(Laravel\Ai\Contracts\HasStructuredOutput::class);
+        expect(HeadMatcher::class)->toImplement(HasStructuredOutput::class);
     });
 
     it('has instructions', function () {
@@ -127,7 +132,7 @@ describe('HeadMatcher agent', function () {
 
     it('has a 120 second timeout', function () {
         $attributes = (new ReflectionClass(HeadMatcher::class))
-            ->getAttributes(Laravel\Ai\Attributes\Timeout::class);
+            ->getAttributes(Timeout::class);
 
         expect($attributes)->toHaveCount(1)
             ->and($attributes[0]->getArguments()[0])->toBe(120);
@@ -135,7 +140,7 @@ describe('HeadMatcher agent', function () {
 
     it('uses the openrouter provider', function () {
         $attributes = (new ReflectionClass(HeadMatcher::class))
-            ->getAttributes(Laravel\Ai\Attributes\Provider::class);
+            ->getAttributes(Provider::class);
 
         expect($attributes)->toHaveCount(1)
             ->and($attributes[0]->getArguments()[0])->toBe('openrouter');
@@ -166,7 +171,7 @@ describe('StatementParser with Agent::fake()', function () {
 
         $response = (new StatementParser)->prompt('Parse this statement.');
 
-        expect($response)->toBeInstanceOf(Laravel\Ai\Responses\StructuredAgentResponse::class)
+        expect($response)->toBeInstanceOf(StructuredAgentResponse::class)
             ->and($response['bank_name'])->toBe('HDFC Bank')
             ->and($response['transactions'])->toHaveCount(1)
             ->and($response['transactions'][0]['description'])->toBe('SALARY');
@@ -209,7 +214,7 @@ describe('HeadMatcher with Agent::fake()', function () {
             ->withChartOfAccounts('10: Salary (Income)')
             ->prompt('Match these transactions.');
 
-        expect($response)->toBeInstanceOf(Laravel\Ai\Responses\StructuredAgentResponse::class)
+        expect($response)->toBeInstanceOf(StructuredAgentResponse::class)
             ->and($response['matches'])->toHaveCount(1)
             ->and($response['matches'][0]['suggested_head_id'])->toBe(10)
             ->and($response['matches'][0]['confidence'])->toBe(0.95);

@@ -1,5 +1,7 @@
 <?php
 
+use App\Filament\Resources\RecurringPatternResource\Pages\EditRecurringPattern;
+use App\Filament\Resources\RecurringPatternResource\Pages\ListRecurringPatterns;
 use App\Models\AccountHead;
 use App\Models\RecurringPattern;
 
@@ -11,7 +13,7 @@ describe('RecurringPatternResource', function () {
     });
 
     it('can render the list page', function () {
-        livewire(\App\Filament\Resources\RecurringPatternResource\Pages\ListRecurringPatterns::class)
+        livewire(ListRecurringPatterns::class)
             ->assertSuccessful();
     });
 
@@ -20,7 +22,7 @@ describe('RecurringPatternResource', function () {
             'company_id' => tenant()->id,
         ]);
 
-        livewire(\App\Filament\Resources\RecurringPatternResource\Pages\ListRecurringPatterns::class)
+        livewire(ListRecurringPatterns::class)
             ->assertCanSeeTableRecords($patterns);
     });
 
@@ -29,7 +31,7 @@ describe('RecurringPatternResource', function () {
             'company_id' => tenant()->id,
         ]);
 
-        livewire(\App\Filament\Resources\RecurringPatternResource\Pages\EditRecurringPattern::class, [
+        livewire(EditRecurringPattern::class, [
             'record' => $pattern->getRouteKey(),
         ])->assertSuccessful();
     });
@@ -41,7 +43,7 @@ describe('RecurringPatternResource', function () {
             'account_head_id' => null,
         ]);
 
-        livewire(\App\Filament\Resources\RecurringPatternResource\Pages\EditRecurringPattern::class, [
+        livewire(EditRecurringPattern::class, [
             'record' => $pattern->getRouteKey(),
         ])
             ->fillForm([
@@ -59,7 +61,7 @@ describe('RecurringPatternResource', function () {
             'is_active' => true,
         ]);
 
-        livewire(\App\Filament\Resources\RecurringPatternResource\Pages\EditRecurringPattern::class, [
+        livewire(EditRecurringPattern::class, [
             'record' => $pattern->getRouteKey(),
         ])
             ->fillForm([
@@ -76,7 +78,7 @@ describe('RecurringPatternResource', function () {
             'company_id' => tenant()->id,
         ]);
 
-        livewire(\App\Filament\Resources\RecurringPatternResource\Pages\ListRecurringPatterns::class)
+        livewire(ListRecurringPatterns::class)
             ->assertCanSeeTableRecords([$ownPattern]);
 
         // The service test already verifies tenant isolation at the data layer.

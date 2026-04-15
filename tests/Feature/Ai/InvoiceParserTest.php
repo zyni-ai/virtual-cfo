@@ -2,14 +2,19 @@
 
 use App\Ai\Agents\InvoiceParser;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Ai\Attributes\Provider;
+use Laravel\Ai\Attributes\Timeout;
+use Laravel\Ai\Contracts\Agent;
+use Laravel\Ai\Contracts\HasStructuredOutput;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 
 describe('InvoiceParser agent', function () {
     it('implements Agent interface', function () {
-        expect(InvoiceParser::class)->toImplement(Laravel\Ai\Contracts\Agent::class);
+        expect(InvoiceParser::class)->toImplement(Agent::class);
     });
 
     it('implements HasStructuredOutput', function () {
-        expect(InvoiceParser::class)->toImplement(Laravel\Ai\Contracts\HasStructuredOutput::class);
+        expect(InvoiceParser::class)->toImplement(HasStructuredOutput::class);
     });
 
     it('has instructions focused on invoice parsing', function () {
@@ -44,7 +49,7 @@ describe('InvoiceParser agent', function () {
 describe('InvoiceParser provider', function () {
     it('uses the openrouter provider', function () {
         $attributes = (new ReflectionClass(InvoiceParser::class))
-            ->getAttributes(Laravel\Ai\Attributes\Provider::class);
+            ->getAttributes(Provider::class);
 
         expect($attributes)->toHaveCount(1)
             ->and($attributes[0]->getArguments()[0])->toBe('openrouter');
@@ -60,7 +65,7 @@ describe('InvoiceParser provider', function () {
 describe('InvoiceParser timeout', function () {
     it('has a 180 second timeout', function () {
         $attributes = (new ReflectionClass(InvoiceParser::class))
-            ->getAttributes(Laravel\Ai\Attributes\Timeout::class);
+            ->getAttributes(Timeout::class);
 
         expect($attributes)->toHaveCount(1)
             ->and($attributes[0]->getArguments()[0])->toBe(180);
@@ -105,7 +110,7 @@ describe('InvoiceParser with Agent::fake()', function () {
 
         $response = (new InvoiceParser)->prompt('Parse this vendor invoice.');
 
-        expect($response)->toBeInstanceOf(Laravel\Ai\Responses\StructuredAgentResponse::class)
+        expect($response)->toBeInstanceOf(StructuredAgentResponse::class)
             ->and($response['vendor_name'])->toBe('Assetpro Solution Pvt Ltd')
             ->and($response['vendor_gstin'])->toBe('29AAQCA1895C1ZD')
             ->and($response['invoice_number'])->toBe('ASPL/2439')
@@ -156,7 +161,7 @@ describe('InvoiceParser with Agent::fake()', function () {
 
         $response = (new InvoiceParser)->prompt('Parse this vendor invoice.');
 
-        expect($response)->toBeInstanceOf(Laravel\Ai\Responses\StructuredAgentResponse::class)
+        expect($response)->toBeInstanceOf(StructuredAgentResponse::class)
             ->and($response['vendor_name'])->toBe('Tech Solutions Ltd')
             ->and($response['cgst_amount'])->toBeNull()
             ->and($response['sgst_amount'])->toBeNull()

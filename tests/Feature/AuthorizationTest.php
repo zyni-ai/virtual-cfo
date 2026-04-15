@@ -7,6 +7,7 @@ use App\Policies\AccountHeadPolicy;
 use App\Policies\HeadMappingPolicy;
 use App\Policies\ImportedFilePolicy;
 use App\Policies\TransactionPolicy;
+use Filament\Panel;
 
 describe('Authorization Policies', function () {
     describe('Admin role', function () {
@@ -118,8 +119,8 @@ describe('Authorization Policies', function () {
             $admin = User::factory()->admin()->create();
             $viewer = User::factory()->viewer()->create();
 
-            expect($admin->canAccessPanel(Filament\Panel::make()))->toBeTrue()
-                ->and($viewer->canAccessPanel(Filament\Panel::make()))->toBeTrue();
+            expect($admin->canAccessPanel(Panel::make()))->toBeTrue()
+                ->and($viewer->canAccessPanel(Panel::make()))->toBeTrue();
         });
     });
 });

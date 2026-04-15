@@ -7,6 +7,7 @@ use App\Filament\Resources\BankAccountResource\Pages\EditBankAccount;
 use App\Filament\Resources\BankAccountResource\Pages\ListBankAccounts;
 use App\Models\BankAccount;
 use App\Models\ImportedFile;
+use Illuminate\Support\Facades\DB;
 
 use function Pest\Livewire\livewire;
 
@@ -136,7 +137,7 @@ describe('BankAccountResource', function () {
 
         expect($account->pdf_password)->toBe('secretpass');
 
-        $raw = \Illuminate\Support\Facades\DB::table('bank_accounts')
+        $raw = DB::table('bank_accounts')
             ->where('id', $account->id)
             ->value('pdf_password');
 

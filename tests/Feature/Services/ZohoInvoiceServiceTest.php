@@ -74,7 +74,7 @@ describe('Token refresh', function () {
         ]);
 
         expect(fn () => $this->service->syncForCompany($connector))
-            ->toThrow(\RuntimeException::class, 'Failed to refresh Zoho OAuth token');
+            ->toThrow(RuntimeException::class, 'Failed to refresh Zoho OAuth token');
     });
 });
 
@@ -192,7 +192,7 @@ describe('Invoice fetch and ImportedFile creation', function () {
         ]);
 
         expect(fn () => $this->service->syncForCompany($connector))
-            ->toThrow(\RuntimeException::class, 'Failed to fetch invoices from Zoho');
+            ->toThrow(RuntimeException::class, 'Failed to fetch invoices from Zoho');
     });
 
     it('handles empty invoice list', function () {

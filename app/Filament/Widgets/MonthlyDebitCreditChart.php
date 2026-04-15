@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\TransactionAggregate;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class MonthlyDebitCreditChart extends ChartWidget
@@ -20,7 +21,7 @@ class MonthlyDebitCreditChart extends ChartWidget
 
         $startMonth = $months->first()->format('Y-m');
 
-        /** @var \Illuminate\Support\Collection<int, TransactionAggregate> $aggregates */
+        /** @var Collection<int, TransactionAggregate> $aggregates */
         $aggregates = TransactionAggregate::query()
             ->where('year_month', '>=', $startMonth)
             ->select('year_month')

@@ -6,6 +6,7 @@ use App\Enums\ImportSource;
 use App\Enums\ImportStatus;
 use App\Filament\Resources\ImportedFileResource;
 use App\Jobs\ProcessImportedFile;
+use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Services\DisplayNameGenerator;
 use Filament\Facades\Filament;
@@ -37,7 +38,7 @@ class CreateImportedFile extends CreateRecord
 
         // Check for duplicate file
         if (isset($data['file_hash'])) {
-            /** @var \App\Models\Company $tenant */
+            /** @var Company $tenant */
             $tenant = Filament::getTenant();
 
             $existing = ImportedFile::where('company_id', $tenant->id)

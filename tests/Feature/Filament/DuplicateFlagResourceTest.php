@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\DuplicateStatus;
+use App\Filament\Resources\DuplicateFlags\DuplicateFlagResource;
 use App\Filament\Resources\DuplicateFlags\Pages\ManageDuplicateFlags;
 use App\Models\DuplicateFlag;
 use App\Models\Transaction;
@@ -112,7 +113,7 @@ describe('DuplicateFlagResource', function () {
             ->dismissed()
             ->create();
 
-        expect(\App\Filament\Resources\DuplicateFlags\DuplicateFlagResource::getNavigationBadge())
+        expect(DuplicateFlagResource::getNavigationBadge())
             ->toBe('3');
     });
 

@@ -3,21 +3,23 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use Database\Factories\InvitationFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property UserRole $role
- * @property \Illuminate\Support\Carbon $expires_at
- * @property \Illuminate\Support\Carbon|null $accepted_at
+ * @property Carbon $expires_at
+ * @property Carbon|null $accepted_at
  */
 class Invitation extends Model
 {
-    /** @use HasFactory<\Database\Factories\InvitationFactory> */
+    /** @use HasFactory<InvitationFactory> */
     use HasFactory;
 
     use LogsActivity;

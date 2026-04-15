@@ -1,5 +1,16 @@
 <?php
 
+use App\Ai\Agents\HeadMatcher;
+use App\Ai\Agents\InvoiceParser;
+use App\Ai\Agents\StatementParser;
+use App\Ai\Middleware\AuditLlmCalls;
+use App\Enums\ConnectorProvider;
+use App\Enums\ImportSource;
+use App\Enums\ImportStatus;
+use App\Enums\MappingType;
+use App\Enums\MatchType;
+use App\Enums\StatementType;
+
 describe('Models', function () {
     it('extends Eloquent Model or Authenticatable', function () {
         expect('App\Models')
@@ -22,12 +33,12 @@ describe('Enums', function () {
 
     it('are string-backed', function () {
         $enums = [
-            \App\Enums\ConnectorProvider::class,
-            \App\Enums\ImportSource::class,
-            \App\Enums\ImportStatus::class,
-            \App\Enums\MappingType::class,
-            \App\Enums\MatchType::class,
-            \App\Enums\StatementType::class,
+            ConnectorProvider::class,
+            ImportSource::class,
+            ImportStatus::class,
+            MappingType::class,
+            MatchType::class,
+            StatementType::class,
         ];
 
         foreach ($enums as $enum) {
@@ -77,9 +88,9 @@ describe('AI Agents', function () {
 
     it('includes AuditLlmCalls in middleware', function () {
         $agents = [
-            new \App\Ai\Agents\HeadMatcher,
-            new \App\Ai\Agents\StatementParser,
-            new \App\Ai\Agents\InvoiceParser,
+            new HeadMatcher,
+            new StatementParser,
+            new InvoiceParser,
         ];
 
         foreach ($agents as $agent) {
@@ -87,7 +98,7 @@ describe('AI Agents', function () {
             $hasAudit = false;
 
             foreach ($middleware as $mw) {
-                if ($mw instanceof \App\Ai\Middleware\AuditLlmCalls) {
+                if ($mw instanceof AuditLlmCalls) {
                     $hasAudit = true;
                 }
             }

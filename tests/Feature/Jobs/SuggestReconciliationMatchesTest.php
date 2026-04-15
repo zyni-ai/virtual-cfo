@@ -7,6 +7,7 @@ use App\Jobs\SuggestReconciliationMatches;
 use App\Models\ImportedFile;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
+use Illuminate\Contracts\Queue\ShouldQueue;
 
 describe('SuggestReconciliationMatches job', function () {
     beforeEach(function () {
@@ -87,6 +88,6 @@ describe('SuggestReconciliationMatches job', function () {
 
     it('is a queued job', function () {
         expect(class_implements(SuggestReconciliationMatches::class))
-            ->toContain(Illuminate\Contracts\Queue\ShouldQueue::class);
+            ->toContain(ShouldQueue::class);
     });
 });

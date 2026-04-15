@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\Company;
 use App\Services\BudgetService;
 use Filament\Facades\Filament;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -15,7 +16,7 @@ class BudgetStatusWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        /** @var \App\Models\Company|null $company */
+        /** @var Company|null $company */
         $company = Filament::getTenant();
 
         if (! $company) {

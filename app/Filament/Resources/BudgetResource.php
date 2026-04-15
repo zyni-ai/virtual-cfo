@@ -7,6 +7,7 @@ use App\Enums\PeriodType;
 use App\Filament\Resources\BudgetResource\Pages\ManageBudgets;
 use App\Models\AccountHead;
 use App\Models\Budget;
+use App\Models\Company;
 use BackedEnum;
 use Filament\Actions;
 use Filament\Facades\Filament;
@@ -127,7 +128,7 @@ class BudgetResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        /** @var \App\Models\Company|null $company */
+        /** @var Company|null $company */
         $company = Filament::getTenant();
 
         if (! $company) {

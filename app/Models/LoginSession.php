@@ -2,19 +2,21 @@
 
 namespace App\Models;
 
+use Database\Factories\LoginSessionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
- * @property \Illuminate\Support\Carbon $logged_in_at
- * @property \Illuminate\Support\Carbon $last_active_at
- * @property \Illuminate\Support\Carbon|null $logged_out_at
+ * @property Carbon $logged_in_at
+ * @property Carbon $last_active_at
+ * @property Carbon|null $logged_out_at
  */
 class LoginSession extends Model
 {
-    /** @use HasFactory<\Database\Factories\LoginSessionFactory> */
+    /** @use HasFactory<LoginSessionFactory> */
     use HasFactory;
 
     protected $fillable = [
