@@ -23,7 +23,7 @@ class TransactionExcelExport implements WithMultipleSheets
     public function sheets(): array
     {
         return [
-            new TransactionDetailSheet(from: $this->from, until: $this->until, baseQuery: $this->baseQuery),
+            new TransactionDetailSheet(from: $this->from, until: $this->until, baseQuery: $this->baseQuery, importedFile: $this->importedFile),
             new TransactionSummarySheet(from: $this->from, until: $this->until, baseQuery: $this->baseQuery, importedFile: $this->importedFile),
         ];
     }

@@ -943,6 +943,110 @@ describe('DocumentProcessor', function () {
         });
     });
 
+    describe('account_holder_name and opening_balance extraction', function () {
+        it('stores account_holder_name from parser response on bank statement', function () {
+            Storage::put('statements/holder.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'HDFC Bank',
+                    'account_holder_name' => 'Zysk Technologies Pvt Ltd',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'SALARY', 'credit' => 50000, 'balance' => 150000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/holder.pdf',
+                'original_filename' => 'bank_holder.pdf',
+                'statement_type' => StatementType::Bank,
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->account_holder_name)->toBe('Zysk Technologies Pvt Ltd');
+        });
+
+        it('stores null account_holder_name when parser does not return one', function () {
+            Storage::put('statements/no_holder.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'SBI',
+                    'transactions' => [
+                        ['date' => '2024-01-05', 'description' => 'PAYMENT', 'debit' => 1000, 'balance' => 9000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/no_holder.pdf',
+                'original_filename' => 'no_holder.pdf',
+                'statement_type' => StatementType::Bank,
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->account_holder_name)->toBeNull();
+        });
+
+        it('stores opening_balance from previous_balance on credit card statement', function () {
+            Storage::put('statements/cc_balance.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'ICICI CC',
+                    'previous_balance' => 8500.00,
+                    'transactions' => [
+                        ['date' => '2024-02-05', 'description' => 'AMAZON', 'debit' => 2000, 'balance' => 2000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->creditCard()->create([
+                'file_path' => 'statements/cc_balance.pdf',
+                'original_filename' => 'cc_balance.pdf',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect((float) $file->opening_balance)->toBe(8500.0);
+        });
+
+        it('stores opening_balance from previous_balance on bank statement', function () {
+            Storage::put('statements/bank_balance.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'Axis Bank',
+                    'previous_balance' => 25000.50,
+                    'transactions' => [
+                        ['date' => '2024-03-01', 'description' => 'NEFT', 'credit' => 5000, 'balance' => 30000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/bank_balance.pdf',
+                'original_filename' => 'bank_balance.pdf',
+                'statement_type' => StatementType::Bank,
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect((float) $file->opening_balance)->toBe(25000.50);
+        });
+    });
+
     describe('unsupported formats', function () {
         it('throws for unsupported file extensions', function () {
             $file = ImportedFile::factory()->create([

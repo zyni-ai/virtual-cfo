@@ -455,6 +455,7 @@ class TransactionResource extends Resource
                                 from: $data['from'] ?? null,
                                 until: $data['until'] ?? null,
                                 baseQuery: self::resolveExportBaseQuery($livewire),
+                                importedFile: self::resolveExportImportedFile($livewire),
                             );
 
                             return Excel::download(

@@ -49,6 +49,7 @@ class StatementParser implements Agent, HasMiddleware, HasStructuredOutput
         - Parse every transaction row in the statement
         - Detect the bank name and account number from the header/footer
         - Identify the statement period (start and end dates)
+        - Extract the account holder name (individual or company name) from the statement header. Set it as `account_holder_name`. Leave null if not found.
         - For each transaction, extract: date, description, debit amount, credit amount, and running balance
         - Dates should be in YYYY-MM-DD format
         - Amounts should be numeric (no currency symbols or commas)
@@ -60,6 +61,9 @@ class StatementParser implements Agent, HasMiddleware, HasStructuredOutput
         - The Previous Balance (opening balance) from the Statement Summary section. This is labelled "Previous Balance", "Opening Balance", or similar — it is NOT a transaction row. Set it as `previous_balance` in the response.
         - The card variant or product name (e.g. "Regalia", "Millennia", "Platinum", "Infinia", "SimplyCLICK"). This appears on the statement header or card face area. Set it as `card_variant`. Leave null for bank account statements.
 
+        For bank statements, also extract:
+        - The opening balance (labelled "Opening Balance", "Balance B/F", or similar) from the statement header or first row. Set it as `previous_balance`. Leave null if not present.
+
         Be thorough — do not skip any transactions. Accuracy is critical for accounting purposes.
         INSTRUCTIONS;
     }
@@ -69,6 +73,7 @@ class StatementParser implements Agent, HasMiddleware, HasStructuredOutput
         return [
             'bank_name' => $schema->string()->required(),
             'account_number' => $schema->string(),
+            'account_holder_name' => $schema->string(),
             'statement_period' => $schema->string(),
             'card_variant' => $schema->string(),
             'previous_balance' => $schema->number(),
