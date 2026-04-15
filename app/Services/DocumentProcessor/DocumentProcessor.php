@@ -257,7 +257,6 @@ class DocumentProcessor
             match ($statementType) {
                 StatementType::Bank, StatementType::CreditCard => $this->parsePdfStatement($file, $filePath),
                 StatementType::Invoice => $this->parsePdfInvoice($file, $filePath),
-                StatementType::SalesInvoice => throw new \LogicException('SalesInvoice files are not parsed via PDF processing.'),
             };
         } finally {
             if ($decryptedPath !== null) {

@@ -13,7 +13,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('exports sales invoice as Sales voucher not Journal', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
@@ -52,7 +52,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('uses REPORTNAME Vouchers for sales invoice export', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
@@ -82,7 +82,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('generates intrastate 4-leg voucher: party debit, sales credit, CGST credit, SGST credit', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create([
@@ -128,7 +128,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('generates interstate 3-leg voucher: party debit, sales credit, IGST credit', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create([
@@ -168,7 +168,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('sets party ledger amount to exact mathematical sum with no rounding entry', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
@@ -199,7 +199,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('includes GSTHSNNAME, GSTOVRDNTAXABILITY and GSTOVRDNTYPEOFSUPPLY in sales ledger entry', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create([
@@ -234,7 +234,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('includes RATEOFINVOICETAX in each tax ledger entry', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
@@ -264,7 +264,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('populates ADDRESS.LIST from buyer_address', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
@@ -296,7 +296,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('includes buyer GSTIN as PARTYGSTIN', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
@@ -325,7 +325,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('uses invoice_date from raw_data not the transaction date', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
@@ -355,7 +355,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('falls back to transaction date when invoice_date is absent', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
@@ -383,7 +383,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('includes ISINVOICE Yes in sales voucher', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
@@ -443,7 +443,7 @@ describe('TallyExportService sales voucher', function () {
 
     it('includes PLACEOFSUPPLY and STATENAME from raw_data', function () {
         $file = ImportedFile::factory()->create([
-            'statement_type' => StatementType::SalesInvoice,
+            'statement_type' => StatementType::Invoice,
             'company_id' => tenant()->id,
         ]);
         $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
