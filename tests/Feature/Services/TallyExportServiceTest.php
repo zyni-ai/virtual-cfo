@@ -9,7 +9,7 @@ use App\Services\TallyExport\TallyExportService;
 
 describe('TallyExportService', function () {
     beforeEach(function () {
-        $this->company = Company::factory()->zysk()->create();
+        $this->company = Company::factory()->knownDefaults()->create();
         $this->bankAccount = BankAccount::factory()->create([
             'company_id' => $this->company->id,
             'name' => 'Icici Bank',
@@ -42,7 +42,7 @@ describe('TallyExportService', function () {
                 ->and($xml)->toContain('<IMPORTDATA>')
                 ->and($xml)->toContain('<REQUESTDESC>')
                 ->and($xml)->toContain('<REPORTNAME>All Masters</REPORTNAME>')
-                ->and($xml)->toContain('<SVCURRENTCOMPANY>Zysk Technologies Private Limited - 2025 - 2026</SVCURRENTCOMPANY>')
+                ->and($xml)->toContain('<SVCURRENTCOMPANY>Acme Corp Private Limited - 2025 - 2026</SVCURRENTCOMPANY>')
                 ->and($xml)->toContain('<REQUESTDATA>')
                 ->and($xml)->toContain('</ENVELOPE>');
         });
@@ -80,9 +80,9 @@ describe('TallyExportService', function () {
                 ->and($xml)->toContain('<VOUCHERTYPENAME>Payment</VOUCHERTYPENAME>')
                 ->and($xml)->toContain('<NARRATION>ACH/TATACAPFINSERLTD</NARRATION>')
                 ->and($xml)->toContain('<PARTYLEDGERNAME>TATA CAPITAL LIMITED</PARTYLEDGERNAME>')
-                ->and($xml)->toContain('<CMPGSTIN>29AABCZ5012F1ZG</CMPGSTIN>')
+                ->and($xml)->toContain('<CMPGSTIN>27AABCA5012F1ZA</CMPGSTIN>')
                 ->and($xml)->toContain('<CMPGSTREGISTRATIONTYPE>Regular</CMPGSTREGISTRATIONTYPE>')
-                ->and($xml)->toContain('<CMPGSTSTATE>Karnataka</CMPGSTSTATE>');
+                ->and($xml)->toContain('<CMPGSTSTATE>Maharashtra</CMPGSTSTATE>');
         });
 
         it('generates correct ledger entries for payment voucher', function () {
@@ -232,8 +232,8 @@ describe('TallyExportService', function () {
             $xml = $this->service->exportForFile($this->file);
 
             expect($xml)->toContain('<COMPANY>')
-                ->and($xml)->toContain('<REMOTECMPNAME>Zysk Technologies Private Limited - 2025 - 2026</REMOTECMPNAME>')
-                ->and($xml)->toContain('<REMOTECMPSTATE>Karnataka</REMOTECMPSTATE>');
+                ->and($xml)->toContain('<REMOTECMPNAME>Acme Corp Private Limited - 2025 - 2026</REMOTECMPNAME>')
+                ->and($xml)->toContain('<REMOTECMPSTATE>Maharashtra</REMOTECMPSTATE>');
         });
     });
 

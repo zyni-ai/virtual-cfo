@@ -37,14 +37,12 @@ class CompanyFactory extends Factory
         ]);
     }
 
-    public function zysk(): static
+    public function knownDefaults(): static
     {
         return $this->state(fn (array $attributes) => [
-            'name' => 'Zysk Technologies Private Limited - 2025 - 2026',
-            'gstin' => '29AABCZ5012F1ZG',
-            'state' => 'Karnataka',
-            'gst_registration_type' => 'Regular',
-            'currency' => 'INR',
+            'name' => 'Acme Corp Private Limited - 2025 - 2026',
+            'gstin' => '27AABCA5012F1ZA',
+            'state' => 'Maharashtra',
         ]);
     }
 }

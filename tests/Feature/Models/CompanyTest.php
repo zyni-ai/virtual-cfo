@@ -26,13 +26,15 @@ describe('Company factory', function () {
         expect(Schema::hasColumn('companies', 'financial_year'))->toBeFalse();
     });
 
-    it('creates a zysk company with known defaults', function () {
-        $company = Company::factory()->zysk()->create();
+    it('creates a company with known defaults via knownDefaults state', function () {
+        $company = Company::factory()->knownDefaults()->create();
 
-        expect($company->name)->toBe('Zysk Technologies Private Limited - 2025 - 2026')
-            ->and($company->gstin)->toBe('29AABCZ5012F1ZG')
-            ->and($company->state)->toBe('Karnataka');
+        expect($company->name)->toBe('Acme Corp Private Limited - 2025 - 2026')
+            ->and($company->gstin)->toBe('27AABCA5012F1ZA')
+            ->and($company->state)->toBe('Maharashtra')
+            ->and($company->name)->not->toContain('Zysk');
     });
+
 });
 
 describe('Company relationships', function () {
