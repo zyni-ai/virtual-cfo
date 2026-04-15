@@ -14,10 +14,6 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Mockery\MockInterface;
 
-beforeEach(function () {
-    Storage::fake('local');
-});
-
 /**
  * Create a mock PdfDecryptionService and bind it into the container.
  *
@@ -50,6 +46,10 @@ function fakeStatementParser(string $bankName = 'HDFC Bank', string $description
 }
 
 describe('DocumentProcessor PDF decryption', function () {
+    beforeEach(function () {
+        Storage::fake('local');
+    });
+
     it('passes unprotected PDFs through without decryption', function () {
         Storage::put('statements/bank.pdf', 'fake-pdf-content');
 
