@@ -130,6 +130,14 @@ class CreditCardResource extends Resource
                                     ->when($currentTenant, fn (Builder $q) => $q->where('companies.id', '!=', $currentTenant->id))
                                     ->pluck('name', 'id');
                             })
+                            // Filament v5 applies an `in()` validation by default, checking that submitted
+                            // values have a matching option label. Without this, submitting a company where
+                            // the user is not an admin fails silently before the action closure runs.
+                            // The closure handles the actual authorization check and sends a notification.
+                            ->getOptionLabelsUsing(fn (array $values): array => Company::query()
+                                ->whereIn('id', $values)
+                                ->pluck('name', 'id')
+                                ->all())
                             ->required(),
                     ])
                     ->action(function (CreditCard $record, array $data) {
