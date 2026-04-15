@@ -71,7 +71,7 @@ class TallyExportService
         $xml .= '  <BODY>'."\n";
         $xml .= '    <IMPORTDATA>'."\n";
         $xml .= '      <REQUESTDESC>'."\n";
-        $reportName = $importedFile?->statement_type === StatementType::SalesInvoice ? 'Vouchers' : 'All Masters';
+        $reportName = $this->isSalesInvoiceExport($transactions, $importedFile) ? 'Vouchers' : 'All Masters';
         $xml .= '        <REPORTNAME>'.$reportName.'</REPORTNAME>'."\n";
         $xml .= '        <STATICVARIABLES>'."\n";
         $xml .= '          <SVCURRENTCOMPANY>'.$this->escapeXml($companyName).'</SVCURRENTCOMPANY>'."\n";
@@ -100,11 +100,14 @@ class TallyExportService
      */
     private function generateVoucher(Transaction $transaction, ?Company $company, ?string $bankLedgerName, ?ImportedFile $importedFile = null): string
     {
-        if ($importedFile?->statement_type === StatementType::SalesInvoice) {
-            return $this->generateSalesVoucher($transaction, $company);
-        }
-
         if ($importedFile?->statement_type === StatementType::Invoice) {
+            /** @var array<string, mixed> $raw */
+            $raw = $transaction->raw_data ?? [];
+
+            if (isset($raw['buyer_name'])) {
+                return $this->generateSalesVoucher($transaction, $company);
+            }
+
             return $this->generateInvoiceJournalVoucher($transaction, $company);
         }
 
@@ -532,6 +535,28 @@ class TallyExportService
         $xml .= '        </TALLYMESSAGE>'."\n";
 
         return $xml;
+    }
+
+    /**
+     * Determine whether the export should use the Sales voucher format.
+     * Invoice files whose first transaction carries a 'buyer_name' in raw_data
+     * are outward (sales) invoices; all others use the Journal format.
+     *
+     * @param  Collection<int, Transaction>  $transactions
+     */
+    private function isSalesInvoiceExport(Collection $transactions, ?ImportedFile $importedFile): bool
+    {
+        if ($importedFile?->statement_type !== StatementType::Invoice) {
+            return false;
+        }
+
+        /** @var Transaction|null $first */
+        $first = $transactions->first();
+
+        /** @var array<string, mixed> $raw */
+        $raw = $first?->raw_data ?? [];
+
+        return isset($raw['buyer_name']);
     }
 
     /**
