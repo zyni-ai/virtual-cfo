@@ -69,10 +69,15 @@ class InvoiceParser implements Agent, HasMiddleware, HasStructuredOutput
         return [
             'vendor_name' => $schema->string()->required(),
             'vendor_gstin' => $schema->string(),
+            'buyer_name' => $schema->string(),
+            'buyer_gstin' => $schema->string(),
+            'buyer_address' => $schema->array()->items($schema->string()),
             'invoice_number' => $schema->string()->required(),
             'invoice_date' => $schema->string()->required(),
             'due_date' => $schema->string(),
             'place_of_supply' => $schema->string(),
+            'service_name' => $schema->string(),
+            'hsn_sac' => $schema->string(),
             'line_items' => $schema->array()->items($schema->object([
                 'description' => $schema->string()->required(),
                 'hsn_sac' => $schema->string(),

@@ -83,6 +83,15 @@ class ImportedFileFactory extends Factory
         ]);
     }
 
+    public function salesInvoice(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'statement_type' => StatementType::SalesInvoice,
+            'file_path' => 'statements/'.fake()->uuid().'.pdf',
+            'original_filename' => 'sales_invoice_'.fake()->date('Y_m').'.pdf',
+        ]);
+    }
+
     public function csv(): static
     {
         return $this->state(fn (array $attributes) => [
