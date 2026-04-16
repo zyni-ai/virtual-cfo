@@ -43,9 +43,9 @@ class ConnectorFactory extends Factory
             'token_expires_at' => now()->addHour(),
             'settings' => [
                 'data_center' => ZohoDataCenter::India->value,
-                'client_id' => fake()->regexify('[0-9]{19}\.[A-Z0-9]{32}'),
-                'client_secret' => fake()->sha256(),
-                'organization_id' => fake()->numerify('##########'),
+                'client_id' => 'test-client',
+                'client_secret' => 'test-secret',
+                'organization_id' => '12345678',
             ],
             'is_active' => true,
             'last_synced_at' => now()->subHours(2),
