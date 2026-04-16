@@ -441,6 +441,98 @@ describe('TallyExportService sales voucher', function () {
             ->not->toContain('VCHTYPE="Sales"');
     });
 
+    it('includes line item description in narration when line_items present', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+            'company_id' => tenant()->id,
+        ]);
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        Transaction::factory()->mapped($head)->create([
+            'imported_file_id' => $file->id,
+            'company_id' => tenant()->id,
+            'credit' => '3844.44',
+            'date' => '2026-04-01',
+            'raw_data' => [
+                'buyer_name' => 'VYGNIK BEHAVIORAL SERVICES PRIVATE LIMITED',
+                'service_name' => 'Website Maintenance',
+                'base_amount' => 3258.00,
+                'cgst_rate' => 9,
+                'cgst_amount' => 293.22,
+                'sgst_rate' => 9,
+                'sgst_amount' => 293.22,
+                'total_amount' => 3844.44,
+                'line_items' => [
+                    ['description' => 'Website Maintenance - AWS, Vercel, Digital Ocean & AWS Lambda', 'amount' => 3258.00],
+                ],
+            ],
+        ]);
+
+        $xml = app(TallyExportService::class)->exportForFile($file);
+
+        expect($xml)->toContain('<NARRATION>Website Maintenance - AWS, Vercel, Digital Ocean &amp; AWS Lambda</NARRATION>');
+    });
+
+    it('joins multiple line item descriptions with newlines in narration', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+            'company_id' => tenant()->id,
+        ]);
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        Transaction::factory()->mapped($head)->create([
+            'imported_file_id' => $file->id,
+            'company_id' => tenant()->id,
+            'credit' => '5000.00',
+            'date' => '2026-04-01',
+            'raw_data' => [
+                'buyer_name' => 'Test Client',
+                'service_name' => 'IT Services',
+                'base_amount' => 5000.00,
+                'cgst_rate' => 9,
+                'cgst_amount' => 450.00,
+                'sgst_rate' => 9,
+                'sgst_amount' => 450.00,
+                'total_amount' => 5900.00,
+                'line_items' => [
+                    ['description' => 'Website Maintenance - AWS, Vercel', 'amount' => 3000.00],
+                    ['description' => 'Domain Renewal - example.com', 'amount' => 2000.00],
+                ],
+            ],
+        ]);
+
+        $xml = app(TallyExportService::class)->exportForFile($file);
+
+        expect($xml)->toContain("Website Maintenance - AWS, Vercel\nDomain Renewal - example.com");
+    });
+
+    it('falls back to description field when line_items absent in sales voucher', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+            'company_id' => tenant()->id,
+        ]);
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        Transaction::factory()->mapped($head)->create([
+            'imported_file_id' => $file->id,
+            'company_id' => tenant()->id,
+            'credit' => '3844.44',
+            'date' => '2026-04-01',
+            'raw_data' => [
+                'buyer_name' => 'Test Client',
+                'service_name' => 'IT Services',
+                'description' => 'Fallback description',
+                'base_amount' => 3258.00,
+                'cgst_rate' => 9,
+                'cgst_amount' => 293.22,
+                'sgst_rate' => 9,
+                'sgst_amount' => 293.22,
+                'total_amount' => 3844.44,
+            ],
+        ]);
+
+        $xml = app(TallyExportService::class)->exportForFile($file);
+
+        expect($xml)->toContain('<NARRATION>Fallback description</NARRATION>');
+    });
+
     it('includes PLACEOFSUPPLY and STATENAME from raw_data', function () {
         $file = ImportedFile::factory()->create([
             'statement_type' => StatementType::Invoice,
