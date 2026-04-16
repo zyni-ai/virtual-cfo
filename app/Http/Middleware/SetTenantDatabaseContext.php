@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Filament\Facades\Filament;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class SetTenantDatabaseContext
 
         if ($tenant) {
             DB::statement("SET app.current_company_id = '{$tenant->getKey()}'");
+            $this->recordLastUsedCompany($request, $tenant->getKey());
         }
 
         return $next($request);
@@ -32,5 +34,20 @@ class SetTenantDatabaseContext
     public function terminate(Request $request, Response $response): void
     {
         DB::statement("SET app.current_company_id = ''");
+    }
+
+    private function recordLastUsedCompany(Request $request, int|string $companyId): void
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            return;
+        }
+
+        if ((int) $user->last_used_company_id === (int) $companyId) {
+            return;
+        }
+
+        $user->updateQuietly(['last_used_company_id' => $companyId]);
     }
 }
