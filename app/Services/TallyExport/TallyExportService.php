@@ -274,7 +274,7 @@ class TallyExportService
         $placeOfSupply = (string) ($raw['place_of_supply'] ?? '');
         $serviceName = (string) ($raw['service_name'] ?? ($accountHead?->name ?? 'Unknown'));
         $hsnSac = (string) ($raw['hsn_sac'] ?? '');
-        $narration = $this->buildLineItemNarration($raw)
+        $narration = $this->buildLineItemNarration($raw, $serviceName)
             ?? (string) ($raw['description'] ?? $transaction->description ?? '');
         $baseAmount = (float) ($raw['base_amount'] ?? 0);
         $cgstRate = $raw['cgst_rate'] ?? null;
@@ -579,7 +579,7 @@ class TallyExportService
     }
 
     /** @param array<string, mixed> $raw */
-    private function buildLineItemNarration(array $raw): ?string
+    private function buildLineItemNarration(array $raw, ?string $serviceName = null): ?string
     {
         $lineItems = is_array($raw['line_items'] ?? null) ? $raw['line_items'] : [];
 
@@ -588,6 +588,14 @@ class TallyExportService
         }
 
         $descriptions = array_filter(array_column($lineItems, 'description'));
+
+        if ($serviceName !== null) {
+            $prefix = "{$serviceName} - ";
+            $descriptions = array_map(
+                fn (string $desc) => str_starts_with($desc, $prefix) ? mb_substr($desc, mb_strlen($prefix)) : $desc,
+                $descriptions,
+            );
+        }
 
         return empty($descriptions) ? null : implode("\n", $descriptions);
     }
