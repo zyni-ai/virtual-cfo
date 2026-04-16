@@ -52,6 +52,13 @@ class ConnectorFactory extends Factory
         ]);
     }
 
+    public function withOrganization(string $organizationId): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'settings' => array_merge($attributes['settings'], ['organization_id' => $organizationId]),
+        ]);
+    }
+
     public function expired(): static
     {
         return $this->state(fn (array $attributes) => [

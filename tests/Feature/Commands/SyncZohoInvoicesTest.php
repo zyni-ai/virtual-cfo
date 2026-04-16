@@ -21,14 +21,8 @@ describe('SyncZohoInvoices command', function () {
         $company1 = Company::factory()->create();
         $company2 = Company::factory()->create();
 
-        Connector::factory()->zohoConnected()->create([
-            'company_id' => $company1->id,
-            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '111'],
-        ]);
-        Connector::factory()->zohoConnected()->create([
-            'company_id' => $company2->id,
-            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '222'],
-        ]);
+        Connector::factory()->zohoConnected()->withOrganization('111')->create(['company_id' => $company1->id]);
+        Connector::factory()->zohoConnected()->withOrganization('222')->create(['company_id' => $company2->id]);
 
         $this->artisan('connectors:sync-zoho')
             ->assertSuccessful()
@@ -38,10 +32,7 @@ describe('SyncZohoInvoices command', function () {
     it('skips inactive connectors', function () {
         $company = Company::factory()->create();
 
-        Connector::factory()->zohoConnected()->inactive()->create([
-            'company_id' => $company->id,
-            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '111'],
-        ]);
+        Connector::factory()->zohoConnected()->inactive()->create(['company_id' => $company->id]);
 
         $this->artisan('connectors:sync-zoho')
             ->assertSuccessful()
@@ -52,14 +43,8 @@ describe('SyncZohoInvoices command', function () {
         $company1 = Company::factory()->create();
         $company2 = Company::factory()->create();
 
-        Connector::factory()->zohoConnected()->create([
-            'company_id' => $company1->id,
-            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '111'],
-        ]);
-        Connector::factory()->zohoConnected()->create([
-            'company_id' => $company2->id,
-            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '222'],
-        ]);
+        Connector::factory()->zohoConnected()->withOrganization('111')->create(['company_id' => $company1->id]);
+        Connector::factory()->zohoConnected()->withOrganization('222')->create(['company_id' => $company2->id]);
 
         $this->artisan("connectors:sync-zoho --company={$company1->id}")
             ->assertSuccessful()
@@ -70,14 +55,8 @@ describe('SyncZohoInvoices command', function () {
         $company1 = Company::factory()->create();
         $company2 = Company::factory()->create();
 
-        Connector::factory()->zohoConnected()->create([
-            'company_id' => $company1->id,
-            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '111'],
-        ]);
-        Connector::factory()->zohoConnected()->create([
-            'company_id' => $company2->id,
-            'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '222'],
-        ]);
+        Connector::factory()->zohoConnected()->withOrganization('111')->create(['company_id' => $company1->id]);
+        Connector::factory()->zohoConnected()->withOrganization('222')->create(['company_id' => $company2->id]);
 
         $this->partialMock(ZohoInvoiceService::class, function ($mock) {
             $mock->shouldReceive('syncForCompany')
