@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\AccountHead;
 use App\Models\TransactionAggregate;
+use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,7 @@ class TopAccountHeadsChart extends ChartWidget
     {
         /** @var Collection<int, TransactionAggregate> $aggregates */
         $aggregates = TransactionAggregate::query()
+            ->where('company_id', Filament::getTenant()->getKey())
             ->whereNotNull('account_head_id')
             ->select('account_head_id')
             ->addSelect(DB::raw('SUM(total_debit + total_credit) as total_amount'))
@@ -27,6 +29,10 @@ class TopAccountHeadsChart extends ChartWidget
             ->orderByDesc('total_amount')
             ->limit(10)
             ->get();
+
+        if ($aggregates->isEmpty()) {
+            return ['datasets' => [], 'labels' => []];
+        }
 
         $headNames = AccountHead::query()
             ->whereIn('id', $aggregates->pluck('account_head_id'))

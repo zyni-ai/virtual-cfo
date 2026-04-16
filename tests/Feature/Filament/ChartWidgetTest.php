@@ -4,7 +4,9 @@ use App\Filament\Widgets\MappingStatusChart;
 use App\Filament\Widgets\MonthlyDebitCreditChart;
 use App\Filament\Widgets\TopAccountHeadsChart;
 use App\Models\AccountHead;
+use App\Models\Company;
 use App\Models\Transaction;
+use App\Models\TransactionAggregate;
 
 use function Pest\Livewire\livewire;
 
@@ -61,6 +63,13 @@ describe('MappingStatusChart widget', function () {
             ->and($map['Manual'])->toBe(3)
             ->and($map['AI Matched'])->toBe(4);
     });
+
+    it('returns empty datasets and labels when company has no transactions', function () {
+        $data = getChartData(MappingStatusChart::class);
+
+        expect($data['datasets'])->toBeEmpty()
+            ->and($data['labels'])->toBeEmpty();
+    });
 });
 
 describe('TopAccountHeadsChart widget', function () {
@@ -112,6 +121,30 @@ describe('TopAccountHeadsChart widget', function () {
         expect($data['labels'])->toHaveCount(1)
             ->and($data['datasets'][0]['data'])->toHaveCount(1)
             ->and($data['datasets'][0]['data'][0])->toBe(500.0);
+    });
+
+    it('returns empty datasets and labels when company has no aggregates', function () {
+        $data = getChartData(TopAccountHeadsChart::class);
+
+        expect($data['datasets'])->toBeEmpty()
+            ->and($data['labels'])->toBeEmpty();
+    });
+
+    it('does not show data from other companies', function () {
+        $otherCompany = Company::factory()->create();
+        $head = AccountHead::factory()->create(['company_id' => $otherCompany->id]);
+
+        TransactionAggregate::factory()->create([
+            'company_id' => $otherCompany->id,
+            'account_head_id' => $head->id,
+            'total_debit' => 5000,
+            'total_credit' => 5000,
+        ]);
+
+        $data = getChartData(TopAccountHeadsChart::class);
+
+        expect($data['datasets'])->toBeEmpty()
+            ->and($data['labels'])->toBeEmpty();
     });
 });
 
@@ -194,5 +227,24 @@ describe('MonthlyDebitCreditChart widget', function () {
         // 2 months ago
         $idx = count($creditDataset['data']) - 3;
         expect($creditDataset['data'][$idx])->toBe(5000.0);
+    });
+
+    it('does not show data from other companies', function () {
+        $otherCompany = Company::factory()->create();
+
+        TransactionAggregate::factory()->create([
+            'company_id' => $otherCompany->id,
+            'year_month' => now()->format('Y-m'),
+            'total_debit' => 9999,
+            'total_credit' => 9999,
+        ]);
+
+        $data = getChartData(MonthlyDebitCreditChart::class);
+
+        $debitDataset = collect($data['datasets'])->firstWhere('label', 'Debits');
+        $creditDataset = collect($data['datasets'])->firstWhere('label', 'Credits');
+
+        expect(array_sum($debitDataset['data']))->toEqual(0)
+            ->and(array_sum($creditDataset['data']))->toEqual(0);
     });
 });
