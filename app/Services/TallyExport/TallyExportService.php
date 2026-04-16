@@ -191,6 +191,12 @@ class TallyExportService
             ? "Invoice No: {$invoiceNumber} payment towards {$vendorName}"
             : "Invoice payment towards {$vendorName}";
 
+        $lineItemNarration = $this->buildLineItemNarration($raw);
+
+        if ($lineItemNarration !== null) {
+            $narration .= "\n{$lineItemNarration}";
+        }
+
         $xml = '        <TALLYMESSAGE xmlns:UDF="TallyUDF">'."\n";
         $xml .= '          <VOUCHER VCHTYPE="Journal" ACTION="Create" OBJVIEW="Accounting Voucher View">'."\n";
         $xml .= '            <DATE>'.$date.'</DATE>'."\n";
@@ -268,7 +274,8 @@ class TallyExportService
         $placeOfSupply = (string) ($raw['place_of_supply'] ?? '');
         $serviceName = (string) ($raw['service_name'] ?? ($accountHead?->name ?? 'Unknown'));
         $hsnSac = (string) ($raw['hsn_sac'] ?? '');
-        $narration = (string) ($raw['description'] ?? $transaction->description ?? '');
+        $narration = $this->buildLineItemNarration($raw)
+            ?? (string) ($raw['description'] ?? $transaction->description ?? '');
         $baseAmount = (float) ($raw['base_amount'] ?? 0);
         $cgstRate = $raw['cgst_rate'] ?? null;
         $cgstAmount = (float) ($raw['cgst_amount'] ?? 0);
@@ -569,6 +576,20 @@ class TallyExportService
         }
 
         return ++$this->voucherCounters[$voucherType];
+    }
+
+    /** @param array<string, mixed> $raw */
+    private function buildLineItemNarration(array $raw): ?string
+    {
+        $lineItems = is_array($raw['line_items'] ?? null) ? $raw['line_items'] : [];
+
+        if (empty($lineItems)) {
+            return null;
+        }
+
+        $descriptions = array_filter(array_column($lineItems, 'description'));
+
+        return empty($descriptions) ? null : implode("\n", $descriptions);
     }
 
     private function escapeXml(string $value): string

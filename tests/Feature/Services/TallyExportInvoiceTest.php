@@ -141,6 +141,69 @@ describe('TallyExportService invoice Journal voucher', function () {
             ->not->toContain('Input Sgst');
     });
 
+    it('appends line item descriptions to narration in journal voucher', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+            'company_id' => tenant()->id,
+        ]);
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        Transaction::factory()->mapped($head)->create([
+            'imported_file_id' => $file->id,
+            'company_id' => tenant()->id,
+            'debit' => '31900',
+            'date' => '2025-04-01',
+            'raw_data' => [
+                'vendor_name' => 'Test Vendor Pvt Ltd',
+                'invoice_number' => 'INV/001',
+                'base_amount' => 27500.00,
+                'cgst_rate' => 9,
+                'cgst_amount' => 2475.00,
+                'sgst_rate' => 9,
+                'sgst_amount' => 2475.00,
+                'igst_amount' => null,
+                'tds_amount' => 0,
+                'total_amount' => 31900.00,
+                'line_items' => [
+                    ['description' => 'Manpower Supply - March 2025', 'amount' => 27500.00],
+                ],
+            ],
+        ]);
+
+        $xml = app(TallyExportService::class)->exportForFile($file);
+
+        expect($xml)->toContain('<NARRATION>Invoice No: INV/001 payment towards Test Vendor Pvt Ltd'."\n".'Manpower Supply - March 2025</NARRATION>');
+    });
+
+    it('falls back gracefully when line_items absent in journal voucher', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+            'company_id' => tenant()->id,
+        ]);
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        Transaction::factory()->mapped($head)->create([
+            'imported_file_id' => $file->id,
+            'company_id' => tenant()->id,
+            'debit' => '31900',
+            'date' => '2025-04-01',
+            'raw_data' => [
+                'vendor_name' => 'Test Vendor Pvt Ltd',
+                'invoice_number' => 'INV/002',
+                'base_amount' => 27500.00,
+                'cgst_rate' => 9,
+                'cgst_amount' => 2475.00,
+                'sgst_rate' => 9,
+                'sgst_amount' => 2475.00,
+                'igst_amount' => null,
+                'tds_amount' => 0,
+                'total_amount' => 31900.00,
+            ],
+        ]);
+
+        $xml = app(TallyExportService::class)->exportForFile($file);
+
+        expect($xml)->toContain('<NARRATION>Invoice No: INV/002 payment towards Test Vendor Pvt Ltd</NARRATION>');
+    });
+
     it('includes vendor party ledger as credit leg', function () {
         $file = ImportedFile::factory()->create([
             'statement_type' => StatementType::Invoice,
