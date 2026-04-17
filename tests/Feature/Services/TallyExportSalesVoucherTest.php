@@ -532,6 +532,37 @@ describe('TallyExportService sales voucher', function () {
         expect($xml)->toContain('<NARRATION>WATSAN Security &amp; OS Patch Updates</NARRATION>');
     });
 
+    it('strips wrapping parentheses from narration after service prefix removal', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+            'company_id' => tenant()->id,
+        ]);
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        Transaction::factory()->mapped($head)->create([
+            'imported_file_id' => $file->id,
+            'company_id' => tenant()->id,
+            'credit' => '3844.44',
+            'date' => '2026-04-01',
+            'raw_data' => [
+                'buyer_name' => 'VYGNIK BEHAVIORAL SERVICES PRIVATE LIMITED',
+                'service_name' => 'Website Maintenance',
+                'base_amount' => 3258.00,
+                'cgst_rate' => 9,
+                'cgst_amount' => 293.22,
+                'sgst_rate' => 9,
+                'sgst_amount' => 293.22,
+                'total_amount' => 3844.44,
+                'line_items' => [
+                    ['description' => 'Website Maintenance - (AWS, Vercel, Digital Ocean & AWS Lambda)', 'amount' => 3258.00],
+                ],
+            ],
+        ]);
+
+        $xml = app(TallyExportService::class)->exportForFile($file);
+
+        expect($xml)->toContain('<NARRATION>AWS, Vercel, Digital Ocean &amp; AWS Lambda</NARRATION>');
+    });
+
     it('does not strip prefix when service_name does not match description prefix', function () {
         $file = ImportedFile::factory()->create([
             'statement_type' => StatementType::Invoice,

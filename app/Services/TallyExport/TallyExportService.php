@@ -639,7 +639,12 @@ class TallyExportService
             return $value;
         }
 
-        return ltrim($remainder, ' -:');
+        return $this->unwrapParens(ltrim($remainder, ' -:'));
+    }
+
+    private function unwrapParens(string $value): string
+    {
+        return preg_match('/^\(([^()]+)\)$/', $value, $m) ? $m[1] : $value;
     }
 
     private function escapeXml(string $value): string
