@@ -275,7 +275,7 @@ class TallyExportService
         $serviceName = (string) ($raw['service_name'] ?? ($accountHead?->name ?? 'Unknown'));
         $hsnSac = (string) ($raw['hsn_sac'] ?? '');
         $narration = $this->buildLineItemNarration($raw, $serviceName)
-            ?? (string) ($raw['description'] ?? $transaction->description ?? '');
+            ?? $this->stripServicePrefix((string) ($raw['description'] ?? $transaction->description ?? ''), $serviceName);
         $baseAmount = (float) ($raw['base_amount'] ?? 0);
         $cgstRate = $raw['cgst_rate'] ?? null;
         $cgstAmount = (float) ($raw['cgst_amount'] ?? 0);
@@ -590,14 +590,24 @@ class TallyExportService
         $descriptions = array_filter(array_column($lineItems, 'description'));
 
         if ($serviceName !== null) {
-            $prefix = "{$serviceName} - ";
             $descriptions = array_map(
-                fn (string $desc) => str_starts_with($desc, $prefix) ? mb_substr($desc, mb_strlen($prefix)) : $desc,
+                fn (string $desc) => $this->stripServicePrefix($desc, $serviceName),
                 $descriptions,
             );
         }
 
         return empty($descriptions) ? null : implode("\n", $descriptions);
+    }
+
+    private function stripServicePrefix(string $value, string $serviceName): string
+    {
+        if ($serviceName === '') {
+            return $value;
+        }
+
+        $prefix = "{$serviceName} - ";
+
+        return str_starts_with($value, $prefix) ? mb_substr($value, mb_strlen($prefix)) : $value;
     }
 
     private function escapeXml(string $value): string
