@@ -41,7 +41,7 @@ describe('TallyExportService', function () {
                 ->and($xml)->toContain('<TALLYREQUEST>Import Data</TALLYREQUEST>')
                 ->and($xml)->toContain('<IMPORTDATA>')
                 ->and($xml)->toContain('<REQUESTDESC>')
-                ->and($xml)->toContain('<REPORTNAME>All Masters</REPORTNAME>')
+                ->and($xml)->toContain('<REPORTNAME>Vouchers</REPORTNAME>')
                 ->and($xml)->toContain('<SVCURRENTCOMPANY>Acme Corp Private Limited - 2025 - 2026</SVCURRENTCOMPANY>')
                 ->and($xml)->toContain('<REQUESTDATA>')
                 ->and($xml)->toContain('</ENVELOPE>');
@@ -60,8 +60,8 @@ describe('TallyExportService', function () {
         });
     });
 
-    describe('payment vouchers', function () {
-        it('generates payment voucher for debit transactions', function () {
+    describe('debit journal vouchers', function () {
+        it('generates journal voucher for debit transactions', function () {
             $head = AccountHead::factory()->create([
                 'company_id' => $this->company->id,
                 'name' => 'TATA CAPITAL LIMITED',
@@ -74,12 +74,11 @@ describe('TallyExportService', function () {
 
             $xml = $this->service->exportForFile($this->file);
 
-            expect($xml)->toContain('VCHTYPE="Payment"')
+            expect($xml)->toContain('VCHTYPE="Journal"')
                 ->and($xml)->toContain('ACTION="Create"')
                 ->and($xml)->toContain('<DATE>20250401</DATE>')
-                ->and($xml)->toContain('<VOUCHERTYPENAME>Payment</VOUCHERTYPENAME>')
+                ->and($xml)->toContain('<VOUCHERTYPENAME>Journal</VOUCHERTYPENAME>')
                 ->and($xml)->toContain('<NARRATION>ACH/TATACAPFINSERLTD</NARRATION>')
-                ->and($xml)->toContain('<PARTYLEDGERNAME>TATA CAPITAL LIMITED</PARTYLEDGERNAME>')
                 ->and($xml)->toContain('<CMPGSTIN>27AABCA5012F1ZA</CMPGSTIN>')
                 ->and($xml)->toContain('<CMPGSTREGISTRATIONTYPE>Regular</CMPGSTREGISTRATIONTYPE>')
                 ->and($xml)->toContain('<CMPGSTSTATE>Maharashtra</CMPGSTSTATE>');
@@ -108,7 +107,7 @@ describe('TallyExportService', function () {
                 ->and($xml)->toContain('<AMOUNT>50000.00</AMOUNT>');
         });
 
-        it('includes BANKALLOCATIONS.LIST on bank credit leg', function () {
+        it('does not include BANKALLOCATIONS.LIST in journal vouchers', function () {
             $head = AccountHead::factory()->create([
                 'company_id' => $this->company->id,
                 'name' => 'Office Supplies',
@@ -120,13 +119,12 @@ describe('TallyExportService', function () {
 
             $xml = $this->service->exportForFile($this->file);
 
-            expect($xml)->toContain('<BANKALLOCATIONS.LIST>')
-                ->and($xml)->toContain('<TRANSACTIONTYPE>Cheque</TRANSACTIONTYPE>');
+            expect($xml)->not->toContain('<BANKALLOCATIONS.LIST>');
         });
     });
 
-    describe('receipt vouchers', function () {
-        it('generates receipt voucher for credit transactions', function () {
+    describe('credit journal vouchers', function () {
+        it('generates journal voucher for credit transactions', function () {
             $head = AccountHead::factory()->create([
                 'company_id' => $this->company->id,
                 'name' => 'METAFIRST TECHNOLOGIES',
@@ -139,8 +137,8 @@ describe('TallyExportService', function () {
 
             $xml = $this->service->exportForFile($this->file);
 
-            expect($xml)->toContain('VCHTYPE="Receipt"')
-                ->and($xml)->toContain('<VOUCHERTYPENAME>Receipt</VOUCHERTYPENAME>');
+            expect($xml)->toContain('VCHTYPE="Journal"')
+                ->and($xml)->toContain('<VOUCHERTYPENAME>Journal</VOUCHERTYPENAME>');
         });
 
         it('generates correct ledger entries for receipt voucher', function () {

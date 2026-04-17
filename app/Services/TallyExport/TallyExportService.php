@@ -71,7 +71,7 @@ class TallyExportService
         $xml .= '  <BODY>'."\n";
         $xml .= '    <IMPORTDATA>'."\n";
         $xml .= '      <REQUESTDESC>'."\n";
-        $reportName = $this->isSalesInvoiceExport($transactions, $importedFile) ? 'Vouchers' : 'All Masters';
+        $reportName = $this->isAllMastersExport($transactions, $importedFile) ? 'All Masters' : 'Vouchers';
         $xml .= '        <REPORTNAME>'.$reportName.'</REPORTNAME>'."\n";
         $xml .= '        <STATICVARIABLES>'."\n";
         $xml .= '          <SVCURRENTCOMPANY>'.$this->escapeXml($companyName).'</SVCURRENTCOMPANY>'."\n";
@@ -111,9 +111,8 @@ class TallyExportService
             return $this->generateInvoiceJournalVoucher($transaction, $company);
         }
 
-        $isPayment = $transaction->debit !== null;
-        $voucherType = $isPayment ? 'Payment' : 'Receipt';
-        $amount = (float) ($isPayment ? $transaction->debit : $transaction->credit);
+        $isDebit = $transaction->debit !== null;
+        $amount = (float) ($isDebit ? $transaction->debit : $transaction->credit);
         /** @var Carbon $transactionDate */
         $transactionDate = $transaction->date;
         $date = $transactionDate->format('Ymd');
@@ -121,16 +120,15 @@ class TallyExportService
         $accountHead = $transaction->accountHead;
         $headName = $accountHead?->name ?? 'Unknown';
         $bankName = $bankLedgerName ?? 'Bank Account';
-        $voucherNumber = $this->nextVoucherNumber($voucherType);
+        $voucherNumber = $this->nextVoucherNumber('Journal');
 
         $xml = '        <TALLYMESSAGE xmlns:UDF="TallyUDF">'."\n";
-        $xml .= '          <VOUCHER VCHTYPE="'.$this->escapeXml($voucherType).'" ACTION="Create" OBJVIEW="Accounting Voucher View">'."\n";
+        $xml .= '          <VOUCHER VCHTYPE="Journal" ACTION="Create" OBJVIEW="Accounting Voucher View">'."\n";
         $xml .= '            <DATE>'.$date.'</DATE>'."\n";
         $xml .= '            <VCHSTATUSDATE>'.$date.'</VCHSTATUSDATE>'."\n";
         $xml .= '            <NARRATION>'.$this->escapeXml($transaction->description ?? '').'</NARRATION>'."\n";
-        $xml .= '            <VOUCHERTYPENAME>'.$this->escapeXml($voucherType).'</VOUCHERTYPENAME>'."\n";
+        $xml .= '            <VOUCHERTYPENAME>Journal</VOUCHERTYPENAME>'."\n";
         $xml .= '            <VOUCHERNUMBER>'.$voucherNumber.'</VOUCHERNUMBER>'."\n";
-        $xml .= '            <PARTYLEDGERNAME>'.$this->escapeXml($headName).'</PARTYLEDGERNAME>'."\n";
 
         if ($company) {
             $xml .= '            <CMPGSTIN>'.$this->escapeXml($company->gstin ?? '').'</CMPGSTIN>'."\n";
@@ -144,13 +142,9 @@ class TallyExportService
         $xml .= '            <ISONHOLD>No</ISONHOLD>'."\n";
         $xml .= '            <ISOPTIONAL>No</ISOPTIONAL>'."\n";
         $xml .= '            <AUDITED>No</AUDITED>'."\n";
-        $xml .= '            <HASCASHFLOW>Yes</HASCASHFLOW>'."\n";
+        $xml .= '            <HASCASHFLOW>No</HASCASHFLOW>'."\n";
 
-        if ($isPayment) {
-            $xml .= $this->generatePaymentLedgerEntries($headName, $bankName, $amount, $date);
-        } else {
-            $xml .= $this->generateReceiptLedgerEntries($headName, $bankName, $amount, $date);
-        }
+        $xml .= $this->generateBankJournalLedgerEntries($headName, $bankName, $amount, $isDebit);
 
         $xml .= '          </VOUCHER>'."\n";
         $xml .= '        </TALLYMESSAGE>'."\n";
@@ -461,65 +455,31 @@ class TallyExportService
     }
 
     /**
-     * Generate ledger entries for a Payment voucher.
-     * Debit: expense/party (negative amount, ISDEEMEDPOSITIVE=Yes)
-     * Credit: bank (positive amount, ISDEEMEDPOSITIVE=No)
+     * Generate the two-leg journal entry for a bank/CC transaction.
+     * Debit: ISDEEMEDPOSITIVE=Yes, negative amount. Credit: ISDEEMEDPOSITIVE=No, positive amount.
+     * Both legs carry ISPARTYLEDGER=Yes — no BANKALLOCATIONS.LIST.
      */
-    private function generatePaymentLedgerEntries(string $headName, string $bankName, float $amount, string $date): string
+    private function generateBankJournalLedgerEntries(string $headName, string $bankName, float $amount, bool $isDebit): string
     {
         $formattedAmount = number_format($amount, 2, '.', '');
+
+        [$debitLedger, $creditLedger] = $isDebit
+            ? [$headName, $bankName]
+            : [$bankName, $headName];
 
         $xml = '';
 
         $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$this->escapeXml($headName).'</LEDGERNAME>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($debitLedger).'</LEDGERNAME>'."\n";
         $xml .= '              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>'."\n";
+        $xml .= '              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>'."\n";
         $xml .= '              <AMOUNT>-'.$formattedAmount.'</AMOUNT>'."\n";
         $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
 
         $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$this->escapeXml($bankName).'</LEDGERNAME>'."\n";
+        $xml .= '              <LEDGERNAME>'.$this->escapeXml($creditLedger).'</LEDGERNAME>'."\n";
         $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
-        $xml .= '              <AMOUNT>'.$formattedAmount.'</AMOUNT>'."\n";
-        $xml .= '              <BANKALLOCATIONS.LIST>'."\n";
-        $xml .= '                <DATE>'.$date.'</DATE>'."\n";
-        $xml .= '                <INSTRUMENTDATE>'.$date.'</INSTRUMENTDATE>'."\n";
-        $xml .= '                <BANKERSDATE>'.$date.'</BANKERSDATE>'."\n";
-        $xml .= '                <TRANSACTIONTYPE>Cheque</TRANSACTIONTYPE>'."\n";
-        $xml .= '                <AMOUNT>'.$formattedAmount.'</AMOUNT>'."\n";
-        $xml .= '              </BANKALLOCATIONS.LIST>'."\n";
-        $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
-
-        return $xml;
-    }
-
-    /**
-     * Generate ledger entries for a Receipt voucher.
-     * Debit: bank (negative amount, ISDEEMEDPOSITIVE=Yes)
-     * Credit: party/income (positive amount, ISDEEMEDPOSITIVE=No)
-     */
-    private function generateReceiptLedgerEntries(string $headName, string $bankName, float $amount, string $date): string
-    {
-        $formattedAmount = number_format($amount, 2, '.', '');
-
-        $xml = '';
-
-        $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$this->escapeXml($bankName).'</LEDGERNAME>'."\n";
-        $xml .= '              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>'."\n";
-        $xml .= '              <AMOUNT>-'.$formattedAmount.'</AMOUNT>'."\n";
-        $xml .= '              <BANKALLOCATIONS.LIST>'."\n";
-        $xml .= '                <DATE>'.$date.'</DATE>'."\n";
-        $xml .= '                <INSTRUMENTDATE>'.$date.'</INSTRUMENTDATE>'."\n";
-        $xml .= '                <BANKERSDATE>'.$date.'</BANKERSDATE>'."\n";
-        $xml .= '                <TRANSACTIONTYPE>Cheque</TRANSACTIONTYPE>'."\n";
-        $xml .= '                <AMOUNT>-'.$formattedAmount.'</AMOUNT>'."\n";
-        $xml .= '              </BANKALLOCATIONS.LIST>'."\n";
-        $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
-
-        $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$this->escapeXml($headName).'</LEDGERNAME>'."\n";
-        $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
+        $xml .= '              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>'."\n";
         $xml .= '              <AMOUNT>'.$formattedAmount.'</AMOUNT>'."\n";
         $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
 
@@ -545,13 +505,12 @@ class TallyExportService
     }
 
     /**
-     * Determine whether the export should use the Sales voucher format.
-     * Invoice files whose first transaction carries a 'buyer_name' in raw_data
-     * are outward (sales) invoices; all others use the Journal format.
+     * Only purchase invoice Journal exports use REPORTNAME=All Masters.
+     * Sales invoices and bank/CC journal exports both use Vouchers.
      *
      * @param  Collection<int, Transaction>  $transactions
      */
-    private function isSalesInvoiceExport(Collection $transactions, ?ImportedFile $importedFile): bool
+    private function isAllMastersExport(Collection $transactions, ?ImportedFile $importedFile): bool
     {
         if ($importedFile?->statement_type !== StatementType::Invoice) {
             return false;
@@ -560,10 +519,14 @@ class TallyExportService
         /** @var Transaction|null $first */
         $first = $transactions->first();
 
-        /** @var array<string, mixed> $raw */
-        $raw = $first?->raw_data ?? [];
+        if ($first === null) {
+            return false;
+        }
 
-        return isset($raw['buyer_name']);
+        /** @var array<string, mixed> $raw */
+        $raw = $first->raw_data ?? [];
+
+        return ! isset($raw['buyer_name']);
     }
 
     /**
