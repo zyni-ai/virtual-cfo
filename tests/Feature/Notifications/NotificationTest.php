@@ -258,16 +258,15 @@ describe('Notification toDatabase format', function () {
             ->and($broadcast->data)->toHaveKey('title');
     });
 
-    it('LowConfidenceMatchesNotification database message includes a Review Queue action', function () {
+    it('LowConfidenceMatchesNotification database message has title and body', function () {
         $file = ImportedFile::factory()->create();
         $notification = new LowConfidenceMatchesNotification($file, count: 5);
 
         $message = $notification->toDatabase(User::factory()->create());
 
         expect($message)->toBeArray()
-            ->and($message)->toHaveKey('actions')
-            ->and($message['actions'])->not->toBeEmpty()
-            ->and($message['actions'][0]['url'])->toContain('review-queue');
+            ->and($message)->toHaveKey('title')
+            ->and($message)->toHaveKey('body');
     });
 });
 

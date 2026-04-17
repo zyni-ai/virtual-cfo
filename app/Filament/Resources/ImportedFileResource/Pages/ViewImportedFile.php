@@ -164,6 +164,20 @@ class ViewImportedFile extends ViewRecord
             ->success()
             ->send();
 
+        $lowConfidence = $this->record->transactions()
+            ->where('mapping_type', MappingType::Ai)
+            ->where('ai_confidence', '<', 0.8)
+            ->count();
+
+        if ($lowConfidence > 0) {
+            Notification::make()
+                ->title('Some matches need your review')
+                ->body("{$lowConfidence} transaction(s) have low confidence AI matches. Check the Review Queue.")
+                ->persistent()
+                ->info()
+                ->send();
+        }
+
         $this->refreshFormData(['mapped_rows', 'is_matching']);
 
         return true;
