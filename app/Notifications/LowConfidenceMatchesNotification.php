@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\ImportedFile;
+use Filament\Actions\Action;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,6 +35,13 @@ class LowConfidenceMatchesNotification extends Notification implements ShouldQue
             ->title('Low confidence matches need review')
             ->body("{$this->count} transactions in {$this->importedFile->original_filename} have low confidence matches and need manual review.")
             ->warning()
+            ->actions([
+                Action::make('review')
+                    ->label('Go to Review Queue')
+                    ->url(url("/admin/{$this->importedFile->company_id}/review-queue"))
+                    ->button()
+                    ->markAsRead(),
+            ])
             ->getDatabaseMessage();
     }
 }
