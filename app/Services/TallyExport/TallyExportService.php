@@ -272,7 +272,7 @@ class TallyExportService
         $buyerName = (string) ($raw['buyer_name'] ?? 'Unknown Buyer');
         $buyerGstin = (string) ($raw['buyer_gstin'] ?? '');
         $placeOfSupply = (string) ($raw['place_of_supply'] ?? '');
-        $serviceName = (string) ($raw['service_name'] ?? ($accountHead?->name ?? 'Unknown'));
+        $serviceName = (string) ($raw['service_name'] ?? $this->deriveServiceName($raw) ?? ($accountHead?->name ?? 'Unknown'));
         $hsnSac = (string) ($raw['hsn_sac'] ?? '');
         $narration = $this->buildLineItemNarration($raw, $serviceName)
             ?? $this->stripServicePrefix((string) ($raw['description'] ?? $transaction->description ?? ''), $serviceName);
@@ -579,9 +579,27 @@ class TallyExportService
     }
 
     /** @param array<string, mixed> $raw */
+    private function deriveServiceName(array $raw): ?string
+    {
+        $lineItems = $this->getLineItems($raw);
+
+        if (empty($lineItems)) {
+            return null;
+        }
+
+        $firstDesc = (string) ($lineItems[0]['description'] ?? '');
+
+        if (! str_contains($firstDesc, ' - ')) {
+            return null;
+        }
+
+        return trim(explode(' - ', $firstDesc, 2)[0]);
+    }
+
+    /** @param array<string, mixed> $raw */
     private function buildLineItemNarration(array $raw, ?string $serviceName = null): ?string
     {
-        $lineItems = is_array($raw['line_items'] ?? null) ? $raw['line_items'] : [];
+        $lineItems = $this->getLineItems($raw);
 
         if (empty($lineItems)) {
             return null;
@@ -599,9 +617,18 @@ class TallyExportService
         return empty($descriptions) ? null : implode("\n", $descriptions);
     }
 
+    /**
+     * @param  array<string, mixed>  $raw
+     * @return array<int, mixed>
+     */
+    private function getLineItems(array $raw): array
+    {
+        return is_array($raw['line_items'] ?? null) ? $raw['line_items'] : [];
+    }
+
     private function stripServicePrefix(string $value, string $serviceName): string
     {
-        if ($serviceName === '' || !str_starts_with($value, $serviceName)) {
+        if ($serviceName === '' || ! str_starts_with($value, $serviceName)) {
             return $value;
         }
 

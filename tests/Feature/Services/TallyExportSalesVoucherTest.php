@@ -654,6 +654,42 @@ describe('TallyExportService sales voucher', function () {
             ->toContain('<PLACEOFSUPPLY>Karnataka</PLACEOFSUPPLY>')
             ->toContain('<STATENAME>Karnataka</STATENAME>');
     });
+
+    it('derives service_name from line item prefix when service_name is absent', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+            'company_id' => tenant()->id,
+        ]);
+        $head = AccountHead::factory()->create([
+            'company_id' => tenant()->id,
+            'name' => 'Branch / Divisions',
+        ]);
+        Transaction::factory()->mapped($head)->create([
+            'imported_file_id' => $file->id,
+            'company_id' => tenant()->id,
+            'credit' => '68440',
+            'date' => '2026-04-13',
+            'raw_data' => [
+                'buyer_name' => 'Technology Informatics Design Endeavour',
+                // No service_name — simulates InvoiceParser missing the field
+                'base_amount' => 58000,
+                'cgst_rate' => 9,
+                'cgst_amount' => 5220,
+                'sgst_rate' => 9,
+                'sgst_amount' => 5220,
+                'total_amount' => 68440,
+                'line_items' => [
+                    ['description' => 'Website Maintenance - WATSAN Security & OS Patch Updates', 'amount' => 58000],
+                ],
+            ],
+        ]);
+
+        $xml = app(TallyExportService::class)->exportForFile($file);
+
+        expect($xml)
+            ->toContain('<LEDGERNAME>Website Maintenance</LEDGERNAME>')
+            ->toContain('<NARRATION>WATSAN Security &amp; OS Patch Updates</NARRATION>');
+    });
 });
 
 describe('InvoiceParser schema for sales invoices', function () {

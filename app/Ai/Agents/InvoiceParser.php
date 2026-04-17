@@ -52,6 +52,7 @@ class InvoiceParser implements Agent, HasMiddleware, HasStructuredOutput
         - For inter-state supply: extract IGST rate and amount
         - Extract TDS amount if deducted
         - Parse ALL line items with description, HSN/SAC code, quantity, rate, and amount
+        - Extract service_name as the overall service category the vendor provides (e.g., "Website Maintenance", "Cloud Hosting", "IT Consulting"). Infer it from the invoice header, vendor specialization, or line item descriptions — if descriptions follow the pattern "ServiceCategory - Specific Detail", use "ServiceCategory" as service_name
         - Dates should be in YYYY-MM-DD format
         - Amounts should be numeric (no currency symbols or commas)
         - Detect the invoice currency from the document (currency symbols, text like "USD", "EUR", etc.)
