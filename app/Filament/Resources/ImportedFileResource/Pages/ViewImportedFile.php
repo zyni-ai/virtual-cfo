@@ -50,6 +50,13 @@ class ViewImportedFile extends ViewRecord
                         ->body('AI matching will run in the background.')
                         ->success()
                         ->send();
+
+                    $this->js(<<<'JS'
+                        const poll = setInterval(async () => {
+                            const done = await $wire.pollMatchStatus();
+                            if (done) clearInterval(poll);
+                        }, 3000);
+                    JS);
                 }),
 
             Actions\Action::make('download')
@@ -137,6 +144,29 @@ class ViewImportedFile extends ViewRecord
             'imported_file_id' => $data['importedFileId'] ?? null,
             'apply_immediately' => true,
         ]);
+    }
+
+    public function pollMatchStatus(): bool
+    {
+        $this->record->refresh();
+
+        if ($this->record->is_matching) {
+            return false;
+        }
+
+        $mapped = $this->record->transactions()->where('mapping_type', '!=', MappingType::Unmapped)->count();
+        $total = $this->record->total_rows ?? 0;
+
+        Notification::make()
+            ->title('Head matching completed')
+            ->body("Matched {$mapped} of {$total} transactions.")
+            ->persistent()
+            ->success()
+            ->send();
+
+        $this->refreshFormData(['mapped_rows', 'is_matching']);
+
+        return true;
     }
 
     #[On('dismissRuleSuggestion')]

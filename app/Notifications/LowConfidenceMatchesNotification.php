@@ -38,7 +38,7 @@ class LowConfidenceMatchesNotification extends Notification implements ShouldQue
             ->actions([
                 Action::make('review')
                     ->label('Go to Review Queue')
-                    ->url(url("/admin/{$this->importedFile->company_id}/review-queue"))
+                    ->url("/admin/{$this->importedFile->company_id}/review-queue")
                     ->button()
                     ->markAsRead(),
             ])
