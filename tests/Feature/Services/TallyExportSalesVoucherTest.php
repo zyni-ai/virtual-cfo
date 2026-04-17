@@ -501,6 +501,37 @@ describe('TallyExportService sales voucher', function () {
         expect($xml)->toContain('<NARRATION>AWS, Vercel, Digital Ocean &amp; AWS Lambda</NARRATION>');
     });
 
+    it('strips service_name prefix separated by a space (no dash) from line item description', function () {
+        $file = ImportedFile::factory()->create([
+            'statement_type' => StatementType::Invoice,
+            'company_id' => tenant()->id,
+        ]);
+        $head = AccountHead::factory()->create(['company_id' => tenant()->id]);
+        Transaction::factory()->mapped($head)->create([
+            'imported_file_id' => $file->id,
+            'company_id' => tenant()->id,
+            'credit' => '68440',
+            'date' => '2026-04-13',
+            'raw_data' => [
+                'buyer_name' => 'Technology Informatics Design Endeavour',
+                'service_name' => 'Website Maintenance',
+                'base_amount' => 58000,
+                'cgst_rate' => 9,
+                'cgst_amount' => 5220,
+                'sgst_rate' => 9,
+                'sgst_amount' => 5220,
+                'total_amount' => 68440,
+                'line_items' => [
+                    ['description' => 'Website Maintenance WATSAN Security & OS Patch Updates', 'amount' => 58000],
+                ],
+            ],
+        ]);
+
+        $xml = app(TallyExportService::class)->exportForFile($file);
+
+        expect($xml)->toContain('<NARRATION>WATSAN Security &amp; OS Patch Updates</NARRATION>');
+    });
+
     it('does not strip prefix when service_name does not match description prefix', function () {
         $file = ImportedFile::factory()->create([
             'statement_type' => StatementType::Invoice,

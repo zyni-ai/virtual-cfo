@@ -601,13 +601,18 @@ class TallyExportService
 
     private function stripServicePrefix(string $value, string $serviceName): string
     {
-        if ($serviceName === '') {
+        if ($serviceName === '' || !str_starts_with($value, $serviceName)) {
             return $value;
         }
 
-        $prefix = "{$serviceName} - ";
+        $remainder = mb_substr($value, mb_strlen($serviceName));
 
-        return str_starts_with($value, $prefix) ? mb_substr($value, mb_strlen($prefix)) : $value;
+        // Only strip when the service name ends at a word boundary (not mid-word)
+        if ($remainder === '' || ctype_alnum(mb_substr($remainder, 0, 1))) {
+            return $value;
+        }
+
+        return ltrim($remainder, ' -:');
     }
 
     private function escapeXml(string $value): string
