@@ -61,11 +61,14 @@ describe('Notification classes', function () {
             ->and($channels)->toContain('broadcast');
     });
 
-    it('LowConfidenceMatchesNotification uses database channel', function () {
+    it('LowConfidenceMatchesNotification uses database and broadcast channels', function () {
         $file = ImportedFile::factory()->create();
         $notification = new LowConfidenceMatchesNotification($file, count: 3);
 
-        expect($notification->via(User::factory()->create()))->toBe(['database']);
+        $channels = $notification->via(User::factory()->create());
+
+        expect($channels)->toContain('database')
+            ->and($channels)->toContain('broadcast');
     });
 
     it('InvitationAcceptedNotification uses database and mail channels', function () {
@@ -267,6 +270,16 @@ describe('Notification toDatabase format', function () {
         expect($message)->toBeArray()
             ->and($message)->toHaveKey('title')
             ->and($message)->toHaveKey('body');
+    });
+
+    it('LowConfidenceMatchesNotification returns a broadcast message', function () {
+        $file = ImportedFile::factory()->create();
+        $notification = new LowConfidenceMatchesNotification($file, count: 5);
+
+        $broadcast = $notification->toBroadcast(User::factory()->create());
+
+        expect($broadcast)->toBeInstanceOf(BroadcastMessage::class)
+            ->and($broadcast->data)->toHaveKey('title');
     });
 });
 

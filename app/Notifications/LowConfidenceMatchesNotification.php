@@ -6,11 +6,14 @@ use App\Models\ImportedFile;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
 class LowConfidenceMatchesNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    private ?FilamentNotification $notification = null;
 
     public function __construct(
         public ImportedFile $importedFile,
@@ -22,7 +25,7 @@ class LowConfidenceMatchesNotification extends Notification implements ShouldQue
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'broadcast'];
     }
 
     /**
@@ -30,10 +33,20 @@ class LowConfidenceMatchesNotification extends Notification implements ShouldQue
      */
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Low confidence matches need review')
-            ->body("{$this->count} transactions in {$this->importedFile->original_filename} have low confidence matches and need manual review.")
-            ->warning()
-            ->getDatabaseMessage();
+        return $this->buildFilamentNotification()->getDatabaseMessage();
+    }
+
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return $this->buildFilamentNotification()->getBroadcastMessage();
+    }
+
+    private function buildFilamentNotification(): FilamentNotification
+    {
+        return $this->notification ??= FilamentNotification::make()
+            ->title('Some matches need your review')
+            ->body("{$this->count} transaction(s) in {$this->importedFile->original_filename} have low confidence AI matches. Check the Review Queue.")
+            ->persistent()
+            ->warning();
     }
 }
