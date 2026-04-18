@@ -48,14 +48,16 @@ class HeadMatcherService
             return ['rule_matched' => 0, 'recurring_matched' => 0, 'ai_matched' => 0, 'unmatched' => 0];
         }
 
+        $companyId = $importedFile->company_id;
+
         // Pass 1: Rule-based matching in chunks
-        $ruleCount = $this->runChunkedRuleMatching($importedFile);
+        $ruleCount = $this->runChunkedRuleMatching($importedFile, $companyId);
 
         // Pass 2: Recurring pattern matching for remaining unmapped
         $recurringCount = $this->runRecurringPatternMatching($importedFile);
 
         // Pass 3: AI matching in chunks for remaining unmapped
-        $aiCount = $this->runChunkedAiMatching($importedFile);
+        $aiCount = $this->runChunkedAiMatching($importedFile, $companyId);
 
         // Update file stats
         $importedFile->update([
@@ -77,7 +79,7 @@ class HeadMatcherService
     /**
      * Run rule-based matching in chunks to avoid loading all transactions at once.
      */
-    protected function runChunkedRuleMatching(ImportedFile $importedFile): int
+    protected function runChunkedRuleMatching(ImportedFile $importedFile, int $companyId): int
     {
         $totalMatched = 0;
 
@@ -85,8 +87,8 @@ class HeadMatcherService
 
         $importedFile->transactions()
             ->where('mapping_type', MappingType::Unmapped)
-            ->chunkById($this->ruleChunkSize, function (Collection $transactions) use ($bankName, &$totalMatched) {
-                $ruleMatches = $this->ruleBasedMatcher->match($transactions, $bankName);
+            ->chunkById($this->ruleChunkSize, function (Collection $transactions) use ($bankName, $companyId, &$totalMatched) {
+                $ruleMatches = $this->ruleBasedMatcher->match($transactions, $bankName, $companyId);
                 $totalMatched += $this->ruleBasedMatcher->applyMatches($ruleMatches);
             });
 
@@ -119,18 +121,18 @@ class HeadMatcherService
     /**
      * Run AI matching in batches of descriptions per agent call.
      */
-    protected function runChunkedAiMatching(ImportedFile $importedFile): int
+    protected function runChunkedAiMatching(ImportedFile $importedFile, int $companyId): int
     {
         $totalMatched = 0;
 
         // Load chart of accounts once for all chunks
-        $chartOfAccounts = $this->loadChartOfAccounts();
+        $chartOfAccounts = $this->loadChartOfAccounts($companyId);
 
         $importedFile->transactions()
             ->where('mapping_type', MappingType::Unmapped)
-            ->chunkById($this->aiChunkSize, function (Collection $transactions) use (&$totalMatched, $chartOfAccounts) {
+            ->chunkById($this->aiChunkSize, function (Collection $transactions) use (&$totalMatched, $chartOfAccounts, $companyId) {
                 try {
-                    $totalMatched += $this->runAiMatching($transactions, $chartOfAccounts);
+                    $totalMatched += $this->runAiMatching($transactions, $chartOfAccounts, $companyId);
                 } catch (\Throwable $e) {
                     Log::warning('AI matching chunk failed, skipping', [
                         'transaction_ids' => $transactions->pluck('id')->all(),
@@ -145,9 +147,10 @@ class HeadMatcherService
     /**
      * Load active account heads formatted for the AI agent.
      */
-    protected function loadChartOfAccounts(): string
+    protected function loadChartOfAccounts(int $companyId): string
     {
         return AccountHead::where('is_active', true)
+            ->where('company_id', $companyId)
             ->get()
             ->map(fn (AccountHead $head) => "{$head->id}: {$head->name} ({$head->group_name})")
             ->implode("\n");
@@ -156,7 +159,7 @@ class HeadMatcherService
     /**
      * Run AI matching on a collection of unmapped transactions.
      */
-    protected function runAiMatching(Collection $transactions, string $chartOfAccounts): int
+    protected function runAiMatching(Collection $transactions, string $chartOfAccounts, int $companyId): int
     {
         $descriptions = $transactions->map(fn (Transaction $t) => [
             'id' => $t->id,
@@ -180,7 +183,7 @@ class HeadMatcherService
         $matched = 0;
 
         foreach ($response['matches'] ?? [] as $match) {
-            $head = $this->resolveAccountHead($match);
+            $head = $this->resolveAccountHead($match, $companyId);
 
             if (! $head) {
                 continue;
@@ -204,20 +207,24 @@ class HeadMatcherService
      *
      * @param  array<string, mixed>  $match
      */
-    private function resolveAccountHead(array $match): ?AccountHead
+    private function resolveAccountHead(array $match, int $companyId): ?AccountHead
     {
-        // Primary: lookup by ID
+        // Primary: lookup by ID scoped to this company
         if (isset($match['suggested_head_id'])) {
-            $head = AccountHead::find($match['suggested_head_id']);
+            $head = AccountHead::where('id', $match['suggested_head_id'])
+                ->where('company_id', $companyId)
+                ->first();
 
             if ($head) {
                 return $head;
             }
         }
 
-        // Fallback: lookup by name
+        // Fallback: lookup by name scoped to this company
         if (isset($match['suggested_head_name'])) {
-            $head = AccountHead::where('name', $match['suggested_head_name'])->first();
+            $head = AccountHead::where('name', $match['suggested_head_name'])
+                ->where('company_id', $companyId)
+                ->first();
 
             if ($head) {
                 Log::warning('AI matching: account head resolved by name fallback', [

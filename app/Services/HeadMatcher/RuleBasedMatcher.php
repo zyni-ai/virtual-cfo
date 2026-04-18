@@ -34,10 +34,14 @@ class RuleBasedMatcher
      * @param  Collection<int, Transaction>  $transactions
      * @return array<int, array{transaction_id: int, account_head_id: int, mapping_id: int}>
      */
-    public function match(Collection $transactions, ?string $bankName = null): array
+    public function match(Collection $transactions, ?string $bankName = null, ?int $companyId = null): array
     {
         $query = HeadMapping::with('accountHead')
             ->whereHas('accountHead', fn (Builder $q) => $q->where('is_active', true));
+
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
 
         if ($bankName) {
             $query->where(function (Builder $q) use ($bankName) {

@@ -123,12 +123,6 @@ class ProcessImportedFile implements ShouldQueue
 
         if ($statementType === StatementType::Invoice) {
             SuggestReconciliationMatches::dispatch($this->importedFile);
-
-            return;
-        }
-
-        if ($this->importedFile->source->shouldAutoMatchHeads()) {
-            MatchTransactionHeads::dispatch($this->importedFile);
         }
     }
 

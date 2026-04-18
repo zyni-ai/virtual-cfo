@@ -48,6 +48,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->brandName('Virtual CFO')
             ->databaseNotifications()
+            ->databaseNotificationsPolling('10s')
             ->tenant(Company::class)
             ->tenantRegistration(RegisterCompany::class)
             ->tenantProfile(EditCompanySettings::class)

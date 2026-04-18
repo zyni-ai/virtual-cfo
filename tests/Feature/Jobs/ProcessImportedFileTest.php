@@ -302,7 +302,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
             ->and($transactions->first()->mapping_type)->toBe(MappingType::Unmapped);
     });
 
-    it('auto-dispatches MatchTransactionHeads after processing a bank statement', function () {
+    it('does not auto-dispatch MatchTransactionHeads after processing a bank statement', function () {
         Storage::fake('local');
         Storage::put('statements/test.pdf', 'fake-pdf-content');
 
@@ -334,12 +334,10 @@ describe('ProcessImportedFile with Agent::fake()', function () {
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Completed);
 
-        Queue::assertPushed(MatchTransactionHeads::class, function ($job) use ($file) {
-            return $job->importedFile->id === $file->id;
-        });
+        Queue::assertNotPushed(MatchTransactionHeads::class);
     });
 
-    it('auto-dispatches MatchTransactionHeads after processing a credit card statement', function () {
+    it('does not auto-dispatch MatchTransactionHeads after processing a credit card statement', function () {
         Storage::fake('local');
         Storage::put('statements/cc.pdf', 'fake-pdf-content');
 
@@ -366,9 +364,7 @@ describe('ProcessImportedFile with Agent::fake()', function () {
         $file->refresh();
         expect($file->status)->toBe(ImportStatus::Completed);
 
-        Queue::assertPushed(MatchTransactionHeads::class, function ($job) use ($file) {
-            return $job->importedFile->id === $file->id;
-        });
+        Queue::assertNotPushed(MatchTransactionHeads::class);
     });
 
     it('does not dispatch MatchTransactionHeads for invoice files', function () {
@@ -578,7 +574,7 @@ describe('ProcessImportedFile email import matching', function () {
         Queue::assertNotPushed(MatchTransactionHeads::class);
     });
 
-    it('dispatches MatchTransactionHeads for a bank statement uploaded manually', function () {
+    it('does not dispatch MatchTransactionHeads for a bank statement uploaded manually', function () {
         Storage::fake('local');
         Storage::put('statements/bank.pdf', 'fake-pdf-content');
 
@@ -603,6 +599,6 @@ describe('ProcessImportedFile email import matching', function () {
         $job = new ProcessImportedFile($file);
         $job->handle(app(DocumentProcessor::class));
 
-        Queue::assertPushed(MatchTransactionHeads::class, fn ($job) => $job->importedFile->id === $file->id);
+        Queue::assertNotPushed(MatchTransactionHeads::class);
     });
 });

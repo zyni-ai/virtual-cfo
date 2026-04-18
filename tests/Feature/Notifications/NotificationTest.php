@@ -14,6 +14,7 @@ use App\Notifications\MemberRemovedNotification;
 use App\Notifications\MemberRoleChangedNotification;
 use App\Notifications\StatementReceivedByEmailNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Notification;
 
@@ -50,18 +51,24 @@ describe('Notification classes', function () {
             ->and($notification->via($file->uploader))->toContain('mail');
     });
 
-    it('HeadMatchingCompletedNotification uses database channel', function () {
+    it('HeadMatchingCompletedNotification uses database and broadcast channels', function () {
         $file = ImportedFile::factory()->create();
         $notification = new HeadMatchingCompletedNotification($file, ruleMatched: 5, aiMatched: 3, unmatched: 2);
 
-        expect($notification->via(User::factory()->create()))->toBe(['database']);
+        $channels = $notification->via(User::factory()->create());
+
+        expect($channels)->toContain('database')
+            ->and($channels)->toContain('broadcast');
     });
 
-    it('LowConfidenceMatchesNotification uses database channel', function () {
+    it('LowConfidenceMatchesNotification uses database and broadcast channels', function () {
         $file = ImportedFile::factory()->create();
         $notification = new LowConfidenceMatchesNotification($file, count: 3);
 
-        expect($notification->via(User::factory()->create()))->toBe(['database']);
+        $channels = $notification->via(User::factory()->create());
+
+        expect($channels)->toContain('database')
+            ->and($channels)->toContain('broadcast');
     });
 
     it('InvitationAcceptedNotification uses database and mail channels', function () {
@@ -242,6 +249,37 @@ describe('Notification toDatabase format', function () {
 
         expect($message)->toBeArray()
             ->and($message)->toHaveKey('body');
+    });
+
+    it('HeadMatchingCompletedNotification returns a broadcast message', function () {
+        $file = ImportedFile::factory()->create();
+        $notification = new HeadMatchingCompletedNotification($file, ruleMatched: 10, aiMatched: 5, unmatched: 3);
+
+        $broadcast = $notification->toBroadcast(User::factory()->create());
+
+        expect($broadcast)->toBeInstanceOf(BroadcastMessage::class)
+            ->and($broadcast->data)->toHaveKey('title');
+    });
+
+    it('LowConfidenceMatchesNotification database message has title and body', function () {
+        $file = ImportedFile::factory()->create();
+        $notification = new LowConfidenceMatchesNotification($file, count: 5);
+
+        $message = $notification->toDatabase(User::factory()->create());
+
+        expect($message)->toBeArray()
+            ->and($message)->toHaveKey('title')
+            ->and($message)->toHaveKey('body');
+    });
+
+    it('LowConfidenceMatchesNotification returns a broadcast message', function () {
+        $file = ImportedFile::factory()->create();
+        $notification = new LowConfidenceMatchesNotification($file, count: 5);
+
+        $broadcast = $notification->toBroadcast(User::factory()->create());
+
+        expect($broadcast)->toBeInstanceOf(BroadcastMessage::class)
+            ->and($broadcast->data)->toHaveKey('title');
     });
 });
 
