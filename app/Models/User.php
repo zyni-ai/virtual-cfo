@@ -34,6 +34,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         'role',
         'toured_pages',
         'dismissed_suggestions',
+        'last_used_company_id',
     ];
 
     protected $hidden = [
@@ -76,7 +77,17 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     public function getDefaultTenant(Panel $panel): ?Model
     {
-        return $this->companies->first();
+        $companies = $this->companies;
+
+        if ($this->last_used_company_id) {
+            $lastUsed = $companies->firstWhere('id', $this->last_used_company_id);
+
+            if ($lastUsed) {
+                return $lastUsed;
+            }
+        }
+
+        return $companies->first();
     }
 
     /** @var array<int, UserRole|null> */
