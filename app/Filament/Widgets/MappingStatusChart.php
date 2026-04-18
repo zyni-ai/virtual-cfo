@@ -21,6 +21,10 @@ class MappingStatusChart extends ChartWidget
             ->groupBy('mapping_type')
             ->pluck('total', 'mapping_type');
 
+        if ($counts->isEmpty()) {
+            return ['datasets' => [], 'labels' => []];
+        }
+
         $labels = [];
         $data = [];
         $colors = [];

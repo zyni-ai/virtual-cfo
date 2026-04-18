@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\TransactionAggregate;
+use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ class MonthlyDebitCreditChart extends ChartWidget
 
         /** @var Collection<int, TransactionAggregate> $aggregates */
         $aggregates = TransactionAggregate::query()
+            ->where('company_id', Filament::getTenant()->getKey())
             ->where('year_month', '>=', $startMonth)
             ->select('year_month')
             ->addSelect(DB::raw('SUM(total_debit) as sum_debit'))
