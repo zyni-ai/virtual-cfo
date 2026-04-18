@@ -272,10 +272,10 @@ class TallyExportService
         $buyerName = (string) ($raw['buyer_name'] ?? 'Unknown Buyer');
         $buyerGstin = (string) ($raw['buyer_gstin'] ?? '');
         $placeOfSupply = (string) ($raw['place_of_supply'] ?? '');
-        $serviceName = (string) ($raw['service_name'] ?? ($accountHead?->name ?? 'Unknown'));
+        $serviceName = (string) ($raw['service_name'] ?? $this->deriveServiceName($raw) ?? ($accountHead?->name ?? 'Unknown'));
         $hsnSac = (string) ($raw['hsn_sac'] ?? '');
-        $narration = $this->buildLineItemNarration($raw)
-            ?? (string) ($raw['description'] ?? $transaction->description ?? '');
+        $narration = $this->buildLineItemNarration($raw, $serviceName)
+            ?? $this->stripServicePrefix((string) ($raw['description'] ?? $transaction->description ?? ''), $serviceName);
         $baseAmount = (float) ($raw['base_amount'] ?? 0);
         $cgstRate = $raw['cgst_rate'] ?? null;
         $cgstAmount = (float) ($raw['cgst_amount'] ?? 0);
@@ -579,9 +579,27 @@ class TallyExportService
     }
 
     /** @param array<string, mixed> $raw */
-    private function buildLineItemNarration(array $raw): ?string
+    private function deriveServiceName(array $raw): ?string
     {
-        $lineItems = is_array($raw['line_items'] ?? null) ? $raw['line_items'] : [];
+        $lineItems = $this->getLineItems($raw);
+
+        if (empty($lineItems)) {
+            return null;
+        }
+
+        $firstDesc = (string) ($lineItems[0]['description'] ?? '');
+
+        if (! str_contains($firstDesc, ' - ')) {
+            return null;
+        }
+
+        return trim(explode(' - ', $firstDesc, 2)[0]);
+    }
+
+    /** @param array<string, mixed> $raw */
+    private function buildLineItemNarration(array $raw, ?string $serviceName = null): ?string
+    {
+        $lineItems = $this->getLineItems($raw);
 
         if (empty($lineItems)) {
             return null;
@@ -589,7 +607,44 @@ class TallyExportService
 
         $descriptions = array_filter(array_column($lineItems, 'description'));
 
+        if ($serviceName !== null) {
+            $descriptions = array_map(
+                fn (string $desc) => $this->stripServicePrefix($desc, $serviceName),
+                $descriptions,
+            );
+        }
+
         return empty($descriptions) ? null : implode("\n", $descriptions);
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     * @return array<int, mixed>
+     */
+    private function getLineItems(array $raw): array
+    {
+        return is_array($raw['line_items'] ?? null) ? $raw['line_items'] : [];
+    }
+
+    private function stripServicePrefix(string $value, string $serviceName): string
+    {
+        if ($serviceName === '' || ! str_starts_with($value, $serviceName)) {
+            return $value;
+        }
+
+        $remainder = mb_substr($value, mb_strlen($serviceName));
+
+        // Only strip when the service name ends at a word boundary (not mid-word)
+        if ($remainder === '' || ctype_alnum(mb_substr($remainder, 0, 1))) {
+            return $value;
+        }
+
+        return $this->unwrapParens(ltrim($remainder, ' -:'));
+    }
+
+    private function unwrapParens(string $value): string
+    {
+        return preg_match('/^\(([^()]+)\)$/', $value, $m) ? $m[1] : $value;
     }
 
     private function escapeXml(string $value): string
