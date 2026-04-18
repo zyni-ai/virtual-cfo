@@ -23,11 +23,10 @@ describe('ZohoInvoiceService', function () {
 
     describe('Token refresh', function () {
         it('refreshes token when expiring soon', function () {
-            $connector = Connector::factory()->create([
+            $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
                 'token_expires_at' => now()->addMinutes(3),
                 'access_token' => 'old-token',
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -49,7 +48,6 @@ describe('ZohoInvoiceService', function () {
         it('does not refresh token when not expiring soon', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -64,10 +62,9 @@ describe('ZohoInvoiceService', function () {
         });
 
         it('throws exception when token refresh fails', function () {
-            $connector = Connector::factory()->create([
+            $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
                 'token_expires_at' => now()->addMinutes(3),
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -83,7 +80,6 @@ describe('ZohoInvoiceService', function () {
         it('fetches invoices and creates ImportedFile records', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -119,7 +115,6 @@ describe('ZohoInvoiceService', function () {
         it('syncs multiple invoices', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -144,7 +139,6 @@ describe('ZohoInvoiceService', function () {
         it('stores PDF in private statements directory', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -166,7 +160,6 @@ describe('ZohoInvoiceService', function () {
         it('skips invoice when PDF download fails', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -185,7 +178,6 @@ describe('ZohoInvoiceService', function () {
         it('throws when invoice fetch fails', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -199,7 +191,6 @@ describe('ZohoInvoiceService', function () {
         it('handles empty invoice list', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -216,7 +207,6 @@ describe('ZohoInvoiceService', function () {
         it('skips invoices already imported', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             ImportedFile::factory()->fromZoho('INV-001')->create([
@@ -240,7 +230,6 @@ describe('ZohoInvoiceService', function () {
         it('does not treat different company invoices as duplicates', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             $otherCompany = Company::factory()->create();
@@ -265,7 +254,6 @@ describe('ZohoInvoiceService', function () {
         it('dispatches ProcessImportedFile for each new invoice', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             Http::fake([
@@ -287,7 +275,6 @@ describe('ZohoInvoiceService', function () {
         it('does not dispatch job for duplicate invoices', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
             ]);
 
             ImportedFile::factory()->fromZoho('INV-001')->create([
@@ -312,7 +299,6 @@ describe('ZohoInvoiceService', function () {
         it('updates last_synced_at on connector after sync', function () {
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
                 'last_synced_at' => null,
             ]);
 
@@ -332,7 +318,6 @@ describe('ZohoInvoiceService', function () {
             $lastSynced = now()->subHours(2);
             $connector = Connector::factory()->zohoConnected()->create([
                 'company_id' => $this->company->id,
-                'settings' => ['data_center' => 'in', 'client_id' => 'test-client', 'client_secret' => 'test-secret', 'organization_id' => '12345678'],
                 'last_synced_at' => $lastSynced,
             ]);
 
