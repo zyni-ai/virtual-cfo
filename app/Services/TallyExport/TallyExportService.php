@@ -122,6 +122,10 @@ class TallyExportService
         $bankName = $bankLedgerName ?? 'Bank Account';
         $voucherNumber = $this->nextVoucherNumber('Journal');
 
+        /** @var array<string, mixed> $raw */
+        $raw = $transaction->raw_data ?? [];
+        $vendorName = (string) ($raw['vendor_name'] ?? '') ?: null;
+
         $xml = '        <TALLYMESSAGE xmlns:UDF="TallyUDF">'."\n";
         $xml .= '          <VOUCHER VCHTYPE="Journal" ACTION="Create" OBJVIEW="Accounting Voucher View">'."\n";
         $xml .= '            <DATE>'.$date.'</DATE>'."\n";
@@ -129,6 +133,10 @@ class TallyExportService
         $xml .= '            <NARRATION>'.$this->escapeXml($transaction->description ?? '').'</NARRATION>'."\n";
         $xml .= '            <VOUCHERTYPENAME>Journal</VOUCHERTYPENAME>'."\n";
         $xml .= '            <VOUCHERNUMBER>'.$voucherNumber.'</VOUCHERNUMBER>'."\n";
+
+        if ($vendorName !== null) {
+            $xml .= '            <PARTYLEDGERNAME>'.$this->escapeXml($vendorName).'</PARTYLEDGERNAME>'."\n";
+        }
 
         if ($company) {
             $xml .= '            <CMPGSTIN>'.$this->escapeXml($company->gstin ?? '').'</CMPGSTIN>'."\n";
@@ -144,7 +152,7 @@ class TallyExportService
         $xml .= '            <AUDITED>No</AUDITED>'."\n";
         $xml .= '            <HASCASHFLOW>No</HASCASHFLOW>'."\n";
 
-        $xml .= $this->generateBankJournalLedgerEntries($headName, $bankName, $amount, $isDebit);
+        $xml .= $this->generateBankJournalLedgerEntries($headName, $bankName, $amount, $isDebit, $vendorName);
 
         $xml .= '          </VOUCHER>'."\n";
         $xml .= '        </TALLYMESSAGE>'."\n";
@@ -458,14 +466,16 @@ class TallyExportService
      * Generate the two-leg journal entry for a bank/CC transaction.
      * Debit: ISDEEMEDPOSITIVE=Yes, negative amount. Credit: ISDEEMEDPOSITIVE=No, positive amount.
      * Both legs carry ISPARTYLEDGER=Yes — no BANKALLOCATIONS.LIST.
+     * vendor_name overrides headName as debit ledger to close the vendor payable opened by the purchase journal.
      */
-    private function generateBankJournalLedgerEntries(string $headName, string $bankName, float $amount, bool $isDebit): string
+    private function generateBankJournalLedgerEntries(string $headName, string $bankName, float $amount, bool $isDebit, ?string $vendorName = null): string
     {
         $formattedAmount = number_format($amount, 2, '.', '');
+        $debitLedgerName = $vendorName ?? $headName;
 
         [$debitLedger, $creditLedger] = $isDebit
-            ? [$headName, $bankName]
-            : [$bankName, $headName];
+            ? [$debitLedgerName, $bankName]
+            : [$bankName, $debitLedgerName];
 
         $xml = '';
 
