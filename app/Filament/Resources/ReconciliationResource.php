@@ -12,6 +12,7 @@ use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\Reconciliation\ReconciliationService;
+use App\Services\TallyExport\TallyExportService;
 use BackedEnum;
 use Filament\Actions;
 use Filament\Facades\Filament;
@@ -204,6 +205,40 @@ class ReconciliationResource extends Resource
                 ]),
             ])
             ->headerActions([
+                Actions\Action::make('export_tally')
+                    ->label('Export to Tally')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->action(function () {
+                        /** @var Company $company */
+                        $company = Filament::getTenant();
+
+                        $transactions = Transaction::query()
+                            ->where('company_id', $company->id)
+                            ->matched()
+                            ->whereNotNull('account_head_id')
+                            ->with(['accountHead', 'importedFile.bankAccount', 'importedFile.company'])
+                            ->orderBy('date')
+                            ->get();
+
+                        if ($transactions->isEmpty()) {
+                            Notification::make()
+                                ->title('No matched transactions to export')
+                                ->warning()
+                                ->send();
+
+                            return;
+                        }
+
+                        $xml = app(TallyExportService::class)->exportTransactions($transactions);
+
+                        return response()->streamDownload(
+                            fn () => print ($xml),
+                            'tally-export-'.now()->format('Y-m-d-His').'.xml',
+                            ['Content-Type' => 'application/xml'],
+                        );
+                    }),
+
                 Actions\Action::make('run_reconciliation')
                     ->label('Run Reconciliation')
                     ->icon('heroicon-o-arrow-path')

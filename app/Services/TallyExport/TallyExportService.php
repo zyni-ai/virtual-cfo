@@ -100,7 +100,11 @@ class TallyExportService
      */
     private function generateVoucher(Transaction $transaction, ?Company $company, ?string $bankLedgerName, ?ImportedFile $importedFile = null): string
     {
-        if ($importedFile?->statement_type === StatementType::Invoice) {
+        $effectiveFile = $transaction->relationLoaded('importedFile')
+            ? $transaction->importedFile
+            : $importedFile;
+
+        if ($effectiveFile?->statement_type === StatementType::Invoice) {
             /** @var array<string, mixed> $raw */
             $raw = $transaction->raw_data ?? [];
 
@@ -119,7 +123,7 @@ class TallyExportService
         /** @var AccountHead|null $accountHead */
         $accountHead = $transaction->accountHead;
         $headName = $accountHead?->name ?? 'Unknown';
-        $bankName = $bankLedgerName ?? 'Bank Account';
+        $bankName = $effectiveFile?->bankAccount?->name ?? $bankLedgerName ?? 'Bank Account';
         $voucherNumber = $this->nextVoucherNumber('Journal');
 
         /** @var array<string, mixed> $raw */

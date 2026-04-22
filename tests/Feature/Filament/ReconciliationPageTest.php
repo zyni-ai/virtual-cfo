@@ -8,6 +8,7 @@ use App\Filament\Resources\ReconciliationResource;
 use App\Filament\Resources\ReconciliationResource\Pages\ListReconciliation;
 use App\Filament\Widgets\ReconciliationStatsOverview;
 use App\Jobs\ReconcileImportedFiles;
+use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
@@ -432,6 +433,35 @@ describe('Reconciliation Page', function () {
 
         expect($match1->status)->toBe(MatchStatus::Rejected)
             ->and($match2->status)->toBe(MatchStatus::Rejected);
+    });
+});
+
+describe('Export to Tally action', function () {
+    beforeEach(function () {
+        asUser();
+    });
+
+    it('sends a notification when there are no matched transactions', function () {
+        livewire(ListReconciliation::class)
+            ->callTableAction('export_tally')
+            ->assertNotified('No matched transactions to export');
+    });
+
+    it('does not send the empty-state notification when matched transactions exist', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+
+        $head = AccountHead::factory()->create(['name' => 'Test Expense']);
+
+        Transaction::factory()->mapped($head)->debit(1000)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Matched,
+        ]);
+
+        livewire(ListReconciliation::class)
+            ->callTableAction('export_tally')
+            ->assertNotNotified('No matched transactions to export');
     });
 });
 
