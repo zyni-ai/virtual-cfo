@@ -563,14 +563,16 @@ class DocumentProcessor
         if (preg_match('/^(\d{1,2})[\/\-](\d{2})[\/\-](\d{4})$/', $date, $m)) {
             try {
                 return Carbon::createFromFormat('d/m/Y', "{$m[1]}/{$m[2]}/{$m[3]}");
-            } catch (\Exception) {}
+            } catch (\Exception) {
+            }
         }
 
         // DD-Mon-YYYY or DD Mon YYYY (e.g. "05-Apr-2026", "05 Apr 2026")
         if (preg_match('/^(\d{1,2})[\s\-]([A-Za-z]{3,9})[\s\-](\d{4})$/', $date)) {
             try {
                 return Carbon::createFromFormat('d M Y', preg_replace('/[\-]/', ' ', $date));
-            } catch (\Exception) {}
+            } catch (\Exception) {
+            }
         }
 
         // YYYY-MM-DD (unambiguous ISO format — safe to parse directly)
