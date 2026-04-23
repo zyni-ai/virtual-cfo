@@ -861,7 +861,7 @@ describe('DocumentProcessor', function () {
             expect($file->card_variant)->toBeNull();
         });
 
-        it('regenerates display_name after processing with bank_name and card_variant', function () {
+        it('generates display_name after processing when display_name is blank', function () {
             Storage::put('statements/cc_regen.pdf', 'fake-pdf-content');
 
             StatementParser::fake([
@@ -881,13 +881,42 @@ describe('DocumentProcessor', function () {
                 'status' => ImportStatus::Pending,
                 'bank_name' => null,
                 'card_variant' => null,
-                'display_name' => '_Apr 2026',
+                'display_name' => null,
             ]);
 
             $this->processor->process($file);
 
             $file->refresh();
             expect($file->display_name)->toBe('ICICI Bank_Platinum_Mar_2026');
+        });
+
+        it('preserves user-entered display_name after processing', function () {
+            Storage::put('statements/cc_custom.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'ICICI Bank',
+                    'card_variant' => 'Platinum',
+                    'statement_period' => '2026-02-06 to 2026-03-05',
+                    'transactions' => [
+                        ['date' => '2026-02-10', 'description' => 'AMAZON', 'debit' => 500],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->creditCard()->create([
+                'file_path' => 'statements/cc_custom.pdf',
+                'original_filename' => 'icici_cc.pdf',
+                'status' => ImportStatus::Pending,
+                'bank_name' => null,
+                'card_variant' => null,
+                'display_name' => 'My Custom Statement Name',
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->display_name)->toBe('My Custom Statement Name');
         });
     });
 

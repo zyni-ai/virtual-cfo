@@ -117,6 +117,28 @@ class TransactionResource extends Resource
                     ))
                     ->searchable(),
 
+                Tables\Filters\Filter::make('statement_type')
+                    ->form([
+                        Forms\Components\Select::make('value')
+                            ->label('Type')
+                            ->options(StatementType::class)
+                            ->placeholder('All types'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (blank($data['value'])) {
+                            return $query;
+                        }
+
+                        return $query->whereHas('importedFile', fn (Builder $q) => $q->where('statement_type', $data['value']));
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if (blank($data['value'])) {
+                            return null;
+                        }
+
+                        return StatementType::from($data['value'])->getLabel();
+                    }),
+
                 Tables\Filters\SelectFilter::make('mapping_type')
                     ->options(MappingType::class),
 

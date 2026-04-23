@@ -153,7 +153,7 @@ describe('DisplayNameGenerator', function () {
         expect($name)->toBe('HDFC_Millennia_Feb_2025');
     });
 
-    it('generates invoice display name from invoice number, vendor name, and service description', function () {
+    it('generates invoice display name from invoice number, buyer name, and service description', function () {
         $file = ImportedFile::factory()->create([
             'statement_type' => StatementType::Invoice,
         ]);
@@ -161,7 +161,7 @@ describe('DisplayNameGenerator', function () {
             'imported_file_id' => $file->id,
             'raw_data' => [
                 'invoice_number' => 'INV/2439',
-                'vendor_name' => 'Test Vendor Pvt Ltd',
+                'buyer_name' => 'Test Vendor Pvt Ltd',
                 'line_items' => [
                     ['description' => 'Office Assistant and Housekeeping charges', 'amount' => 27500.00],
                 ],
@@ -174,7 +174,7 @@ describe('DisplayNameGenerator', function () {
         expect($name)->toBe('INV/2439_Test Vendor_Office Assistant');
     });
 
-    it('strips legal suffixes from vendor name in invoice display name', function () {
+    it('strips legal suffixes from buyer name in invoice display name', function () {
         $file = ImportedFile::factory()->create([
             'statement_type' => StatementType::Invoice,
         ]);
@@ -182,7 +182,7 @@ describe('DisplayNameGenerator', function () {
             'imported_file_id' => $file->id,
             'raw_data' => [
                 'invoice_number' => 'ZY24-0045',
-                'vendor_name' => 'Minds Creative Solutions Private Limited',
+                'buyer_name' => 'Minds Creative Solutions Private Limited',
                 'line_items' => [
                     ['description' => 'Website Development Project - Varuna Month - Jul\'24 to Aug\'24', 'amount' => 50000.00],
                 ],
@@ -195,14 +195,14 @@ describe('DisplayNameGenerator', function () {
         expect($name)->toBe('ZY24-0045_Minds Creative Solutions_Website Development');
     });
 
-    it('generates invoice display name with only vendor name when invoice number and line items are missing', function () {
+    it('generates invoice display name with only buyer name when invoice number and line items are missing', function () {
         $file = ImportedFile::factory()->create([
             'statement_type' => StatementType::Invoice,
         ]);
         Transaction::factory()->create([
             'imported_file_id' => $file->id,
             'raw_data' => [
-                'vendor_name' => 'Simple Vendor Ltd',
+                'buyer_name' => 'Simple Vendor Ltd',
             ],
         ]);
 

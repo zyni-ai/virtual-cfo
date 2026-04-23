@@ -49,7 +49,7 @@ class ReconciliationResource extends Resource
                 'importedFile',
                 'accountHead',
                 /** @phpstan-ignore method.notFound */
-                'reconciliationMatchesAsBank' => fn (Relation $q) => $q->suggested(),
+                'reconciliationMatchesAsBank' => fn (Relation $q) => $q->suggested()->with('invoiceTransaction'),
             ])
             ->whereHas('importedFile', fn (Builder $q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]));
     }
@@ -72,7 +72,26 @@ class ReconciliationResource extends Resource
                     ->label('Description')
                     ->limit(40)
                     ->tooltip(fn (Transaction $record): string => $record->description)
-                    ->searchable(),
+                    ->searchable()
+                    ->description(function (Transaction $record): ?string {
+                        // Pre-confirmation: read from the suggested match's invoice transaction
+                        $invoiceTxn = $record->reconciliationMatchesAsBank->first()?->invoiceTransaction;
+                        if ($invoiceTxn) {
+                            /** @var array<string, mixed> $raw */
+                            $raw = $invoiceTxn->raw_data ?? [];
+
+                            return self::formatMatchedInvoiceLabel($raw, $invoiceTxn->description);
+                        }
+
+                        if ($record->reconciliation_status === ReconciliationStatus::Matched) {
+                            /** @var array<string, mixed> $raw */
+                            $raw = $record->raw_data ?? [];
+
+                            return self::formatMatchedInvoiceLabel($raw, null);
+                        }
+
+                        return null;
+                    }),
 
                 static::amountColumn(),
 
@@ -217,6 +236,7 @@ class ReconciliationResource extends Resource
                             ->where('company_id', $company->id)
                             ->matched()
                             ->whereNotNull('account_head_id')
+                            ->whereHas('importedFile', fn (Builder $q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]))
                             ->with(['accountHead', 'importedFile.bankAccount', 'importedFile.company'])
                             ->orderBy('date')
                             ->get();
@@ -245,15 +265,18 @@ class ReconciliationResource extends Resource
                     ->color('primary')
                     ->form([
                         Select::make('bank_file_id')
-                            ->label('Bank Statement File')
+                            ->label('Bank / CC Statement File')
                             ->options(function () {
                                 /** @var Company $company */
                                 $company = Filament::getTenant();
 
                                 return ImportedFile::where('company_id', $company->id)
-                                    ->where('statement_type', StatementType::Bank)
+                                    ->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard])
                                     ->where('status', ImportStatus::Completed)
-                                    ->pluck('original_filename', 'id');
+                                    ->get(['id', 'display_name', 'original_filename'])
+                                    ->mapWithKeys(fn (ImportedFile $f) => [
+                                        $f->id => $f->display_name ?? $f->original_filename,
+                                    ]);
                             })
                             ->searchable()
                             ->required(),
@@ -267,7 +290,10 @@ class ReconciliationResource extends Resource
                                 return ImportedFile::where('company_id', $company->id)
                                     ->where('statement_type', StatementType::Invoice)
                                     ->where('status', ImportStatus::Completed)
-                                    ->pluck('original_filename', 'id');
+                                    ->get(['id', 'display_name', 'original_filename'])
+                                    ->mapWithKeys(fn (ImportedFile $f) => [
+                                        $f->id => $f->display_name ?? $f->original_filename,
+                                    ]);
                             })
                             ->searchable()
                             ->required(),
@@ -290,6 +316,27 @@ class ReconciliationResource extends Resource
             ->emptyStateHeading('No transactions to reconcile')
             ->emptyStateDescription('Upload bank statements and invoices, then run reconciliation to match them.')
             ->emptyStateIcon('heroicon-o-scale');
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     */
+    private static function formatMatchedInvoiceLabel(array $raw, ?string $fallbackDescription): ?string
+    {
+        $vendor = $raw['vendor_name'] ?? '';
+        $invoiceNumber = $raw['invoice_number'] ?? '';
+
+        if (blank($vendor) && blank($invoiceNumber)) {
+            $vendor = $fallbackDescription ?? '';
+        }
+
+        if (blank($vendor) && blank($invoiceNumber)) {
+            return null;
+        }
+
+        return $invoiceNumber !== ''
+            ? "↳ {$vendor} · #{$invoiceNumber}"
+            : "↳ {$vendor}";
     }
 
     public static function getRelations(): array

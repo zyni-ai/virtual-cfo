@@ -107,7 +107,7 @@ describe('TallyExportService', function () {
                 ->and($xml)->toContain('<AMOUNT>50000.00</AMOUNT>');
         });
 
-        it('does not include BANKALLOCATIONS.LIST in journal vouchers', function () {
+        it('includes BANKALLOCATIONS.LIST as empty list anchor in each ledger entry', function () {
             $head = AccountHead::factory()->create([
                 'company_id' => $this->company->id,
                 'name' => 'Office Supplies',
@@ -119,7 +119,7 @@ describe('TallyExportService', function () {
 
             $xml = $this->service->exportForFile($this->file);
 
-            expect($xml)->not->toContain('<BANKALLOCATIONS.LIST>');
+            expect($xml)->toContain('<BANKALLOCATIONS.LIST>');
         });
     });
 
@@ -338,7 +338,7 @@ describe('TallyExportService', function () {
     });
 
     describe('valid XML output', function () {
-        it('produces well-formed XML that can be parsed', function () {
+        it('produces well-structured Tally XML envelope', function () {
             $head = AccountHead::factory()->create([
                 'company_id' => $this->company->id,
                 'name' => 'Test Head',
@@ -350,10 +350,14 @@ describe('TallyExportService', function () {
 
             $xml = $this->service->exportForFile($this->file);
 
-            $doc = new DOMDocument;
-            $result = $doc->loadXML($xml);
-
-            expect($result)->toBeTrue();
+            // Tally XML uses &#4; (control char) which is valid for Tally but not strict XML 1.0.
+            // Verify structural correctness without strict XML parsing.
+            expect($xml)
+                ->toStartWith('<?xml version="1.0" encoding="UTF-8"?>')
+                ->toContain('<ENVELOPE>')
+                ->toContain('</ENVELOPE>')
+                ->toContain('<TALLYMESSAGE')
+                ->toContain('<VOUCHER');
         });
     });
 
