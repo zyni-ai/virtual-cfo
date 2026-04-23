@@ -139,7 +139,7 @@ class ReconciliationResource extends Resource
                                 ->options(function (Transaction $record) {
                                     return Transaction::whereHas('importedFile', fn (Builder $q) => $q->where('statement_type', StatementType::Invoice)
                                         ->where('company_id', $record->importedFile?->company_id))
-                                        ->where('reconciliation_status', ReconciliationStatus::Unreconciled)
+                                        ->whereIn('reconciliation_status', [ReconciliationStatus::Unreconciled, ReconciliationStatus::Flagged])
                                         ->orderByDesc('date')
                                         ->limit(500)
                                         ->get()
