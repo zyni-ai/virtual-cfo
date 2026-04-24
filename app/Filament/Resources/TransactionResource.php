@@ -136,7 +136,7 @@ class TransactionResource extends Resource
                             return null;
                         }
 
-                        return StatementType::from($data['value'])->getLabel();
+                        return StatementType::tryFrom($data['value'])?->getLabel();
                     }),
 
                 Tables\Filters\SelectFilter::make('mapping_type')

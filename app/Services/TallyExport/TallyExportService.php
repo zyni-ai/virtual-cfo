@@ -15,7 +15,8 @@ class TallyExportService
     /** @var array<string, int> */
     private array $voucherCounters = [];
 
-    /** @var array<string, string> Boolean flags emitted on every Journal voucher, keyed by Tally field name. */
+    // Boolean flags emitted on every Journal voucher, keyed by Tally field name.
+    /** @phpstan-var array<string, string> */
     private const JOURNAL_BOOLEAN_FLAGS = [
         'DIFFACTUALQTY' => 'No', 'ISMSTFROMSYNC' => 'No', 'ISDELETED' => 'No',
         'ISSECURITYONWHENENTERED' => 'No', 'ASORIGINAL' => 'No', 'AUDITED' => 'No',
