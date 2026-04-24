@@ -36,7 +36,7 @@ class DisplayNameGenerator
         $raw = $firstTransaction?->raw_data;
 
         $invoiceNumber = $raw['invoice_number'] ?? null;
-        $buyerName = $this->stripCompanySuffix($raw['buyer_name'] ?? null);
+        $buyerName = $this->stripCompanySuffix($raw['vendor_name'] ?? $raw['buyer_name'] ?? null);
         $description = $this->shortenDescription($raw['line_items'][0]['description'] ?? null);
 
         $parts = array_filter([$invoiceNumber, $buyerName, $description]);
