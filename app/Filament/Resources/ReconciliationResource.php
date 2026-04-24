@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\ImportStatus;
 use App\Enums\MatchMethod;
+use App\Enums\MatchStatus;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
 use App\Filament\Resources\ReconciliationResource\Pages;
@@ -48,8 +49,7 @@ class ReconciliationResource extends Resource
             ->with([
                 'importedFile',
                 'accountHead',
-                /** @phpstan-ignore method.notFound */
-                'reconciliationMatchesAsBank' => fn (Relation $q) => $q->suggested()->with('invoiceTransaction'),
+                'reconciliationMatchesAsBank' => fn (Relation $q) => $q->whereIn('status', [MatchStatus::Suggested, MatchStatus::Confirmed])->with('invoiceTransaction'),
             ])
             ->whereHas('importedFile', fn (Builder $q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]));
     }
@@ -74,23 +74,16 @@ class ReconciliationResource extends Resource
                     ->tooltip(fn (Transaction $record): string => $record->description)
                     ->searchable()
                     ->description(function (Transaction $record): ?string {
-                        // Pre-confirmation: read from the suggested match's invoice transaction
                         $invoiceTxn = $record->reconciliationMatchesAsBank->first()?->invoiceTransaction;
-                        if ($invoiceTxn) {
-                            /** @var array<string, mixed> $raw */
-                            $raw = $invoiceTxn->raw_data ?? [];
 
-                            return self::formatMatchedInvoiceLabel($raw, $invoiceTxn->description);
+                        if (! $invoiceTxn) {
+                            return null;
                         }
 
-                        if ($record->reconciliation_status === ReconciliationStatus::Matched) {
-                            /** @var array<string, mixed> $raw */
-                            $raw = $record->raw_data ?? [];
+                        /** @var array<string, mixed> $raw */
+                        $raw = $invoiceTxn->raw_data ?? [];
 
-                            return self::formatMatchedInvoiceLabel($raw, null);
-                        }
-
-                        return null;
+                        return self::formatMatchedInvoiceLabel($raw, $invoiceTxn->description);
                     }),
 
                 static::amountColumn(),

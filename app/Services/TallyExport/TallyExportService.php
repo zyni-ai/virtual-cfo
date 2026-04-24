@@ -194,6 +194,8 @@ class TallyExportService
         $xml .= '            <VOUCHERNUMBER>'.$voucherNumber.'</VOUCHERNUMBER>'."\n";
         $xml .= $this->journalVoucherGstFields($company);
         $xml .= '            <NUMBERINGSTYLE>Auto Retain</NUMBERINGSTYLE>'."\n";
+        // &#4; (U+0004, EOT) is Tally's sentinel value for "not applicable" enum fields.
+        // It is forbidden in strict XML 1.0 but Tally requires it — do not replace with an empty string.
         $xml .= '            <CSTFORMISSUETYPE>&#4; Not Applicable</CSTFORMISSUETYPE>'."\n";
         $xml .= '            <CSTFORMRECVTYPE>&#4; Not Applicable</CSTFORMRECVTYPE>'."\n";
         $xml .= '            <FBTPAYMENTTYPE>Default</FBTPAYMENTTYPE>'."\n";

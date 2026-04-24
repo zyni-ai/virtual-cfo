@@ -350,8 +350,9 @@ describe('TallyExportService', function () {
 
             $xml = $this->service->exportForFile($this->file);
 
-            // Tally XML uses &#4; (control char) which is valid for Tally but not strict XML 1.0.
-            // Verify structural correctness without strict XML parsing.
+            // Tally uses &#4; (U+0004 EOT) as a sentinel for "not applicable" enum fields.
+            // This is forbidden in XML 1.0, so DOMDocument::loadXML() rejects the output.
+            // We verify structural correctness via string matching instead.
             expect($xml)
                 ->toStartWith('<?xml version="1.0" encoding="UTF-8"?>')
                 ->toContain('<ENVELOPE>')

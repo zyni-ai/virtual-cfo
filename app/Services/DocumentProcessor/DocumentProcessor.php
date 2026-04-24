@@ -559,8 +559,8 @@ class DocumentProcessor
     {
         $date = trim($date);
 
-        // DD/MM/YYYY or DD-MM-YYYY (Indian format — must check before Carbon::parse which defaults to MM/DD)
-        if (preg_match('/^(\d{1,2})[\/\-](\d{2})[\/\-](\d{4})$/', $date, $m)) {
+        // D/M/YYYY, DD/MM/YYYY, or DD-MM-YYYY (Indian format — must check before Carbon::parse which defaults to MM/DD)
+        if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $date, $m)) {
             try {
                 return Carbon::createFromFormat('d/m/Y', "{$m[1]}/{$m[2]}/{$m[3]}");
             } catch (\Exception) {
