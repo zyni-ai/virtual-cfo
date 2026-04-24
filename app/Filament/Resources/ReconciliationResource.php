@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\ImportStatus;
 use App\Enums\MatchMethod;
+use App\Enums\MatchStatus;
 use App\Enums\ReconciliationStatus;
 use App\Enums\StatementType;
 use App\Filament\Resources\ReconciliationResource\Pages;
@@ -12,6 +13,7 @@ use App\Models\Company;
 use App\Models\ImportedFile;
 use App\Models\Transaction;
 use App\Services\Reconciliation\ReconciliationService;
+use App\Services\TallyExport\TallyExportService;
 use BackedEnum;
 use Filament\Actions;
 use Filament\Facades\Filament;
@@ -47,8 +49,7 @@ class ReconciliationResource extends Resource
             ->with([
                 'importedFile',
                 'accountHead',
-                /** @phpstan-ignore method.notFound */
-                'reconciliationMatchesAsBank' => fn (Relation $q) => $q->suggested(),
+                'reconciliationMatchesAsBank' => fn (Relation $q) => $q->whereIn('status', [MatchStatus::Suggested, MatchStatus::Confirmed])->with('invoiceTransaction'),
             ])
             ->whereHas('importedFile', fn (Builder $q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]));
     }
@@ -71,7 +72,19 @@ class ReconciliationResource extends Resource
                     ->label('Description')
                     ->limit(40)
                     ->tooltip(fn (Transaction $record): string => $record->description)
-                    ->searchable(),
+                    ->searchable()
+                    ->description(function (Transaction $record): ?string {
+                        $invoiceTxn = $record->reconciliationMatchesAsBank->first()?->invoiceTransaction;
+
+                        if (! $invoiceTxn) {
+                            return null;
+                        }
+
+                        /** @var array<string, mixed> $raw */
+                        $raw = $invoiceTxn->raw_data ?? [];
+
+                        return self::formatMatchedInvoiceLabel($raw, $invoiceTxn->description);
+                    }),
 
                 static::amountColumn(),
 
@@ -119,7 +132,7 @@ class ReconciliationResource extends Resource
                                 ->options(function (Transaction $record) {
                                     return Transaction::whereHas('importedFile', fn (Builder $q) => $q->where('statement_type', StatementType::Invoice)
                                         ->where('company_id', $record->importedFile?->company_id))
-                                        ->where('reconciliation_status', ReconciliationStatus::Unreconciled)
+                                        ->whereIn('reconciliation_status', [ReconciliationStatus::Unreconciled, ReconciliationStatus::Flagged])
                                         ->orderByDesc('date')
                                         ->limit(500)
                                         ->get()
@@ -204,21 +217,59 @@ class ReconciliationResource extends Resource
                 ]),
             ])
             ->headerActions([
+                Actions\Action::make('export_tally')
+                    ->label('Export to Tally')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->action(function () {
+                        /** @var Company $company */
+                        $company = Filament::getTenant();
+
+                        $transactions = Transaction::query()
+                            ->where('company_id', $company->id)
+                            ->matched()
+                            ->whereNotNull('account_head_id')
+                            ->whereHas('importedFile', fn (Builder $q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]))
+                            ->with(['accountHead', 'importedFile.bankAccount', 'importedFile.company'])
+                            ->orderBy('date')
+                            ->get();
+
+                        if ($transactions->isEmpty()) {
+                            Notification::make()
+                                ->title('No matched transactions to export')
+                                ->warning()
+                                ->send();
+
+                            return;
+                        }
+
+                        $xml = app(TallyExportService::class)->exportTransactions($transactions);
+
+                        return response()->streamDownload(
+                            fn () => print ($xml),
+                            'tally-export-'.now()->format('Y-m-d-His').'.xml',
+                            ['Content-Type' => 'application/xml'],
+                        );
+                    }),
+
                 Actions\Action::make('run_reconciliation')
                     ->label('Run Reconciliation')
                     ->icon('heroicon-o-arrow-path')
                     ->color('primary')
                     ->form([
                         Select::make('bank_file_id')
-                            ->label('Bank Statement File')
+                            ->label('Bank / CC Statement File')
                             ->options(function () {
                                 /** @var Company $company */
                                 $company = Filament::getTenant();
 
                                 return ImportedFile::where('company_id', $company->id)
-                                    ->where('statement_type', StatementType::Bank)
+                                    ->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard])
                                     ->where('status', ImportStatus::Completed)
-                                    ->pluck('original_filename', 'id');
+                                    ->get(['id', 'display_name', 'original_filename'])
+                                    ->mapWithKeys(fn (ImportedFile $f) => [
+                                        $f->id => $f->display_name ?? $f->original_filename,
+                                    ]);
                             })
                             ->searchable()
                             ->required(),
@@ -232,7 +283,10 @@ class ReconciliationResource extends Resource
                                 return ImportedFile::where('company_id', $company->id)
                                     ->where('statement_type', StatementType::Invoice)
                                     ->where('status', ImportStatus::Completed)
-                                    ->pluck('original_filename', 'id');
+                                    ->get(['id', 'display_name', 'original_filename'])
+                                    ->mapWithKeys(fn (ImportedFile $f) => [
+                                        $f->id => $f->display_name ?? $f->original_filename,
+                                    ]);
                             })
                             ->searchable()
                             ->required(),
@@ -255,6 +309,27 @@ class ReconciliationResource extends Resource
             ->emptyStateHeading('No transactions to reconcile')
             ->emptyStateDescription('Upload bank statements and invoices, then run reconciliation to match them.')
             ->emptyStateIcon('heroicon-o-scale');
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     */
+    private static function formatMatchedInvoiceLabel(array $raw, ?string $fallbackDescription): ?string
+    {
+        $vendor = $raw['vendor_name'] ?? '';
+        $invoiceNumber = $raw['invoice_number'] ?? '';
+
+        if (blank($vendor) && blank($invoiceNumber)) {
+            $vendor = $fallbackDescription ?? '';
+        }
+
+        if (blank($vendor) && blank($invoiceNumber)) {
+            return null;
+        }
+
+        return $invoiceNumber !== ''
+            ? "↳ {$vendor} · #{$invoiceNumber}"
+            : "↳ {$vendor}";
     }
 
     public static function getRelations(): array

@@ -143,7 +143,7 @@ describe('TallyExportService bank/CC journal vouchers', function () {
             ->toContain('<AMOUNT>50000.00</AMOUNT>');
     });
 
-    it('does not include BANKALLOCATIONS.LIST in journal voucher', function () {
+    it('includes BANKALLOCATIONS.LIST as empty list anchor inside each ledger entry', function () {
         $head = AccountHead::factory()->create(['company_id' => $this->company->id]);
         Transaction::factory()->mapped($head)->debit(299.00)->for($this->file)->create([
             'company_id' => $this->company->id,
@@ -152,6 +152,6 @@ describe('TallyExportService bank/CC journal vouchers', function () {
 
         $xml = $this->service->exportForFile($this->file);
 
-        expect($xml)->not->toContain('<BANKALLOCATIONS.LIST>');
+        expect($xml)->toContain('<BANKALLOCATIONS.LIST>');
     });
 });

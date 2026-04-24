@@ -475,6 +475,7 @@ describe('ProcessImportedFile invoice display_name', function () {
             'statement_type' => StatementType::Invoice,
             'source' => ImportSource::ManualUpload,
             'file_path' => 'statements/invoice.pdf',
+            'display_name' => null,
         ]);
 
         $job = new ProcessImportedFile($file);
@@ -507,6 +508,7 @@ describe('ProcessImportedFile invoice display_name', function () {
             'statement_type' => StatementType::Invoice,
             'source' => ImportSource::Email,
             'file_path' => 'statements/invoice.pdf',
+            'display_name' => null,
         ]);
 
         $job = new ProcessImportedFile($file);

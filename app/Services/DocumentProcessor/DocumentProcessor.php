@@ -547,27 +547,37 @@ class DocumentProcessor
                 $file->load('creditCard');
             }
 
-            $file->display_name = $this->displayNameGenerator->generate($file);
+            if (blank($file->display_name)) {
+                $file->display_name = $this->displayNameGenerator->generate($file);
+            }
+
             $file->save();
         });
     }
 
     private function parseTransactionDate(string $date): Carbon
     {
-        if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $date)) {
+        $date = trim($date);
+
+        // D/M/YYYY, DD/MM/YYYY, or DD-MM-YYYY (Indian format — must check before Carbon::parse which defaults to MM/DD)
+        if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $date, $m)) {
             try {
-                return Carbon::createFromFormat('d-m-Y', $date);
+                return Carbon::createFromFormat('d/m/Y', "{$m[1]}/{$m[2]}/{$m[3]}");
             } catch (\Exception) {
-                // Fall through to generic parse
             }
         }
 
-        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
+        // DD-Mon-YYYY or DD Mon YYYY (e.g. "05-Apr-2026", "05 Apr 2026")
+        if (preg_match('/^(\d{1,2})[\s\-]([A-Za-z]{3,9})[\s\-](\d{4})$/', $date)) {
             try {
-                return Carbon::createFromFormat('d/m/Y', $date);
+                return Carbon::createFromFormat('d M Y', preg_replace('/[\-]/', ' ', $date));
             } catch (\Exception) {
-                // Fall through to generic parse
             }
+        }
+
+        // YYYY-MM-DD (unambiguous ISO format — safe to parse directly)
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return Carbon::parse($date);
         }
 
         return Carbon::parse($date);
@@ -680,13 +690,18 @@ class DocumentProcessor
                 'bank_format' => $vendorName,
             ]);
 
-            $file->update([
+            $updates = [
                 'status' => ImportStatus::Completed,
                 'total_rows' => 1,
                 'mapped_rows' => 0,
                 'processed_at' => now(),
-                'display_name' => $this->displayNameGenerator->generate($file),
-            ]);
+            ];
+
+            if (blank($file->display_name)) {
+                $updates['display_name'] = $this->displayNameGenerator->generate($file);
+            }
+
+            $file->update($updates);
         });
     }
 }

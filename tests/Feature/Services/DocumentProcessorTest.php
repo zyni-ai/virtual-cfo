@@ -861,7 +861,7 @@ describe('DocumentProcessor', function () {
             expect($file->card_variant)->toBeNull();
         });
 
-        it('regenerates display_name after processing with bank_name and card_variant', function () {
+        it('generates display_name after processing when display_name is blank', function () {
             Storage::put('statements/cc_regen.pdf', 'fake-pdf-content');
 
             StatementParser::fake([
@@ -881,13 +881,42 @@ describe('DocumentProcessor', function () {
                 'status' => ImportStatus::Pending,
                 'bank_name' => null,
                 'card_variant' => null,
-                'display_name' => '_Apr 2026',
+                'display_name' => null,
             ]);
 
             $this->processor->process($file);
 
             $file->refresh();
             expect($file->display_name)->toBe('ICICI Bank_Platinum_Mar_2026');
+        });
+
+        it('preserves user-entered display_name after processing', function () {
+            Storage::put('statements/cc_custom.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'ICICI Bank',
+                    'card_variant' => 'Platinum',
+                    'statement_period' => '2026-02-06 to 2026-03-05',
+                    'transactions' => [
+                        ['date' => '2026-02-10', 'description' => 'AMAZON', 'debit' => 500],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->creditCard()->create([
+                'file_path' => 'statements/cc_custom.pdf',
+                'original_filename' => 'icici_cc.pdf',
+                'status' => ImportStatus::Pending,
+                'bank_name' => null,
+                'card_variant' => null,
+                'display_name' => 'My Custom Statement Name',
+            ]);
+
+            $this->processor->process($file);
+
+            $file->refresh();
+            expect($file->display_name)->toBe('My Custom Statement Name');
         });
     });
 
@@ -940,6 +969,32 @@ describe('DocumentProcessor', function () {
 
             $transaction = Transaction::where('imported_file_id', $file->id)->first();
             expect($transaction->date->format('Y-m-d'))->toBe('2026-03-15');
+        });
+
+        it('correctly parses D/M/YYYY dates with single-digit day and month', function () {
+            Storage::put('statements/single_digit_date.pdf', 'fake-pdf-content');
+
+            StatementParser::fake([
+                [
+                    'bank_name' => 'SBI',
+                    'statement_period' => 'May 2026',
+                    'transactions' => [
+                        // 3rd May — Carbon::parse would read this as March 5 (US format)
+                        ['date' => '3/5/2026', 'description' => 'NEFT PAYMENT', 'debit' => 2000],
+                    ],
+                ],
+            ]);
+
+            $file = ImportedFile::factory()->create([
+                'file_path' => 'statements/single_digit_date.pdf',
+                'original_filename' => 'sbi_may26.pdf',
+                'status' => ImportStatus::Pending,
+            ]);
+
+            $this->processor->process($file);
+
+            $transaction = Transaction::where('imported_file_id', $file->id)->first();
+            expect($transaction->date->format('Y-m-d'))->toBe('2026-05-03');
         });
     });
 

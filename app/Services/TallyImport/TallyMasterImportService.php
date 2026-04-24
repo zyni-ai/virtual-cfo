@@ -32,8 +32,7 @@ class TallyMasterImportService
             return $result;
         }
 
-        DB::transaction(function () use ($xml, $requestData, $company, $result) {
-            $this->importCompanyInfo($xml, $company, $result);
+        DB::transaction(function () use ($requestData, $company, $result) {
             $this->importGroups($requestData, $company, $result);
             $this->importLedgers($requestData, $company, $result);
         });
@@ -75,19 +74,6 @@ class TallyMasterImportService
         } finally {
             libxml_clear_errors();
             libxml_use_internal_errors($previousErrors);
-        }
-    }
-
-    /**
-     * Update company name from SVCURRENTCOMPANY if present.
-     */
-    protected function importCompanyInfo(SimpleXMLElement $xml, Company $company, TallyImportResult $result): void
-    {
-        $companyName = (string) ($xml->BODY->IMPORTDATA->REQUESTDESC->STATICVARIABLES->SVCURRENTCOMPANY ?? '');
-
-        if ($companyName !== '' && $company->name !== $companyName) {
-            $company->update(['name' => $companyName]);
-            $result->companyUpdated = true;
         }
     }
 

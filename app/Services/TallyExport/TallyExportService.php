@@ -15,6 +15,61 @@ class TallyExportService
     /** @var array<string, int> */
     private array $voucherCounters = [];
 
+    // Boolean flags emitted on every Journal voucher, keyed by Tally field name.
+    /** @phpstan-var array<string, string> */
+    private const JOURNAL_BOOLEAN_FLAGS = [
+        'DIFFACTUALQTY' => 'No', 'ISMSTFROMSYNC' => 'No', 'ISDELETED' => 'No',
+        'ISSECURITYONWHENENTERED' => 'No', 'ASORIGINAL' => 'No', 'AUDITED' => 'No',
+        'ISCOMMONPARTY' => 'No', 'FORJOBCOSTING' => 'No', 'ISOPTIONAL' => 'No',
+        'USEFOREXCISE' => 'No', 'ISFORJOBWORKIN' => 'No', 'ALLOWCONSUMPTION' => 'No',
+        'USEFORINTEREST' => 'No', 'USEFORGAINLOSS' => 'No', 'USEFORGODOWNTRANSFER' => 'No',
+        'USEFORCOMPOUND' => 'No', 'USEFORSERVICETAX' => 'No', 'ISREVERSECHARGEAPPLICABLE' => 'No',
+        'ISSYSTEM' => 'No', 'ISFETCHEDONLY' => 'No', 'ISGSTOVERRIDDEN' => 'No',
+        'ISCANCELLED' => 'No', 'ISONHOLD' => 'No', 'ISSUMMARY' => 'No',
+        'ISECOMMERCESUPPLY' => 'No', 'ISBOENOTAPPLICABLE' => 'No', 'ISGSTSECSEVENAPLICABLE' => 'No',
+        'IGNOREEINTVALIDATION' => 'No', 'CMPGSTISOTHTERRITORYASSESSEE' => 'No',
+        'PARTYGSTISOTHTERRITORYASSESSEE' => 'No', 'IRNJSONEXPORTED' => 'No',
+        'IRNCANCELLED' => 'No', 'IGNOREGSTCONFLICTINMIG' => 'No', 'ISOPBALTRANSACTION' => 'No',
+        'IGNOREGSTFORMATVALIDATION' => 'No', 'ISELIGIBLEFORITC' => 'Yes',
+        'IGNOREGSTOPTIONALUNCERTAIN' => 'No', 'UPDATESUMMARYVALUES' => 'No',
+        'ISEWAYBILLAPPLICABLE' => 'No', 'ISDELETEDRETAINED' => 'No', 'ISNULL' => 'No',
+        'ISEXCISEVOUCHER' => 'No', 'EXCISETAXOVERRIDE' => 'No', 'USEFORTAXUNITTRANSFER' => 'No',
+        'ISEXER1NOPOVERWRITE' => 'No', 'ISEXF2NOPOVERWRITE' => 'No', 'ISEXER3NOPOVERWRITE' => 'No',
+        'IGNOREPOSVALIDATION' => 'No', 'EXCISEOPENING' => 'No', 'USEFORFINALPRODUCTION' => 'No',
+        'ISTDSOVERRIDDEN' => 'No', 'ISTCSOVERRIDDEN' => 'No', 'ISTDSTCSCASHVCH' => 'No',
+        'INCLUDEADVPYMTVCH' => 'No', 'ISSUBWORKSCONTRACT' => 'No', 'ISVATOVERRIDDEN' => 'No',
+        'IGNOREORIGVCHDATE' => 'No', 'ISVATPAIDATCUSTOMS' => 'No', 'ISDECLAREDTOCUSTOMS' => 'No',
+        'VATADVANCEPAYMENT' => 'No', 'VATADVPAY' => 'No', 'ISCSTDELCAREDGOODSSALES' => 'No',
+        'ISVATRESTAXINV' => 'No', 'ISSERVICETAXOVERRIDDEN' => 'No', 'ISISDVOUCHER' => 'No',
+        'ISEXCISEOVERRIDDEN' => 'No', 'ISEXCISESUPPLYVCH' => 'No', 'GSTNOTEXPORTED' => 'No',
+        'IGNOREGSTINVALIDATION' => 'No', 'ISGSTREFUND' => 'No', 'OVRDNEWAYBILLAPPLICABILITY' => 'No',
+        'ISVATPRINCIPALACCOUNT' => 'No', 'VCHSTATUSISVCHNUMUSED' => 'No',
+        'VCHGSTSTATUSISINCLUDED' => 'No', 'VCHGSTSTATUSISUNCERTAIN' => 'No',
+        'VCHGSTSTATUSISEXCLUDED' => 'No', 'VCHGSTSTATUSISAPPLICABLE' => 'No',
+        'VCHGSTSTATUSISGSTR2BRECONCILED' => 'No', 'VCHGSTSTATUSISGSTR2BONLYINPORTAL' => 'No',
+        'VCHGSTSTATUSISGSTR2BONLYINBOOKS' => 'No', 'VCHGSTSTATUSISGSTR2BMISMATCH' => 'No',
+        'VCHGSTSTATUSISGSTR2BINDIFFPERIOD' => 'No', 'VCHGSTSTATUSISRETEFFDATEOVERRDN' => 'No',
+        'VCHGSTSTATUSISOVERRDN' => 'No', 'VCHGSTSTATUSISSTATINDIFFDATE' => 'No',
+        'VCHGSTSTATUSISRETINDIFFDATE' => 'No', 'VCHGSTSTATUSMAINSECTIONEXCLUDED' => 'No',
+        'VCHGSTSTATUSISBRANCHTRANSFEROUT' => 'No', 'VCHGSTSTATUSISSYSTEMSUMMARY' => 'No',
+        'VCHSTATUSISUNREGISTEREDRCM' => 'No', 'VCHSTATUSISOPTIONAL' => 'No',
+        'VCHSTATUSISCANCELLED' => 'No', 'VCHSTATUSISDELETED' => 'No',
+        'VCHSTATUSISOPENINGBALANCE' => 'No', 'VCHSTATUSISFETCHEDONLY' => 'No',
+        'VCHGSTSTATUSISOPTIONALUNCERTAIN' => 'No', 'VCHSTATUSISREACCEPTFORHSNDONE' => 'No',
+        'VCHSTATUSISREACCEPHSNSIXONEDONE' => 'No', 'PAYMENTLINKHASMULTIREF' => 'No',
+        'ISSHIPPINGWITHINSTATE' => 'No', 'ISOVERSEASTOURISTTRANS' => 'No',
+        'ISDESIGNATEDZONEPART' => 'No', 'HASCASHFLOW' => 'No', 'ISPOSTDATED' => 'No',
+        'USETRACKINGNUMBER' => 'No', 'ISINVOICE' => 'No', 'MFGJOURNAL' => 'No',
+        'HASDISCOUNTS' => 'No', 'ASPAYSLIP' => 'No', 'ISCOSTCENTRE' => 'No',
+        'ISSTXNONREALIZEDVCH' => 'No', 'ISEXCISEMANUFACTURERON' => 'No', 'ISBLANKCHEQUE' => 'No',
+        'ISVOID' => 'No', 'ORDERLINESTATUS' => 'No', 'VATISAGNSTCANCSALES' => 'No',
+        'VATISPURCEXEMPTED' => 'No', 'ISVATRESTAXINVOICE' => 'No', 'VATISASSESABLECALCVCH' => 'No',
+        'ISVATDUTYPAID' => 'Yes',
+        'ISDELIVERYSAMEASCONSIGNEE' => 'No', 'ISDISPATCHSAMEASCONSIGNOR' => 'No',
+        'ISDELETEDVCHRETAINED' => 'No', 'VCHONLYADDLINFOUPDATED' => 'No',
+        'CHANGEVCHMODE' => 'No', 'RESETIRNQRCODE' => 'No',
+    ];
+
     /**
      * Generate Tally-compatible XML for transactions in an imported file.
      */
@@ -100,7 +155,11 @@ class TallyExportService
      */
     private function generateVoucher(Transaction $transaction, ?Company $company, ?string $bankLedgerName, ?ImportedFile $importedFile = null): string
     {
-        if ($importedFile?->statement_type === StatementType::Invoice) {
+        $effectiveFile = $transaction->relationLoaded('importedFile')
+            ? $transaction->importedFile
+            : $importedFile;
+
+        if ($effectiveFile?->statement_type === StatementType::Invoice) {
             /** @var array<string, mixed> $raw */
             $raw = $transaction->raw_data ?? [];
 
@@ -119,12 +178,11 @@ class TallyExportService
         /** @var AccountHead|null $accountHead */
         $accountHead = $transaction->accountHead;
         $headName = $accountHead?->name ?? 'Unknown';
-        $bankName = $bankLedgerName ?? 'Bank Account';
+        $bankName = $effectiveFile?->bankAccount?->name
+            ?? $effectiveFile?->display_name
+            ?? $bankLedgerName
+            ?? 'Bank Account';
         $voucherNumber = $this->nextVoucherNumber('Journal');
-
-        /** @var array<string, mixed> $raw */
-        $raw = $transaction->raw_data ?? [];
-        $vendorName = (string) ($raw['vendor_name'] ?? '') ?: null;
 
         $xml = '        <TALLYMESSAGE xmlns:UDF="TallyUDF">'."\n";
         $xml .= '          <VOUCHER VCHTYPE="Journal" ACTION="Create" OBJVIEW="Accounting Voucher View">'."\n";
@@ -132,28 +190,25 @@ class TallyExportService
         $xml .= '            <VCHSTATUSDATE>'.$date.'</VCHSTATUSDATE>'."\n";
         $xml .= '            <NARRATION>'.$this->escapeXml($transaction->description ?? '').'</NARRATION>'."\n";
         $xml .= '            <VOUCHERTYPENAME>Journal</VOUCHERTYPENAME>'."\n";
+        $xml .= '            <PARTYLEDGERNAME>'.$this->escapeXml($headName).'</PARTYLEDGERNAME>'."\n";
         $xml .= '            <VOUCHERNUMBER>'.$voucherNumber.'</VOUCHERNUMBER>'."\n";
-
-        if ($vendorName !== null) {
-            $xml .= '            <PARTYLEDGERNAME>'.$this->escapeXml($vendorName).'</PARTYLEDGERNAME>'."\n";
-        }
-
-        if ($company) {
-            $xml .= '            <CMPGSTIN>'.$this->escapeXml($company->gstin ?? '').'</CMPGSTIN>'."\n";
-            $xml .= '            <CMPGSTREGISTRATIONTYPE>'.$this->escapeXml($company->gst_registration_type ?? 'Regular').'</CMPGSTREGISTRATIONTYPE>'."\n";
-            $xml .= '            <CMPGSTSTATE>'.$this->escapeXml($company->state ?? '').'</CMPGSTSTATE>'."\n";
-        }
-
+        $xml .= $this->journalVoucherGstFields($company);
+        $xml .= '            <NUMBERINGSTYLE>Auto Retain</NUMBERINGSTYLE>'."\n";
+        // &#4; (U+0004, EOT) is Tally's sentinel value for "not applicable" enum fields.
+        // It is forbidden in strict XML 1.0 but Tally requires it — do not replace with an empty string.
+        $xml .= '            <CSTFORMISSUETYPE>&#4; Not Applicable</CSTFORMISSUETYPE>'."\n";
+        $xml .= '            <CSTFORMRECVTYPE>&#4; Not Applicable</CSTFORMRECVTYPE>'."\n";
+        $xml .= '            <FBTPAYMENTTYPE>Default</FBTPAYMENTTYPE>'."\n";
+        $xml .= '            <PERSISTEDVIEW>Accounting Voucher View</PERSISTEDVIEW>'."\n";
+        $xml .= '            <VCHSTATUSTAXADJUSTMENT>Default</VCHSTATUSTAXADJUSTMENT>'."\n";
+        $xml .= '            <VCHSTATUSVOUCHERTYPE>Journal</VCHSTATUSVOUCHERTYPE>'."\n";
+        $xml .= '            <VCHGSTCLASS>&#4; Not Applicable</VCHGSTCLASS>'."\n";
+        $xml .= '            <VCHENTRYYMODE>As Voucher</VCHENTRYYMODE>'."\n";
         $xml .= '            <EFFECTIVEDATE>'.$date.'</EFFECTIVEDATE>'."\n";
-        $xml .= '            <ISDELETED>No</ISDELETED>'."\n";
-        $xml .= '            <ISCANCELLED>No</ISCANCELLED>'."\n";
-        $xml .= '            <ISONHOLD>No</ISONHOLD>'."\n";
-        $xml .= '            <ISOPTIONAL>No</ISOPTIONAL>'."\n";
-        $xml .= '            <AUDITED>No</AUDITED>'."\n";
-        $xml .= '            <HASCASHFLOW>No</HASCASHFLOW>'."\n";
-
-        $xml .= $this->generateBankJournalLedgerEntries($headName, $bankName, $amount, $isDebit, $vendorName);
-
+        $xml .= $this->journalVoucherBooleanFlags();
+        $xml .= $this->preLedgerEmptyLists();
+        $xml .= $this->generateBankJournalLedgerEntries($headName, $bankName, $amount, $isDebit);
+        $xml .= $this->postVoucherEmptyLists();
         $xml .= '          </VOUCHER>'."\n";
         $xml .= '        </TALLYMESSAGE>'."\n";
 
@@ -213,12 +268,7 @@ class TallyExportService
             $xml .= '            <PARTYGSTIN>'.$this->escapeXml($vendorGstin).'</PARTYGSTIN>'."\n";
         }
 
-        if ($company) {
-            $xml .= '            <CMPGSTIN>'.$this->escapeXml($company->gstin ?? '').'</CMPGSTIN>'."\n";
-            $xml .= '            <CMPGSTREGISTRATIONTYPE>'.$this->escapeXml($company->gst_registration_type ?? 'Regular').'</CMPGSTREGISTRATIONTYPE>'."\n";
-            $xml .= '            <CMPGSTSTATE>'.$this->escapeXml($company->state ?? '').'</CMPGSTSTATE>'."\n";
-        }
-
+        $xml .= $this->journalVoucherGstFields($company);
         $xml .= '            <EFFECTIVEDATE>'.$date.'</EFFECTIVEDATE>'."\n";
         $xml .= '            <ISDELETED>No</ISDELETED>'."\n";
         $xml .= '            <ISCANCELLED>No</ISCANCELLED>'."\n";
@@ -227,11 +277,12 @@ class TallyExportService
         $xml .= '            <AUDITED>No</AUDITED>'."\n";
 
         $xml .= $this->generateExpenseLedgerEntry($headName, $baseAmount, $cgstRate, $sgstRate);
-        $xml .= $this->generateGstLedgerEntries($igstRate, $igstAmount, $cgstRate, $cgstAmount, $sgstRate, $sgstAmount);
+        $xml .= $this->generateGstLedgerEntries($igstRate, $igstAmount, $cgstRate, $cgstAmount, $sgstRate, $sgstAmount, $company);
 
         if ($tdsAmount > 0) {
+            $tdsLedger = $company?->tally_tds_payable_ledger ?? 'TDS Payable';
             $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-            $xml .= '              <LEDGERNAME>TDS Payable</LEDGERNAME>'."\n";
+            $xml .= '              <LEDGERNAME>'.$this->escapeXml($tdsLedger).'</LEDGERNAME>'."\n";
             $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
             $xml .= '              <AMOUNT>'.number_format($tdsAmount, 2, '.', '').'</AMOUNT>'."\n";
             $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
@@ -307,12 +358,7 @@ class TallyExportService
             $xml .= '            <PARTYGSTIN>'.$this->escapeXml($buyerGstin).'</PARTYGSTIN>'."\n";
         }
 
-        if ($company) {
-            $xml .= '            <CMPGSTIN>'.$this->escapeXml($company->gstin ?? '').'</CMPGSTIN>'."\n";
-            $xml .= '            <CMPGSTREGISTRATIONTYPE>'.$this->escapeXml($company->gst_registration_type ?? 'Regular').'</CMPGSTREGISTRATIONTYPE>'."\n";
-            $xml .= '            <CMPGSTSTATE>'.$this->escapeXml($company->state ?? '').'</CMPGSTSTATE>'."\n";
-        }
-
+        $xml .= $this->journalVoucherGstFields($company);
         $xml .= '            <GSTREGISTRATIONTYPE>Regular</GSTREGISTRATIONTYPE>'."\n";
 
         if ($placeOfSupply !== '') {
@@ -377,14 +423,26 @@ class TallyExportService
         $xml .= '            </LEDGERENTRIES.LIST>'."\n";
 
         if ($hasIgst) {
-            $xml .= $this->generateOutputTaxLedgerEntry("Output Igst @ {$igstRate}%", $igstRate, $igstAmount);
+            $xml .= $this->generateOutputTaxLedgerEntry(
+                $this->resolveRateLedgerName($company, 'tally_output_igst_ledger', 'Output Igst @ {rate}%', $igstRate),
+                $igstRate,
+                $igstAmount,
+            );
         } else {
             if ($cgstRate !== null && $cgstAmount > 0) {
-                $xml .= $this->generateOutputTaxLedgerEntry("Output Cgst @ {$cgstRate}%", $cgstRate, $cgstAmount);
+                $xml .= $this->generateOutputTaxLedgerEntry(
+                    $this->resolveRateLedgerName($company, 'tally_output_cgst_ledger', 'Output Cgst @ {rate}%', $cgstRate),
+                    $cgstRate,
+                    $cgstAmount,
+                );
             }
 
             if ($sgstRate !== null && $sgstAmount > 0) {
-                $xml .= $this->generateOutputTaxLedgerEntry("Output Sgst @ {$sgstRate}%", $sgstRate, $sgstAmount);
+                $xml .= $this->generateOutputTaxLedgerEntry(
+                    $this->resolveRateLedgerName($company, 'tally_output_sgst_ledger', 'Output Sgst @ {rate}%', $sgstRate),
+                    $sgstRate,
+                    $sgstAmount,
+                );
             }
         }
 
@@ -432,20 +490,29 @@ class TallyExportService
         return $xml;
     }
 
-    private function generateGstLedgerEntries(mixed $igstRate, float $igstAmount, mixed $cgstRate, float $cgstAmount, mixed $sgstRate, float $sgstAmount): string
+    private function generateGstLedgerEntries(mixed $igstRate, float $igstAmount, mixed $cgstRate, float $cgstAmount, mixed $sgstRate, float $sgstAmount, ?Company $company): string
     {
         if ($igstRate !== null && $igstAmount > 0) {
-            return $this->generateTaxLedgerEntry("Input Igst @ {$igstRate}%", $igstAmount);
+            return $this->generateTaxLedgerEntry(
+                $this->resolveRateLedgerName($company, 'tally_input_igst_ledger', 'Input Igst @ {rate}%', $igstRate),
+                $igstAmount,
+            );
         }
 
         $xml = '';
 
         if ($cgstRate !== null && $cgstAmount > 0) {
-            $xml .= $this->generateTaxLedgerEntry("Input Cgst @ {$cgstRate}%", $cgstAmount);
+            $xml .= $this->generateTaxLedgerEntry(
+                $this->resolveRateLedgerName($company, 'tally_input_cgst_ledger', 'Input Cgst @ {rate}%', $cgstRate),
+                $cgstAmount,
+            );
         }
 
         if ($sgstRate !== null && $sgstAmount > 0) {
-            $xml .= $this->generateTaxLedgerEntry("Input Sgst @ {$sgstRate}%", $sgstAmount);
+            $xml .= $this->generateTaxLedgerEntry(
+                $this->resolveRateLedgerName($company, 'tally_input_sgst_ledger', 'Input Sgst @ {rate}%', $sgstRate),
+                $sgstAmount,
+            );
         }
 
         return $xml;
@@ -464,33 +531,59 @@ class TallyExportService
 
     /**
      * Generate the two-leg journal entry for a bank/CC transaction.
-     * Debit: ISDEEMEDPOSITIVE=Yes, negative amount. Credit: ISDEEMEDPOSITIVE=No, positive amount.
-     * Both legs carry ISPARTYLEDGER=Yes — no BANKALLOCATIONS.LIST.
-     * vendor_name overrides headName as debit ledger to close the vendor payable opened by the purchase journal.
+     * BY (debit, ISDEEMEDPOSITIVE=Yes): account head mapped by the user.
+     * TO (credit, ISDEEMEDPOSITIVE=No): bank/CC card ledger name.
      */
-    private function generateBankJournalLedgerEntries(string $headName, string $bankName, float $amount, bool $isDebit, ?string $vendorName = null): string
+    private function generateBankJournalLedgerEntries(string $headName, string $bankName, float $amount, bool $isDebit): string
     {
         $formattedAmount = number_format($amount, 2, '.', '');
-        $debitLedgerName = $vendorName ?? $headName;
 
         [$debitLedger, $creditLedger] = $isDebit
-            ? [$debitLedgerName, $bankName]
-            : [$bankName, $debitLedgerName];
+            ? [$headName, $bankName]
+            : [$bankName, $headName];
 
-        $xml = '';
+        return $this->bankJournalLedgerEntry($debitLedger, true, $formattedAmount)
+            .$this->bankJournalLedgerEntry($creditLedger, false, $formattedAmount);
+    }
 
-        $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$this->escapeXml($debitLedger).'</LEDGERNAME>'."\n";
-        $xml .= '              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>'."\n";
-        $xml .= '              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>'."\n";
-        $xml .= '              <AMOUNT>-'.$formattedAmount.'</AMOUNT>'."\n";
-        $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
+    private function bankJournalLedgerEntry(string $ledgerName, bool $isDeemedPositive, string $formattedAmount): string
+    {
+        $pos = $isDeemedPositive ? 'Yes' : 'No';
+        $amount = $isDeemedPositive ? "-{$formattedAmount}" : $formattedAmount;
+        $p = '              ';
 
-        $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-        $xml .= '              <LEDGERNAME>'.$this->escapeXml($creditLedger).'</LEDGERNAME>'."\n";
-        $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
-        $xml .= '              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>'."\n";
-        $xml .= '              <AMOUNT>'.$formattedAmount.'</AMOUNT>'."\n";
+        $xml = '            <ALLLEDGERENTRIES.LIST>'."\n";
+        $xml .= $p.'<OLDAUDITENTRYIDS.LIST TYPE="Number">'."\n";
+        $xml .= "                <OLDAUDITENTRYIDS>-1</OLDAUDITENTRYIDS>\n";
+        $xml .= $p.'</OLDAUDITENTRYIDS.LIST>'."\n";
+        $xml .= $p.'<LEDGERNAME>'.$this->escapeXml($ledgerName).'</LEDGERNAME>'."\n";
+        $xml .= $p.'<GSTCLASS>&#4; Not Applicable</GSTCLASS>'."\n";
+        $xml .= $p.'<ISDEEMEDPOSITIVE>'.$pos.'</ISDEEMEDPOSITIVE>'."\n";
+        $xml .= $p.'<LEDGERFROMITEM>No</LEDGERFROMITEM>'."\n";
+        $xml .= $p.'<REMOVEZEROENTRIES>No</REMOVEZEROENTRIES>'."\n";
+        $xml .= $p.'<ISPARTYLEDGER>Yes</ISPARTYLEDGER>'."\n";
+        $xml .= $p.'<GSTOVERRIDDEN>No</GSTOVERRIDDEN>'."\n";
+        $xml .= $p.'<ISGSTASSESSABLEVALUEOVERRIDDEN>No</ISGSTASSESSABLEVALUEOVERRIDDEN>'."\n";
+        $xml .= $p.'<STRDISGSTAPPLICABLE>No</STRDISGSTAPPLICABLE>'."\n";
+        $xml .= $p.'<STRDGSTISPARTYLEDGER>No</STRDGSTISPARTYLEDGER>'."\n";
+        $xml .= $p.'<STRDGSTISDUTYLEDGER>No</STRDGSTISDUTYLEDGER>'."\n";
+        $xml .= $p.'<CONTENTNEGISPOS>No</CONTENTNEGISPOS>'."\n";
+        $xml .= $p.'<ISLASTDEEMEDPOSITIVE>'.$pos.'</ISLASTDEEMEDPOSITIVE>'."\n";
+        $xml .= $p.'<ISCAPVATTAXALTERED>No</ISCAPVATTAXALTERED>'."\n";
+        $xml .= $p.'<ISCAPVATNOTCLAIMED>No</ISCAPVATNOTCLAIMED>'."\n";
+        $xml .= $p.'<AMOUNT>'.$amount.'</AMOUNT>'."\n";
+        $xml .= $p.'<VATEXPAMOUNT>'.$amount.'</VATEXPAMOUNT>'."\n";
+        $xml .= $this->buildEmptyXmlLists($p, [
+            'SERVICETAXDETAILS', 'BANKALLOCATIONS', 'BILLALLOCATIONS',
+            'INTERESTCOLLECTION', 'OLDAUDITENTRIES', 'ACCOUNTAUDITENTRIES',
+            'AUDITENTRIES', 'INPUTCRALLOCS', 'DUTYHEADDETAILS',
+            'EXCISEDUTYHEADDETAILS', 'RATEDETAILS', 'SUMMARYALLOCS',
+            'CENVATDUTYALLOCATIONS', 'STPYMTDETAILS', 'EXCISEPAYMENTALLOCATIONS',
+            'TAXBILLALLOCATIONS', 'TAXOBJECTALLOCATIONS', 'TDSEXPENSEALLOCATIONS',
+            'VATSTATUTORYDETAILS', 'COSTTRACKALLOCATIONS', 'REFVOUCHERDETAILS',
+            'INVOICEWISEDETAILS', 'VATITCDETAILS', 'ADVANCETAXDETAILS',
+            'TAXTYPEALLOCATIONS',
+        ]);
         $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
 
         return $xml;
@@ -498,15 +591,25 @@ class TallyExportService
 
     /**
      * Generate the company identity footer block.
+     * Two REMOTECMPINFO.LIST entries: one keyed by company name, one by GSTIN.
      */
     private function generateCompanyFooter(Company $company): string
     {
+        $name = $this->escapeXml($company->name ?? '');
+        $gstin = $this->escapeXml($company->gstin ?? '');
+        $state = $this->escapeXml($company->state ?? '');
+
         $xml = '        <TALLYMESSAGE xmlns:UDF="TallyUDF">'."\n";
         $xml .= '          <COMPANY>'."\n";
         $xml .= '            <REMOTECMPINFO.LIST MERGE="Yes">'."\n";
-        $xml .= '              <NAME>'.$this->escapeXml($company->gstin ?? '').'</NAME>'."\n";
-        $xml .= '              <REMOTECMPNAME>'.$this->escapeXml($company->name ?? '').'</REMOTECMPNAME>'."\n";
-        $xml .= '              <REMOTECMPSTATE>'.$this->escapeXml($company->state ?? '').'</REMOTECMPSTATE>'."\n";
+        $xml .= '              <NAME>'.$name.'</NAME>'."\n";
+        $xml .= '              <REMOTECMPNAME>'.$name.'</REMOTECMPNAME>'."\n";
+        $xml .= '              <REMOTECMPSTATE>'.$state.'</REMOTECMPSTATE>'."\n";
+        $xml .= '            </REMOTECMPINFO.LIST>'."\n";
+        $xml .= '            <REMOTECMPINFO.LIST MERGE="Yes">'."\n";
+        $xml .= '              <NAME>'.$gstin.'</NAME>'."\n";
+        $xml .= '              <REMOTECMPNAME>'.$name.'</REMOTECMPNAME>'."\n";
+        $xml .= '              <REMOTECMPSTATE>'.$state.'</REMOTECMPSTATE>'."\n";
         $xml .= '            </REMOTECMPINFO.LIST>'."\n";
         $xml .= '          </COMPANY>'."\n";
         $xml .= '        </TALLYMESSAGE>'."\n";
@@ -618,6 +721,69 @@ class TallyExportService
     private function unwrapParens(string $value): string
     {
         return preg_match('/^\(([^()]+)\)$/', $value, $m) ? $m[1] : $value;
+    }
+
+    private function journalVoucherGstFields(?Company $company): string
+    {
+        if (! $company) {
+            return '';
+        }
+
+        $xml = '            <CMPGSTIN>'.$this->escapeXml($company->gstin ?? '').'</CMPGSTIN>'."\n";
+        $xml .= '            <CMPGSTREGISTRATIONTYPE>'.$this->escapeXml($company->gst_registration_type ?? 'Regular').'</CMPGSTREGISTRATIONTYPE>'."\n";
+        $xml .= '            <CMPGSTSTATE>'.$this->escapeXml($company->state ?? '').'</CMPGSTSTATE>'."\n";
+
+        return $xml;
+    }
+
+    private function journalVoucherBooleanFlags(): string
+    {
+        $xml = '';
+        foreach (self::JOURNAL_BOOLEAN_FLAGS as $flag => $value) {
+            $xml .= "            <{$flag}>{$value}</{$flag}>\n";
+        }
+
+        return $xml;
+    }
+
+    private function preLedgerEmptyLists(): string
+    {
+        return $this->buildEmptyXmlLists('            ', [
+            'EWAYBILLDETAILS', 'EXCLUDEDTAXATIONS', 'OLDAUDITENTRIES',
+            'ACCOUNTAUDITENTRIES', 'AUDITENTRIES', 'DUTYHEADDETAILS',
+            'GSTADVADJDETAILS', 'CONTRITRANS', 'EWAYBILLERRORLIST',
+            'IRNERRORLIST', 'HARYANAVAT', 'SUPPLEMENTARYDUTYHEADDETAILS',
+            'INVOICEDELNOTES', 'INVOICEORDERLIST', 'INVOICEINDENTLIST',
+            'ATTENDANCEENTRIES', 'ORIGINIVOICEDETAILS', 'INVOICEEXPORTLIST',
+        ]);
+    }
+
+    private function postVoucherEmptyLists(): string
+    {
+        return $this->buildEmptyXmlLists('            ', [
+            'GST', 'STKJRNLADDLCOSTDETAILS', 'GSTBUYERADDRESS',
+            'GSTCONSIGNEEADDRESS', 'PAYROLLMODEOFPAYMENT', 'ATTDRECORDS',
+            'GSTEWAYCONSIGNORADDRESS', 'GSTEWAYCONSIGNEEADDRESS',
+            'TEMPGSTRATEDETAILS', 'TEMPGSTADVADJUSTED',
+        ]);
+    }
+
+    /** @param string[] $tags */
+    private function buildEmptyXmlLists(string $indent, array $tags): string
+    {
+        $xml = '';
+        foreach ($tags as $tag) {
+            $xml .= "{$indent}<{$tag}.LIST>             </{$tag}.LIST>\n";
+        }
+
+        return $xml;
+    }
+
+    private function resolveRateLedgerName(?Company $company, string $field, string $default, mixed $rate): string
+    {
+        $template = $company?->$field ?? $default;
+
+        return str_replace('{rate}', (string) $rate, $template);
     }
 
     private function escapeXml(string $value): string

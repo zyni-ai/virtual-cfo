@@ -16,8 +16,6 @@ class TallyImportResult
 
     public int $bankAccountsUpdated = 0;
 
-    public bool $companyUpdated = false;
-
     /** @var array<int, string> */
     public array $errors = [];
 

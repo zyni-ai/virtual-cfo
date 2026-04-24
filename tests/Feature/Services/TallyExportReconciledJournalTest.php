@@ -36,18 +36,18 @@ describe('TallyExportService reconciled journal vouchers', function () {
                 ]);
         });
 
-        it('uses vendor_name as debit ledger instead of account head', function () {
+        it('uses account head as debit ledger even when vendor_name is present in raw_data', function () {
             $xml = $this->service->exportForFile($this->file);
 
             expect($xml)
-                ->toContain('<LEDGERNAME>M/S Reliance Jio Infocomm Limited</LEDGERNAME>')
-                ->not->toContain('<LEDGERNAME>Internet Expense</LEDGERNAME>');
+                ->toContain('<LEDGERNAME>Internet Expense</LEDGERNAME>')
+                ->not->toContain('<LEDGERNAME>M/S Reliance Jio Infocomm Limited</LEDGERNAME>');
         });
 
-        it('sets PARTYLEDGERNAME to vendor_name', function () {
+        it('sets PARTYLEDGERNAME to account head name', function () {
             $xml = $this->service->exportForFile($this->file);
 
-            expect($xml)->toContain('<PARTYLEDGERNAME>M/S Reliance Jio Infocomm Limited</PARTYLEDGERNAME>');
+            expect($xml)->toContain('<PARTYLEDGERNAME>Internet Expense</PARTYLEDGERNAME>');
         });
 
         it('still uses CC account as credit ledger', function () {
@@ -94,10 +94,10 @@ describe('TallyExportService reconciled journal vouchers', function () {
             expect($xml)->toContain('<LEDGERNAME>Internet Expense</LEDGERNAME>');
         });
 
-        it('does not include PARTYLEDGERNAME', function () {
+        it('includes PARTYLEDGERNAME with account head name', function () {
             $xml = $this->service->exportForFile($this->file);
 
-            expect($xml)->not->toContain('<PARTYLEDGERNAME>');
+            expect($xml)->toContain('<PARTYLEDGERNAME>Internet Expense</PARTYLEDGERNAME>');
         });
     });
 });

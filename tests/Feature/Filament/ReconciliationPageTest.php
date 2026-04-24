@@ -8,6 +8,7 @@ use App\Filament\Resources\ReconciliationResource;
 use App\Filament\Resources\ReconciliationResource\Pages\ListReconciliation;
 use App\Filament\Widgets\ReconciliationStatsOverview;
 use App\Jobs\ReconcileImportedFiles;
+use App\Models\AccountHead;
 use App\Models\ImportedFile;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
@@ -432,6 +433,101 @@ describe('Reconciliation Page', function () {
 
         expect($match1->status)->toBe(MatchStatus::Rejected)
             ->and($match2->status)->toBe(MatchStatus::Rejected);
+    });
+});
+
+describe('Export to Tally action', function () {
+    beforeEach(function () {
+        asUser();
+    });
+
+    it('sends a notification when there are no matched transactions', function () {
+        livewire(ListReconciliation::class)
+            ->callTableAction('export_tally')
+            ->assertNotified('No matched transactions to export');
+    });
+
+    it('does not send the empty-state notification when matched transactions exist', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'statement_type' => StatementType::Bank,
+        ]);
+
+        $head = AccountHead::factory()->create(['name' => 'Test Expense']);
+
+        Transaction::factory()->mapped($head)->debit(1000)->create([
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Matched,
+        ]);
+
+        livewire(ListReconciliation::class)
+            ->callTableAction('export_tally')
+            ->assertNotNotified('No matched transactions to export');
+    });
+});
+
+describe('Description column invoice label', function () {
+    beforeEach(function () {
+        asUser();
+    });
+
+    it('shows invoice vendor and number for a confirmed match', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'company_id' => tenant()->id,
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'company_id' => tenant()->id,
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxn = Transaction::factory()->debit(5000)->create([
+            'company_id' => tenant()->id,
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Matched,
+        ]);
+        $invoiceTxn = Transaction::factory()->create([
+            'company_id' => tenant()->id,
+            'imported_file_id' => $invoiceFile->id,
+            'raw_data' => ['vendor_name' => 'Acme Pvt Ltd', 'invoice_number' => 'INV-2026-042'],
+        ]);
+
+        ReconciliationMatch::factory()->confirmed()->create([
+            'bank_transaction_id' => $bankTxn->id,
+            'invoice_transaction_id' => $invoiceTxn->id,
+        ]);
+
+        livewire(ListReconciliation::class)
+            ->assertSee('↳ Acme Pvt Ltd · #INV-2026-042');
+    });
+
+    it('shows invoice vendor and number for a suggested (pre-confirmation) match', function () {
+        $bankFile = ImportedFile::factory()->completed()->create([
+            'company_id' => tenant()->id,
+            'statement_type' => StatementType::Bank,
+        ]);
+        $invoiceFile = ImportedFile::factory()->completed()->create([
+            'company_id' => tenant()->id,
+            'statement_type' => StatementType::Invoice,
+        ]);
+
+        $bankTxn = Transaction::factory()->debit(5000)->create([
+            'company_id' => tenant()->id,
+            'imported_file_id' => $bankFile->id,
+            'reconciliation_status' => ReconciliationStatus::Unreconciled,
+        ]);
+        $invoiceTxn = Transaction::factory()->create([
+            'company_id' => tenant()->id,
+            'imported_file_id' => $invoiceFile->id,
+            'raw_data' => ['vendor_name' => 'Beta Corp', 'invoice_number' => 'INV-001'],
+        ]);
+
+        ReconciliationMatch::factory()->suggested()->create([
+            'bank_transaction_id' => $bankTxn->id,
+            'invoice_transaction_id' => $invoiceTxn->id,
+        ]);
+
+        livewire(ListReconciliation::class)
+            ->assertSee('↳ Beta Corp · #INV-001');
     });
 });
 

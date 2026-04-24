@@ -4,8 +4,11 @@ namespace App\Filament\Widgets;
 
 use App\Enums\MatchStatus;
 use App\Enums\ReconciliationStatus;
+use App\Enums\StatementType;
+use App\Models\Company;
 use App\Models\ReconciliationMatch;
 use App\Models\Transaction;
+use Filament\Facades\Filament;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -17,7 +20,12 @@ class ReconciliationStatsOverview extends BaseWidget
 
     protected function getStats(): array
     {
+        /** @var Company $company */
+        $company = Filament::getTenant();
+
         $txnCounts = Transaction::query()
+            ->where('company_id', $company->id)
+            ->whereHas('importedFile', fn ($q) => $q->whereIn('statement_type', [StatementType::Bank, StatementType::CreditCard]))
             ->selectRaw('
                 COUNT(*) FILTER (WHERE reconciliation_status = ?) AS unreconciled,
                 COUNT(*) FILTER (WHERE reconciliation_status = ?) AS matched,
@@ -30,6 +38,7 @@ class ReconciliationStatsOverview extends BaseWidget
             ->first();
 
         $matchCounts = ReconciliationMatch::query()
+            ->whereHas('bankTransaction', fn ($q) => $q->where('company_id', $company->id))
             ->selectRaw('
                 COUNT(*) AS total,
                 COUNT(*) FILTER (WHERE status = ?) AS suggested

@@ -107,7 +107,7 @@ describe('TallyExportService', function () {
                 ->and($xml)->toContain('<AMOUNT>50000.00</AMOUNT>');
         });
 
-        it('does not include BANKALLOCATIONS.LIST in journal vouchers', function () {
+        it('includes BANKALLOCATIONS.LIST as empty list anchor in each ledger entry', function () {
             $head = AccountHead::factory()->create([
                 'company_id' => $this->company->id,
                 'name' => 'Office Supplies',
@@ -119,7 +119,7 @@ describe('TallyExportService', function () {
 
             $xml = $this->service->exportForFile($this->file);
 
-            expect($xml)->not->toContain('<BANKALLOCATIONS.LIST>');
+            expect($xml)->toContain('<BANKALLOCATIONS.LIST>');
         });
     });
 
@@ -338,7 +338,7 @@ describe('TallyExportService', function () {
     });
 
     describe('valid XML output', function () {
-        it('produces well-formed XML that can be parsed', function () {
+        it('produces well-structured Tally XML envelope', function () {
             $head = AccountHead::factory()->create([
                 'company_id' => $this->company->id,
                 'name' => 'Test Head',
@@ -350,10 +350,15 @@ describe('TallyExportService', function () {
 
             $xml = $this->service->exportForFile($this->file);
 
-            $doc = new DOMDocument;
-            $result = $doc->loadXML($xml);
-
-            expect($result)->toBeTrue();
+            // Tally uses &#4; (U+0004 EOT) as a sentinel for "not applicable" enum fields.
+            // This is forbidden in XML 1.0, so DOMDocument::loadXML() rejects the output.
+            // We verify structural correctness via string matching instead.
+            expect($xml)
+                ->toStartWith('<?xml version="1.0" encoding="UTF-8"?>')
+                ->toContain('<ENVELOPE>')
+                ->toContain('</ENVELOPE>')
+                ->toContain('<TALLYMESSAGE')
+                ->toContain('<VOUCHER');
         });
     });
 
@@ -371,6 +376,75 @@ describe('TallyExportService', function () {
             $xml = $this->service->exportForFile($this->file);
 
             expect($xml)->toContain('OBJVIEW="Accounting Voucher View"');
+        });
+    });
+
+    describe('configurable Tally ledger names', function () {
+        beforeEach(function () {
+            $this->invoiceFile = ImportedFile::factory()->invoice()->create([
+                'company_id' => $this->company->id,
+            ]);
+        });
+
+        it('falls back to default input IGST ledger name when not configured', function () {
+            $head = AccountHead::factory()->create(['company_id' => $this->company->id, 'name' => 'Software Expense']);
+            Transaction::factory()->mapped($head)->for($this->invoiceFile)->create([
+                'company_id' => $this->company->id,
+                'date' => '2025-04-01',
+                'raw_data' => ['vendor_name' => 'Test Vendor', 'base_amount' => 10000, 'igst_rate' => 18, 'igst_amount' => 1800, 'total_amount' => 11800],
+            ]);
+
+            $xml = $this->service->exportForFile($this->invoiceFile);
+
+            expect($xml)->toContain('Input Igst @ 18%');
+        });
+
+        it('uses custom input IGST ledger name when configured', function () {
+            $this->company->update(['tally_input_igst_ledger' => 'IGST Input @{rate}%']);
+
+            $head = AccountHead::factory()->create(['company_id' => $this->company->id, 'name' => 'Software Expense']);
+            Transaction::factory()->mapped($head)->for($this->invoiceFile)->create([
+                'company_id' => $this->company->id,
+                'date' => '2025-04-01',
+                'raw_data' => ['vendor_name' => 'Test Vendor', 'base_amount' => 10000, 'igst_rate' => 18, 'igst_amount' => 1800, 'total_amount' => 11800],
+            ]);
+
+            $xml = $this->service->exportForFile($this->invoiceFile);
+
+            expect($xml)->toContain('IGST Input @18%')
+                ->and($xml)->not->toContain('Input Igst @ 18%');
+        });
+
+        it('uses custom TDS payable ledger name when configured', function () {
+            $this->company->update(['tally_tds_payable_ledger' => 'TDS Liability Account']);
+
+            $head = AccountHead::factory()->create(['company_id' => $this->company->id, 'name' => 'Consulting Expense']);
+            Transaction::factory()->mapped($head)->for($this->invoiceFile)->create([
+                'company_id' => $this->company->id,
+                'date' => '2025-04-01',
+                'raw_data' => ['vendor_name' => 'Test Vendor', 'base_amount' => 10000, 'tds_amount' => 1000, 'total_amount' => 11000],
+            ]);
+
+            $xml = $this->service->exportForFile($this->invoiceFile);
+
+            expect($xml)->toContain('TDS Liability Account')
+                ->and($xml)->not->toContain('<LEDGERNAME>TDS Payable</LEDGERNAME>');
+        });
+
+        it('uses custom output IGST ledger name in sales vouchers', function () {
+            $this->company->update(['tally_output_igst_ledger' => 'IGST Output Tax @{rate}%']);
+
+            $head = AccountHead::factory()->create(['company_id' => $this->company->id, 'name' => 'Software Revenue']);
+            Transaction::factory()->mapped($head)->for($this->invoiceFile)->create([
+                'company_id' => $this->company->id,
+                'date' => '2025-04-01',
+                'raw_data' => ['buyer_name' => 'Client Corp', 'base_amount' => 50000, 'igst_rate' => 18, 'igst_amount' => 9000, 'total_amount' => 59000],
+            ]);
+
+            $xml = $this->service->exportForFile($this->invoiceFile);
+
+            expect($xml)->toContain('IGST Output Tax @18%')
+                ->and($xml)->not->toContain('Output Igst @ 18%');
         });
     });
 });
