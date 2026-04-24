@@ -124,19 +124,10 @@ describe('TallyMasterImportService', function () {
     });
 
     describe('import() — Company Info', function () {
-        it('updates company name from SVCURRENTCOMPANY', function () {
-            $result = $this->service->import($this->simpleXml, $this->company);
+        it('does not overwrite the company name from the Tally XML', function () {
+            $this->service->import($this->simpleXml, $this->company);
 
-            expect($result->companyUpdated)->toBeTrue()
-                ->and($this->company->fresh()->name)->toBe('Zysk Technologies Private Limited');
-        });
-
-        it('does not update company if name already matches', function () {
-            $this->company->update(['name' => 'Zysk Technologies Private Limited']);
-
-            $result = $this->service->import($this->simpleXml, $this->company);
-
-            expect($result->companyUpdated)->toBeFalse();
+            expect($this->company->fresh()->name)->toBe('Old Company Name');
         });
     });
 
