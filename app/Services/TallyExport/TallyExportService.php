@@ -277,11 +277,12 @@ class TallyExportService
         $xml .= '            <AUDITED>No</AUDITED>'."\n";
 
         $xml .= $this->generateExpenseLedgerEntry($headName, $baseAmount, $cgstRate, $sgstRate);
-        $xml .= $this->generateGstLedgerEntries($igstRate, $igstAmount, $cgstRate, $cgstAmount, $sgstRate, $sgstAmount);
+        $xml .= $this->generateGstLedgerEntries($igstRate, $igstAmount, $cgstRate, $cgstAmount, $sgstRate, $sgstAmount, $company);
 
         if ($tdsAmount > 0) {
+            $tdsLedger = $company?->tally_tds_payable_ledger ?? 'TDS Payable';
             $xml .= '            <ALLLEDGERENTRIES.LIST>'."\n";
-            $xml .= '              <LEDGERNAME>TDS Payable</LEDGERNAME>'."\n";
+            $xml .= '              <LEDGERNAME>'.$this->escapeXml($tdsLedger).'</LEDGERNAME>'."\n";
             $xml .= '              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>'."\n";
             $xml .= '              <AMOUNT>'.number_format($tdsAmount, 2, '.', '').'</AMOUNT>'."\n";
             $xml .= '            </ALLLEDGERENTRIES.LIST>'."\n";
@@ -422,14 +423,26 @@ class TallyExportService
         $xml .= '            </LEDGERENTRIES.LIST>'."\n";
 
         if ($hasIgst) {
-            $xml .= $this->generateOutputTaxLedgerEntry("Output Igst @ {$igstRate}%", $igstRate, $igstAmount);
+            $xml .= $this->generateOutputTaxLedgerEntry(
+                $this->resolveRateLedgerName($company, 'tally_output_igst_ledger', 'Output Igst @ {rate}%', $igstRate),
+                $igstRate,
+                $igstAmount,
+            );
         } else {
             if ($cgstRate !== null && $cgstAmount > 0) {
-                $xml .= $this->generateOutputTaxLedgerEntry("Output Cgst @ {$cgstRate}%", $cgstRate, $cgstAmount);
+                $xml .= $this->generateOutputTaxLedgerEntry(
+                    $this->resolveRateLedgerName($company, 'tally_output_cgst_ledger', 'Output Cgst @ {rate}%', $cgstRate),
+                    $cgstRate,
+                    $cgstAmount,
+                );
             }
 
             if ($sgstRate !== null && $sgstAmount > 0) {
-                $xml .= $this->generateOutputTaxLedgerEntry("Output Sgst @ {$sgstRate}%", $sgstRate, $sgstAmount);
+                $xml .= $this->generateOutputTaxLedgerEntry(
+                    $this->resolveRateLedgerName($company, 'tally_output_sgst_ledger', 'Output Sgst @ {rate}%', $sgstRate),
+                    $sgstRate,
+                    $sgstAmount,
+                );
             }
         }
 
@@ -477,20 +490,29 @@ class TallyExportService
         return $xml;
     }
 
-    private function generateGstLedgerEntries(mixed $igstRate, float $igstAmount, mixed $cgstRate, float $cgstAmount, mixed $sgstRate, float $sgstAmount): string
+    private function generateGstLedgerEntries(mixed $igstRate, float $igstAmount, mixed $cgstRate, float $cgstAmount, mixed $sgstRate, float $sgstAmount, ?Company $company): string
     {
         if ($igstRate !== null && $igstAmount > 0) {
-            return $this->generateTaxLedgerEntry("Input Igst @ {$igstRate}%", $igstAmount);
+            return $this->generateTaxLedgerEntry(
+                $this->resolveRateLedgerName($company, 'tally_input_igst_ledger', 'Input Igst @ {rate}%', $igstRate),
+                $igstAmount,
+            );
         }
 
         $xml = '';
 
         if ($cgstRate !== null && $cgstAmount > 0) {
-            $xml .= $this->generateTaxLedgerEntry("Input Cgst @ {$cgstRate}%", $cgstAmount);
+            $xml .= $this->generateTaxLedgerEntry(
+                $this->resolveRateLedgerName($company, 'tally_input_cgst_ledger', 'Input Cgst @ {rate}%', $cgstRate),
+                $cgstAmount,
+            );
         }
 
         if ($sgstRate !== null && $sgstAmount > 0) {
-            $xml .= $this->generateTaxLedgerEntry("Input Sgst @ {$sgstRate}%", $sgstAmount);
+            $xml .= $this->generateTaxLedgerEntry(
+                $this->resolveRateLedgerName($company, 'tally_input_sgst_ledger', 'Input Sgst @ {rate}%', $sgstRate),
+                $sgstAmount,
+            );
         }
 
         return $xml;
@@ -755,6 +777,13 @@ class TallyExportService
         }
 
         return $xml;
+    }
+
+    private function resolveRateLedgerName(?Company $company, string $field, string $default, mixed $rate): string
+    {
+        $template = $company?->$field ?? $default;
+
+        return str_replace('{rate}', (string) $rate, $template);
     }
 
     private function escapeXml(string $value): string

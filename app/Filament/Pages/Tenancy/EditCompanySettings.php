@@ -142,6 +142,38 @@ class EditCompanySettings extends EditTenantProfile
                             ->placeholder('Generated on company registration'),
                     ]),
 
+                Section::make('Tally Ledger Settings')
+                    ->description('Ledger names must match exactly what is configured in your Tally company. Use {rate} as a placeholder for the GST rate percentage (e.g. "Input Igst @ {rate}%").')
+                    ->schema([
+                        TextInput::make('tally_input_igst_ledger')
+                            ->label('Input IGST Ledger')
+                            ->placeholder('Input Igst @ {rate}%')
+                            ->helperText('Used for purchase invoice IGST entries.'),
+                        TextInput::make('tally_output_igst_ledger')
+                            ->label('Output IGST Ledger')
+                            ->placeholder('Output Igst @ {rate}%')
+                            ->helperText('Used for sales invoice IGST entries.'),
+                        TextInput::make('tally_input_cgst_ledger')
+                            ->label('Input CGST Ledger')
+                            ->placeholder('Input Cgst @ {rate}%'),
+                        TextInput::make('tally_output_cgst_ledger')
+                            ->label('Output CGST Ledger')
+                            ->placeholder('Output Cgst @ {rate}%'),
+                        TextInput::make('tally_input_sgst_ledger')
+                            ->label('Input SGST Ledger')
+                            ->placeholder('Input Sgst @ {rate}%'),
+                        TextInput::make('tally_output_sgst_ledger')
+                            ->label('Output SGST Ledger')
+                            ->placeholder('Output Sgst @ {rate}%'),
+                        TextInput::make('tally_tds_payable_ledger')
+                            ->label('TDS Payable Ledger')
+                            ->placeholder('TDS Payable')
+                            ->helperText('Used when a TDS deduction is present on an invoice.'),
+                    ])
+                    ->collapsible()
+                    ->collapsed()
+                    ->columns(2),
+
                 Section::make('Integrations')
                     ->schema(fn () => $this->getIntegrationsSchema()),
             ]);

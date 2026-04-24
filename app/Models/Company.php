@@ -30,6 +30,13 @@ class Company extends Model
         'pan_number',
         'mobile_number',
         'review_confidence_threshold',
+        'tally_input_igst_ledger',
+        'tally_input_cgst_ledger',
+        'tally_input_sgst_ledger',
+        'tally_output_igst_ledger',
+        'tally_output_cgst_ledger',
+        'tally_output_sgst_ledger',
+        'tally_tds_payable_ledger',
     ];
 
     protected function casts(): array
