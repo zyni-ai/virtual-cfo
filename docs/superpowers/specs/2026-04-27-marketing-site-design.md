@@ -50,6 +50,31 @@ There is **no sign-up flow**, no pricing page, no waitlist. One page. One contac
 
 ---
 
+## Reference Websites
+
+Study these before building. Each is referenced for a specific reason — don't just copy the aesthetic, understand *why* it works.
+
+### Primary references (closest to what we're building)
+| Site | What to borrow |
+|---|---|
+| `dext.com` | Direct category peer — accounting automation for finance teams. Study how they explain a complex workflow simply, their section structure, and how they speak to non-technical finance people |
+| `stripe.com` | Gold standard for breaking down a technically complex product into clean, digestible sections. Study their hero layout, feature section spacing, and how they use screenshots |
+
+### Aesthetic references
+| Site | What to borrow |
+|---|---|
+| `linear.app` | Typography scale, whitespace rhythm, and how to make a B2B product feel premium without being flashy |
+| `loom.com` | "Here's the problem → here's the workflow → here's the outcome" page structure. Very close to our pipeline-led approach |
+| `cal.com` | Simple, honest SaaS positioning. Clean light design with strong hierarchy |
+
+### Avoid copying directly
+| Site | Why not |
+|---|---|
+| `raycast.com` | Dark theme — we're light |
+| `vercel.com` | Too developer-focused in tone — our audience is finance, not engineering |
+
+---
+
 ## Design Direction
 
 **Style:** Light + professional. Inspired by Stripe and Dext. Clean white backgrounds, strong typographic hierarchy, subtle borders, real product screenshots.
